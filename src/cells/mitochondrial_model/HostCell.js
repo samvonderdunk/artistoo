@@ -40,4 +40,4 @@ class HostCell extends Cell {
 	
 }
 
-export default StochasticCorrector
+export default HostCell

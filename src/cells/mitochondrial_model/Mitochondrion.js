@@ -8,8 +8,9 @@ class HostCell extends Cell {
         super(conf, kind, id, C, parent)
         
         this.DNA = []
-        this.selfishness = 0.5
-        this.cell_products = 0
+        this.oxphos_products = new Array(this.conf["N_OXPHOS"]).fill(0);
+        this.replication_products = new Array(this.conf["N_REP"]).fill(0);
+        this.potential = 0
 
         this.individualParams = ["V", "P"]
 
@@ -18,13 +19,20 @@ class HostCell extends Cell {
 		// this.V = conf["INIT_V"][kind]
 
 		if (parent instanceof Cell){ // copy on birth
-            this.selfishness = parent.selfishness
             this.divideProducts(parent)
 		} 
 	}
 
     divideProducts(parent){
         //do upon division
+    }
+
+    addProducts(products){
+        //upon fusion, host production
+    }
+
+    fuse(partner) {
+
     }
 	/* eslint-disable */ 
 	getIndividualParam(param){
@@ -41,4 +49,4 @@ class HostCell extends Cell {
 	
 }
 
-export default StochasticCorrector
+export default Mitochondrion
