@@ -7,13 +7,42 @@ Key assumptions:
     mitochondrial fission is to create variation of mitochondrial products
         select healthy mtDNA
     mitochondrial fusion is to homogenize for nuclear products
-        growth and replciation can only happen with the full nuclear machinery in your mt vesicle
+        replication can only happen with a relatively full nuclear machinery in your mt vesicle
     cell growth is a product of ∆Psi and membrane area, can be used for mt-replication and self-replication 
 
 -----
 
-This version records which product is 'worst' and computes rates with this as a rate-limiting step
+The current implementation in the pseudocode at the bottom is not reasonable in assessing quality/fitness.
+The implementation in the pseudocode is:    
+    Quality and copy number of products is condensed into a float per product
+    minimum number in array gives rate-limiting speed of entire assembly
+Other options:
+    The plan is that both mt_products and nuc_mt_products are encoded as copies each with their own quality
+    The rate of oxphos/DNA replication is is the best copy of the worst step.
+    This may encode diversity to win, while still keeping detrimental effects of poor DNA - in line with biology
+Or:
+    Do not encode quality, but just presence?
+    And do as many paths as the rate-limiting quantity allows
+Or:
+    Pick as many random paths with rate-limiting qualities as possible
 
+--
+questions
+
+How should quality of mt_products and nuc_mt_products be encoded?
+Which processes need to be modeled and how are they split between mt and nuc?
+    do the nuclear products share in oxphos?
+    Is it important that translation of oxphos products is mt encoded? - i.e. does it have to be explicitly modeled?
+    You could also split nuc_mt_products for replication and biogenesis - do you need to link biogenesis to host volume?
+What makes mt growth/biogenesis?? - currently this is nuclear regulated in humans
+
+---
+
+Additional options:
+    link oxphos quality and dna damage
+    set a target surface/vol to get mt shape in CPM 
+
+----
 
 struct mt_DNA{
     dna_quality = [float]			                                //this DNA’s ability to create each mt product
@@ -53,18 +82,20 @@ for all hosts {
         }
 
         if random() > chanceFission && volume > minimum_fission_vol:
-        // I think it would be interesting to have fission as < 50% of the mitochondrial volume to be sequestered
+        // I think it would be interesting to have fission as < 50% of the mitochondrial volume to be sequestered - but have to read more about this
             new_mitochondrion()
             divideProducts(this_mitochondrion, new_mitochondrion) // divide nuc_mt and mt products with(out) noise
         if this_mitochondrion.hasNeighbour() && random() > chanceFusion:
             fuseWith(neighbour) //(1 mitochondrion is effectively deleted, as both get the same ID)
             combineProducts()
         
+        ∆psi -= some_standard_shrinkage
         ∆psi += minimum(mt_products) / surface_area
+        target_vol += ∆psi * conversion
     }
     if this_host.cell_product > division_minimum_product:
         divide()
     else:
-        cell_products += selfishness * mitochondria.sum∆psi
+        cell_product += selfishness * mitochondria.sum∆psi
         (1-selfishness * mitochondria.sum∆psi).divideOverMitochondria() //adds to nuc_mt_products
 }

@@ -31,6 +31,10 @@ class Cell {
 	getIndividualParam(param){
 		throw("Implement changed way to get" + param + " constraint parameter per individual, or remove this from " + typeof this + " Cell class's indivualParams." )
 	}
+
+	// getColor(){
+	// 	return this.conf['CELLCOLOR'][this.kind]
+	// }
 	
 }
 

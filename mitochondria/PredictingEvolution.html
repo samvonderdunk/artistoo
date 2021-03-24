@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Workshop Predicting Evolution</title>
+<style type="text/css">
+body{
+		font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue",
+		 Helvetica, Arial, "Lucida Grande", sans-serif;
+	 padding : 15px;
+}
+td {
+	 padding: 10px;
+	 vertical-align: top;
+}
+</style>
+<link rel="stylesheet" href="./style.css">
+
+<script src="./artistoo2.js"></script>
+<script src="./sliders.js"></script>
+<script src="./fpsmeter.min.js"></script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>
+"use strict"
+
+
+/*	----------------------------------
+	CONFIGURATION SETTINGS
+	----------------------------------
+*/
+let init_nr_cells=50;
+
+let config = {
+
+	// Grid settings
+	ndim : 2,
+	field_size : [200,200],
+	
+	// CPM parameters and configuration
+	conf : {
+		// Basic CPM parameters
+		torus : [false,false],				// Should the grid have linked borders?
+		seed : 65342,							// Seed for random number generation.
+		T : 20,								// CPM temperature
+		// BarrierConstraint parameters
+		IS_BARRIER : [false, false, true],
+		// Mostly these have the format of an array in which each element specifies the
+		// parameter value for one of the cellkinds on the grid.
+		// First value is always cellkind 0 (the background) and is often not used.
+				
+		// Adhesion parameters:
+		J: [[0,14,0], [14,28,1000] , [0,1000,0]] ,
+		
+		// VolumeConstraint parameters
+		LAMBDA_V : [0,4,NaN],				// VolumeConstraint importance per cellkind
+		V : [0,50,NaN]					// Target volume of each cellkind
+        
+        
+	},
+	
+	// Simulation setup and configuration
+	simsettings : {
+	
+		// Cells on the grid
+		NRCELLS : [init_nr_cells,0],					// Number of cells to seed for all
+		// non-background cellkinds.
+		// Runtime etc
+		BURNIN : 100,
+		RUNTIME : 1000,
+		RUNTIME_BROWSER : "Inf",
+		
+		// Visualization
+		CANVASCOLOR : "eaecef",
+		CELLCOLOR :  ["B22222"], ///["00FF00"],
+		//ACTCOLOR : [true],			// Should pixel activity values be displayed?
+		SHOWBORDERS : [true],				// Should cellborders be displayed?
+		zoom : 2,							// zoom in on canvas with this factor.
+		
+		// Output images
+		//SAVEIMG : true,					// Should a png image of the grid be saved
+		// during the simulation?
+		//IMGFRAMERATE : 1,					// If so, do this every <IMGFRAMERATE> MCS.
+		//SAVEPATH : "output/img/SingleCell",	// ... And save the image in this folder.
+		//EXPNAME : "SingleCell",				// Used for the filename of output images.
+		
+		// Output stats etc
+		STATSOUT : { browser: false, node: true }, // Should stats be computed?
+		LOGRATE : 10							// Output stats every <LOGRATE> MCS.
+
+	}
+}
+/*	---------------------------------- */
+let sim, meter
+let storechem, storepers
+
+// sets up a simulation
+// function initialize(){
+// 	/* 	The following functions are defined below and will be added to
+// 	 	the simulation object.*/
+// 	let custommethods = {
+// 	 	initializeGrid : initializeGrid
+// 	}
+
+// 	if (sim ){
+// 		console.log("deleting object ");
+// 		 //console.log(delete sim);
+		
+// 	}
+// 	sim = new CPM.Simulation( config, custommethods )
+	
+
+//     sim.C.add( new CPM.PersistenceConstraint({
+// 		LAMBDA_DIR : [0,4],
+// 		DELTA_T : [0,500],
+// 		PERSIST : [0,1]
+// 	}))
+
+	
+// 	meter = new FPSMeter({left:"auto", right:"5px"})
+// 	step()
+// }
+
+function initialize(){
+	/* 	The following functions are defined below and will be added to
+		 the simulation object.*/
+	let custommethods = {
+		 initializeGrid : initializeGrid,
+		 //postMCSListener : postMCSListener,
+		 buildBorder : buildBorder,
+		 drawCanvas : drawCanvas
+	}
+
+	sim = new CPM.Simulation( config, custommethods )
+	sim.g = new CPM.Grid2D([sim.C.extents[0],sim.C.extents[1]], config.torus, "Float32")
+	// sim.g = new CPM.Grid2D([sim.C.extents[0]/10,sim.C.extents[1]/10], config.torus, "Float32")
+	// sim.gi = new CPM.CoarseGrid( sim.g, 10 )
+	sim.C.add( new CPM.ChemotaxisConstraint( 
+		{	LAMBDA_CH : [0,50,NaN], CH_FIELD : sim.g } ) )
+	// sim.g = new CPM.Grid2D( config.field_size, config.torus, "Float32" ),
+	initChemGrid()
+	 
+	sim.C.add( new CPM.PersistenceConstraint({
+		LAMBDA_DIR : [0,10,NaN],
+		DELTA_T : [0,50,NaN],
+		PERSIST : [0,1,NaN]
+	}))
+	
+	storechem=sim.C.getConstraint('ChemotaxisConstraint').conf.LAMBDA_CH[1]
+	storepers=sim.C.getConstraint('PersistenceConstraint').conf.LAMBDA_DIR[1]
+
+	console.log("before ChemotaxisConstraint"+storepers)
+	
+    console.log("sim g size "+ sim.g.extents[0])
+	//console.log("sim gi size "+ sim.gi.extents[0])
+	console.log("after ChemotaxisConstraint")
+	
+	meter = new FPSMeter({left:"auto", right:"5px"})
+	step()
+}
+
+function step(){
+	sim.step()
+	meter.tick()
+	if( sim.conf["RUNTIME_BROWSER"] == "Inf" | sim.time+1 < sim.conf["RUNTIME_BROWSER"] ){
+		requestAnimationFrame( step )
+	}
+	//console.log("time step ");
+
+}
+
+
+/* The following custom methods will be added to the simulation object
+below. */
+function initializeGrid(){
+	
+	// add the GridManipulator if not already there and if you need it
+	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
+	//for making border pixels
+	this.buildBorder()
+
+	
+	this.gm.seedCellsInCircle( 1, init_nr_cells, this.C.midpoint, this.C.extents[0]/4 )
+	
+	
+}
+
+function buildBorder(){
+		
+	let bordervoxels
+		
+	bordervoxels = this.gm.makePlane( [], 0, 0 )
+	bordervoxels = this.gm.makePlane( bordervoxels, 0, this.C.extents[0]-1)
+	bordervoxels = this.gm.makePlane( bordervoxels, 1, 0 )
+	bordervoxels = this.gm.makePlane( bordervoxels, 1, this.C.extents[1]-1)
+	
+	this.gm.changeKind( bordervoxels, 2)
+		
+}
+
+let currentpeak =0
+let cmax =5.0
+function initChemGrid(peakpoint=[sim.C.extents[0]/2, 0]){
+	
+	//let peakpoint=[100,0];
+	let maxdist=Math.sqrt(0.25*config.field_size[0]*config.field_size[0]+config.field_size[1]*config.field_size[1]);
+	let slope=cmax/maxdist;
+	let dist=0;
+	for (let i=0; i<config.field_size[0]; i++){
+		for(let j=0; j<config.field_size[1]; j++){
+			dist=Math.sqrt( (i-peakpoint[0])*(i-peakpoint[0])+ ( j-peakpoint[1])*( j-peakpoint[1]) );
+			sim.g.setpix([i,j], cmax-(cmax/maxdist)*dist);
+		}		
+	}
+	// currentpeak = peakpoint
+}
+// function postMCSListener(){
+	// let center = [this.C.extents[0]/2,this.C.extents[1]/2]
+	// this.g.setpix( center, 5*10000+this.g.pixt(center) )
+	// for( let i = 1 ; i <= 10 ; i ++ ){
+	// 	this.g.diffusion( this.C.conf["D"] )
+	// }
+	// this.g.multiplyBy( 0.9 )
+	;
+// }
+function drawCanvas(){
+	
+	// Add the canvas if required
+	if( !this.helpClasses["canvas"] ){ this.addCanvas() }
+
+	// Clear canvas and draw stroma border
+	this.Cim.clear( this.conf["CANVASCOLOR"] || "FFFFFF" )
+
+	this.Cim.drawFieldContourLinear( this.g ,20, "bbbbbb")
+
+	// this.Cim.drawCellBorders( -1, "000000" )
+	// Draw each cellkind appropriately
+	let cellcolor=( this.conf["CELLCOLOR"] || [] ), actcolor=this.conf["ACTCOLOR"], 
+		nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
+	for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
+		
+		// draw the cells of each kind in the right color
+		if( cellcolor[ cellkind ] != -1 ){
+			this.Cim.drawCells( cellkind+1, cellcolor[cellkind] )
+		}
+			
+		// Draw borders if required
+		if(  cellborders[ cellkind  ]  ){
+			let bordercol = "000000"
+			if( this.conf.hasOwnProperty("BORDERCOL") ){
+				bordercol = this.conf["BORDERCOL"][cellkind] || "000000"
+			}
+			this.Cim.drawCellBorders( cellkind+1, bordercol )
+		}
+			
+
+	}
+		
+}
+
+/* The following custom methods are used for control buttons on the html page.*/
+
+function startsim(){
+	if( !sim.running ){
+		sim.running = true
+	}
+}
+function stopsim(){
+	sim.running = false
+}
+
+function killAllCells(){
+	let cells = Object.keys( sim.C.getStat( CPM.PixelsByCell ) )
+	if( cells.length == 0 ) return
+	for( let cp of sim.C.cellPixels() ){
+		sim.C.setpix( cp[0], 0 )
+	}
+}
+
+
+function removeCellsandBlob(){
+	killAllCells()
+
+	let fieldcenter=[]
+	for (let i=0; i<sim.C.ndim; i++){
+		console.log("field_size "+config.field_size[i]);
+		fieldcenter[i]=config.field_size[i]/2.0;
+	}
+	console.log("midpoint "+fieldcenter);
+	console.log("extents "+sim.C.extents[0]);
+	sim.gm.seedCellsInCircle( 1, init_nr_cells, fieldcenter, sim.C.extents[0]/8 )
+	sim.buildBorder()
+	// console.log("reset blob: "+sim.C.getConstraint('ChemotaxisConstraint').conf.LAMBDA_CH[1])
+}
+
+function removeCellsandScatter(){
+	killAllCells()
+	
+	for( let i = 0; i < init_nr_cells; i++ ){
+		sim.gm.seedCell( 1 )
+	}
+	sim.buildBorder()
+
+	// console.log("LAMBDA_CH[1]" + sim.C.getConstraint('ChemotaxisConstraint').conf.LAMBDA_CH[1])
+
+}
+
+// function setSliders(){
+// 	let gammaval;
+
+// 	document.getElementById("mact").value = config.conf.MAX_ACT[1]
+// }
+
+
+
+function ChangeGamma(val){
+
+	sim.C.conf.J[1][1]=2*(sim.C.conf.J[0][1]-val)
+	console.log("new J value: "+sim.C.conf.J[1][1])
+
+}
+
+function ChangeLambdaPersMigr(){
+	// if (sim.C.getConstraint('PersistenceConstraint').conf.LAMBDA_DIR>0.000001){
+	// 	sim.C.getConstraint('PersistenceConstraint').conf.LAMBDA_DIR=0.0
+	// }else{
+	// 	sim.C.getConstraint('PersistenceConstraint').conf.LAMBDA_DIR=storepers
+	// }
+	if (sim.C.getConstraint('PersistenceConstraint').conf.LAMBDA_DIR[1]>0.000001){
+		sim.C.getConstraint('PersistenceConstraint').conf.LAMBDA_DIR[1]=0.0
+	}else{
+		sim.C.getConstraint('PersistenceConstraint').conf.LAMBDA_DIR[1]=storepers
+	}
+}
+
+function ChangeLambdaChemotax(){
+	if (sim.C.getConstraint('ChemotaxisConstraint').conf.LAMBDA_CH[1]>0.000001){
+		sim.C.getConstraint('ChemotaxisConstraint').conf.LAMBDA_CH[1]=0.0
+	}else{
+		sim.C.getConstraint('ChemotaxisConstraint').conf.LAMBDA_CH[1]=storechem
+	}
+}
+
+/*
+From peak 
+*/
+function GradpeakInt2Coord(newpeak){
+	let peakarr
+	if( newpeak == 0)    { peakarr=[sim.C.extents[0]/2, 0                 ] } //N
+	else if(newpeak == 1){ peakarr=[sim.C.extents[0]/2, sim.C.extents[1]  ] } //S
+	else if(newpeak == 2){ peakarr=[0,                  sim.C.extents[1]/2] } //W
+	else if(newpeak == 3){ peakarr=[sim.C.extents[0],   sim.C.extents[1]/2] } //E
+	else { throw("Error in newpeak: " + newpeak) }
+	
+	return peakarr
+}
+
+function RandomiseGradientDirection(){
+	let newpeak,peakarr
+	
+	do{
+		newpeak = Math.floor( 4. * sim.C.random())
+	}while( newpeak == currentpeak )
+	
+	peakarr = GradpeakInt2Coord(newpeak)
+	
+	initChemGrid(peakarr)
+	currentpeak = newpeak
+}
+
+function setSliders(){
+	document.getElementById("gamma").value = sim.C.conf.J[0][1]-sim.C.conf.J[1][1]/2.;
+	document.getElementById("gradient").value = cmax;
+}
+</script>
+</head>
+<body onload="initialize();setSliders();initializeSliders()">
+<h1>Predicting evolution Workshop</h1>
+<h2>16th March 2021</h2>
+<p>
+ 
+<br>
+<button onclick="startsim()">start</button>
+<button onclick="stopsim()">stop</button>
+<button onclick="removeCellsandBlob()">reset as blob</button>
+<button onclick="removeCellsandScatter()">reset scattered</button>
+<button onclick="RandomiseGradientDirection()">New gradient direction</button>
+<br>
+<!-- <button onclick="ChangeLambdaChemotax()">chemotaxis on/off</button>
+<button onclick="ChangeLambdaPersMigr()">persistent migration on/off</button>
+<br> -->
+
+<label class="switch">
+	<input type="checkbox" name="chemotaxis" oninput="ChangeLambdaChemotax()"  checked>
+	<span class="slider round"></span>
+	<label for="chemotaxis">chemotaxis</label>
+
+</label>
+
+<label class="switch">
+	<input type="checkbox" name="persistence" oninput="ChangeLambdaPersMigr()"  checked>
+	<span class="slider round"></span>
+	<label for="persistence">persistence</label>
+
+</label>
+
+
+<!-- <form autocomplete="off">
+	<label for="gamm">gamma value:</label><br>
+	<input type="text" id="gamm" oninput="ChangeGamma(parseInt(this.value))"><br> -->
+<!-- </form> -->
+
+
+<table width="400px">
+	<tr>
+		<td style="width:20%">&#947</td>
+		<td style="width:5%">-8</td>
+		<td style="width:70%"> 
+			<div class="range-wrap">
+			<input type="range" class="range" min="-8" max="8" id="gamma" oninput="ChangeGamma(parseInt(this.value))" >
+			<output class="bubble"></output>
+			</div>
+		</td>
+		<td style="width:5%">8</td>
+	</tr>
+	<tr>
+			<td style="width:20%">Maximum gradient value</td>
+			<td style="width:5%">0</td>
+			<td style="width:70%"> 
+				<div class="range-wrap">
+				<input type="range" class="range" min="0" max="50" id="gradient" oninput="cmax=parseInt(this.value); initChemGrid(GradpeakInt2Coord(currentpeak))" >
+				<output class="bubble"></output>
+				</div>
+			</td>
+			<td style="width:5%">50</td>
+		</tr>
+		</table>
+<!-- <table>
+<tr>
+	<td>gamma value</td><td>
+	<input type="text" id="gamm" oninput="sim.C.conf.J[1][1]=2*(sim.C.conf.J[0][1]-parseInt(this.value))">
+	</td>
+	<td>Adhesion<sub>cell-cell</sub></td><td>
+	<input type="text" value="0" id="jtt" oninput="sim.C.conf.J[1][1]=parseInt(this.value)">
+	</td>
+</tr>
+</table> -->
+</div>
+</p>
+<div>
+<p>
+	How well cells can perform chemotaxis depends on several parameters. <br>
+	For instance, the steeper the gradient, the easier it is for cells to perceive the direction and the larger the energy difference in the Hamiltonian.
+</p>
+<p>
+	&#947 is a measure of surface tension, calculated as follows: \(\gamma_{c,m}= J_{c,m}-\frac{J_{c,c}}{2}\)<br>
+	&#947 is positive, and cells adhere, when the interfacial energy between cells and the medium is higher than the interfacial energy between cells
+</p>
+<p>
+	What happens when cells do not adhere? Why do you think that is?<br>
+	How does persistence influence chemotaxis when cells adhere, and when they don't? HINT: use a weak gradient<br>
+	How does persistence change when cells adhere and there is NO chemotaxis?<br>
+</p>
+<p>
+	Original publication: <a href="https://elifesciences.org/articles/56349">E.S. Colizzi, R.M.A. Vroomans and R.M.H. Merks. ELife 2020</a> <br>
+	Simulation toolkit: <a href="https://artistoo.net">Artistoo</a>
+</p>
+</div>
+</body>
+</html>
