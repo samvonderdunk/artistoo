@@ -2928,7 +2928,7 @@ class CPM extends GridBasedModel {
 		this.time = 0;
 		this.cellvolume = [0];
 		this.stat_values = {};
-		this.cells = [this.cells[0]]; // keep empty declared
+		this.cells = [this.cells[0]]; // keep empty declared @TODO test whether this can give problems
 	}
 
 	/* This is no different from the GridBasedModel function and can go. 
@@ -3243,7 +3243,7 @@ class CPM extends GridBasedModel {
 			if( this.cellvolume[t_old] == 0 ){
 				delete this.cellvolume[t_old];
 				delete this.t2k[t_old];
-				delete this.cells[t_old];
+				// this.cells.splice(t_old, 1)
 				this.nr_cells--;
 			}
 		}
@@ -4697,7 +4697,7 @@ class Mitochondrion extends Cell {
         let new_arr_1 = [[], [], []];
         let new_arr_2 = [[], [], []];
         for (const [which, arr] of [parent.oxphos_products, parent.translate_products, parent.replication_products].entries()){
-            console.log(arr, typeof arr);
+            // console.log(arr, typeof arr)
             for (let product of arr){
                 let fluct = Math.floor(this.conf["NOISE"]* (2  *this.mt.random() - 1));
                 if ((product/2 - fluct) < 0){ 

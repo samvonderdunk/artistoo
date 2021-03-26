@@ -115,7 +115,7 @@ function initialize(){
 	 }
 	sim = new CPM.Simulation( config, custommethods )
 
-	showYcolors = false
+	showYcolors = true
 
 	meter = new FPSMeter({left:"auto", right:"5px"})
 	step()
@@ -140,7 +140,9 @@ function postMCSListener(){
 	
     var C = this.C
     for (let cell of this.C.cells){
-        if (cell.id >= 0){
+		if (this.C.getVolume(cell.id) == 0){
+			console.log(cell.id)
+		} else if (cell.id >= 0){
             update(cell, C)
         }
     }
@@ -152,7 +154,7 @@ function postMCSListener(){
 }
 
 function update(mito, C){
-    console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "oxphos products: ", mito.oxphos_products)
+    // console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "oxphos products: ", mito.oxphos_products)
     mito.oxphos = Math.min.apply(Math, mito.oxphos_products) 
     if (mito.V - C.getVolume(mito.id) < 10){
         mito.V += mito.oxphos 

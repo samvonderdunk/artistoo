@@ -120,7 +120,7 @@ class CPM extends GridBasedModel {
 		this.time = 0
 		this.cellvolume = [0]
 		this.stat_values = {}
-		this.cells = [this.cells[0]] // keep empty declared
+		this.cells = [this.cells[0]] // keep empty declared @TODO test whether this can give problems
 	}
 
 	/* This is no different from the GridBasedModel function and can go. 
@@ -435,7 +435,7 @@ class CPM extends GridBasedModel {
 			if( this.cellvolume[t_old] == 0 ){
 				delete this.cellvolume[t_old]
 				delete this.t2k[t_old]
-				delete this.cells[t_old]
+				// this.cells.splice(t_old, 1)
 				this.nr_cells--
 			}
 		}

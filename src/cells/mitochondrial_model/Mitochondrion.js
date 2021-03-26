@@ -78,7 +78,7 @@ class Mitochondrion extends Cell {
         let new_arr_1 = [[], [], []]
         let new_arr_2 = [[], [], []]
         for (const [which, arr] of [parent.oxphos_products, parent.translate_products, parent.replication_products].entries()){
-            console.log(arr, typeof arr)
+            // console.log(arr, typeof arr)
             for (let product of arr){
                 let fluct = Math.floor(this.conf["NOISE"]* (2  *this.mt.random() - 1))
                 if ((product/2 - fluct) < 0){ 
