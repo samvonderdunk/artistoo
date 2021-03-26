@@ -41,13 +41,13 @@ let config = {
         
         // used internally
 		CELLS : ["empty", CPM.Mitochondrion],
-        NOISE : [0,0],
+        NOISE : 1,
         N_OXPHOS : 5, 
         N_TRANSLATE : 5,
         N_REPLICATE : 15,
         INIT_OXPHOS : 80,
-        N_INIT_DNA : 5,
-        MTDNA_MUT_RATE : 0.01,
+        N_INIT_DNA : 10,
+        MTDNA_MUT_RATE : 0.1,
 
 		// Constraint parameters. 
 		// Mostly these have the format of an array in which each element specifies the
@@ -152,10 +152,10 @@ function postMCSListener(){
 }
 
 function update(mito, C){
-    console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length)
+    console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "oxphos products: ", mito.oxphos_products)
     mito.oxphos = Math.min.apply(Math, mito.oxphos_products) 
-    if (mito.V - C.getVolume(mito.id) < 10 && mito.oxphos >0){
-        mito.V += mito.oxphos
+    if (mito.V - C.getVolume(mito.id) < 10){
+        mito.V += mito.oxphos 
     }
     mito.V -= mito.conf["MITO_SHRINK"]
 
@@ -331,7 +331,7 @@ function getColor (cell) {
 	if (cell.id < 0){
 		return
 	}
-	let c = Math.floor(cell.Y *3) 
+	let c = Math.floor(cell.DNA.length *3) 
 	if (c >= cmap.length){
 		c = cmap.length - 1
 	} else if (c < 0){
@@ -354,7 +354,7 @@ function changeColorBy(){
 <h1>Stochastic Correction</h1>
 
 <label class="switch">
-		<input type="checkbox" name="colorby" oninput="changeColorBy()"  unchecked>
+		<input type="checkbox" name="colorby" oninput="changeColorBy()"  checked>
 		<span class="slider round"></span>
 		<label for="colorby"> Show Y amount</label>
 	

@@ -78,14 +78,16 @@ class Mitochondrion extends Cell {
         let new_arr_1 = [[], [], []]
         let new_arr_2 = [[], [], []]
         for (const [which, arr] of [parent.oxphos_products, parent.translate_products, parent.replication_products].entries()){
-            // console.log(arr, typeof arr)
-            for (const [ix, product] of arr.entries()){
-                let fluct = this.conf["NOISE"]* (2  *this.mt.random() - 1)
-                if ((product/2 - fluct) < 0){
-                    fluct = product/2
+            console.log(arr, typeof arr)
+            for (let product of arr){
+                let fluct = Math.floor(this.conf["NOISE"]* (2  *this.mt.random() - 1))
+                if ((product/2 - fluct) < 0){ 
+                    fluct = Math.floor(product/2)
                 }
-                new_arr_1[which][ix] = product + fluct
-                new_arr_2[which][ix] = product - fluct
+                // console.log(fluct)
+                new_arr_1[which].push(product + fluct)
+                new_arr_2[which].push(product - fluct)
+                // console.log(new_arr_1)
             }
         }
         this.setProducts(new_arr_1[0], new_arr_1[1], new_arr_1[2])
@@ -107,7 +109,8 @@ class Mitochondrion extends Cell {
         }
 
 		this.V = parent.V/2
-		parent.V /= 2
+        parent.V /= 2
+        // throw("HEY")
     }
     
     shuffleArray(unshuffled) {

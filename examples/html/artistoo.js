@@ -3013,6 +3013,10 @@ var CPM = (function (exports) {
 			throw("Implement changed way to get" + param + " constraint parameter per individual, or remove this from " + typeof this + " Cell class's indivualParams." )
 		}
 
+		// getColor(){
+		// 	return this.conf['CELLCOLOR'][this.kind]
+		// }
+		
 	}
 
 	/** The core CPM class. Can be used for two- or three-dimensional simulations.
@@ -4899,14 +4903,16 @@ var CPM = (function (exports) {
 	        let new_arr_1 = [[], [], []];
 	        let new_arr_2 = [[], [], []];
 	        for (const [which, arr] of [parent.oxphos_products, parent.translate_products, parent.replication_products].entries()){
-	            // console.log(arr, typeof arr)
-	            for (const [ix, product] of arr.entries()){
-	                let fluct = this.conf["NOISE"]* (2  *this.mt.random() - 1);
-	                if ((product/2 - fluct) < 0){
-	                    fluct = product/2;
+	            console.log(arr, typeof arr);
+	            for (let product of arr){
+	                let fluct = Math.floor(this.conf["NOISE"]* (2  *this.mt.random() - 1));
+	                if ((product/2 - fluct) < 0){ 
+	                    fluct = Math.floor(product/2);
 	                }
-	                new_arr_1[which][ix] = product + fluct;
-	                new_arr_2[which][ix] = product - fluct;
+	                // console.log(fluct)
+	                new_arr_1[which].push(product + fluct);
+	                new_arr_2[which].push(product - fluct);
+	                // console.log(new_arr_1)
 	            }
 	        }
 	        this.setProducts(new_arr_1[0], new_arr_1[1], new_arr_1[2]);
@@ -4928,7 +4934,8 @@ var CPM = (function (exports) {
 	        }
 
 			this.V = parent.V/2;
-			parent.V /= 2;
+	        parent.V /= 2;
+	        // throw("HEY")
 	    }
 	    
 	    shuffleArray(unshuffled) {
