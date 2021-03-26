@@ -2,13 +2,14 @@
 
 class DNA {
 
-		/* eslint-disable */ 
+	/* eslint-disable */ 
 	constructor (conf, mt ,parent) {
+        this.mt = mt
+        this.conf = conf
+
         this.oxphos_quality = new Array(this.conf["N_OXPHOS"]).fill(1);
         this.translate_quality = new Array(this.conf["N_TRANSLATE"]).fill(1);
         this.replicate_quality = new Array(this.conf["N_REPLICATE"]).fill(0);
-        this.mt = mt
-        this.conf = conf
         this.replicateFlag = false
         this.translateFlag = false
         if (parent instanceof DNA){
@@ -44,7 +45,7 @@ class DNA {
     }
 
     setTranslateFlag(bool){
-        this.replicateFlag = bool
+        this.translateFlag = bool
     }
 }
 

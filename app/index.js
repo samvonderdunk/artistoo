@@ -10,6 +10,8 @@ import GridBasedModel from "../src/models/GridBasedModel.js"
  
 import Cell from "../src/cells/Cell.js" 
 import StochasticCorrector from "../src/cells/StochasticCorrector.js" 
+import Mitochondrion from "../src/cells/mitochondrial_model/Mitochondrion.js" 
+import DNA from "../src/cells/mitochondrial_model/DNA.js" 
  
 import Stat from "../src/stats/Stat.js" 
 import PixelsByCell from "../src/stats/PixelsByCell.js" 
@@ -61,6 +63,8 @@ export {
 	GridBasedModel,
 	Cell,
 	StochasticCorrector,
+	Mitochondrion,
+	DNA,
 	Stat,
 	PixelsByCell,
 	BorderPixelsByCell,
