@@ -138,14 +138,10 @@ function postMCSListener(){
 	// add the initializer if not already there
 	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
 	
-    var C = this.C
-    for (let cell of this.C.cells){
-		if (this.C.getVolume(cell.id) == 0){
-			console.log(cell.id)
-		} else if (cell.id >= 0){
-            update(cell, C)
-        }
-    }
+	var C = this.C
+	this.C.cells.forEach(function (item) {
+		update(C, item)
+	});
 	for( let i of this.C.cellIDs() ){
 		if( this.C.getVolume(i) > this.C.conf.division_volume[this.C.cellKind(i)] ){
 			this.gm.divideCell(i)
@@ -153,7 +149,8 @@ function postMCSListener(){
 	}
 }
 
-function update(mito, C){
+function update(C, mito){
+	if (mito.id < 0){return}
     // console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "oxphos products: ", mito.oxphos_products)
     mito.oxphos = Math.min.apply(Math, mito.oxphos_products) 
     if (mito.V - C.getVolume(mito.id) < 10){
