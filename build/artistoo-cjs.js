@@ -3243,7 +3243,7 @@ class CPM extends GridBasedModel {
 			if( this.cellvolume[t_old] == 0 ){
 				delete this.cellvolume[t_old];
 				delete this.t2k[t_old];
-				// this.cells.splice(t_old, 1)
+				delete this.cells[t_old];
 				this.nr_cells--;
 			}
 		}
@@ -4583,24 +4583,31 @@ class DNA {
         this.replicate_quality = new Array(this.conf["N_REPLICATE"]).fill(0);
         this.replicateFlag = false;
         this.translateFlag = false;
+        // console.log("also in seed", this.translate_quality)
         if (parent instanceof DNA){
-            this.quality = parent.quality;
-            if (this.mt.random > conf["MTDNA_MUT_RATE"] ){
+            this.oxphos_quality = [...parent.oxphos_quality];
+            this.translate_quality = [...parent.translate_quality];
+            this.replicate_quality = [...parent.replicate_quality];
+            if (this.mt.random() < conf["MTDNA_MUT_RATE"] ){
+                // console.log("before mutate", this.translate_quality)
                 this.mutate();
+                // console.log("after mutate", this.translate_quality)
             }
         }
     }
 
     mutate(){ 
-        indices = this.oxphos_quality.concat(this.translate_quality, this.replicate_quality).reduce(function(arr, e, i) {
+        let indices = this.oxphos_quality.concat(this.translate_quality, this.replicate_quality).reduce(function(arr, e, i) {
             if (e == 1) arr.push(i);
             return arr;
           }, []);
-        let ix = Math.floor(mt.random() * indices.length);
-
-        if (ix <= this.conf["N_OXPHOS"]){
+        let ix = indices[Math.floor(this.mt.random() * indices.length)];
+        console.log(indices, ix);
+        if (ix < this.conf["N_OXPHOS"]){
+            console.log("setting oxphos ", ix);
             this.oxphos_quality[ix] = 0;
-        } else if (ix <= (this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])){
+        } else if (ix < (this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])){
+            console.log("setting otranslate ", ix - this.conf["N_OXPHOS"]);
             this.translate_quality[ix - this.conf["N_OXPHOS"] ] = 0;
         } else {
             this.replicate_quality[ix - this.conf["N_OXPHOS"] - this.conf["N_TRANSLATE"] ] = 0;
@@ -4618,6 +4625,11 @@ class DNA {
     setTranslateFlag(bool){
         this.translateFlag = bool;
     }
+
+    sumQuality(){
+        return  [this.oxphos_quality, this.translate_quality ,this.replicate_quality].reduce((t, e) => t.concat(e)).reduce((t, e) => t + e)
+    }
+
 }
 
 class Mitochondrion extends Cell {
@@ -4627,9 +4639,9 @@ class Mitochondrion extends Cell {
         super(conf, kind, id, C, parent);
         
         this.DNA = [];
-        this.oxphos_products = new Array(this.conf["N_OXPHOS"]).fill(1);
-        this.translate_products = new Array(this.conf["N_TRANSLATE"]).fill(1);
-        this.replication_products = new Array(this.conf["N_REPLICATE"]).fill(1);
+        this.oxphos_products = new Array(this.conf["N_OXPHOS"]).fill(this.conf["INIT_OXPHOS"]);
+        this.translate_products = new Array(this.conf["N_TRANSLATE"]).fill(5);
+        this.replication_products = new Array(this.conf["N_REPLICATE"]).fill(5);
        
         this.oxphos = this.conf["INIT_OXPHOS"];
         this.V = this.conf["INIT_OXPHOS"];
@@ -4698,34 +4710,56 @@ class Mitochondrion extends Cell {
         let new_arr_2 = [[], [], []];
         for (const [which, arr] of [parent.oxphos_products, parent.translate_products, parent.replication_products].entries()){
             // console.log(arr, typeof arr)
-            for (let product of arr){
-                let fluct = Math.floor(this.conf["NOISE"]* (2  *this.mt.random() - 1));
-                if ((product/2 - fluct) < 0){ 
-                    fluct = Math.floor(product/2);
-                }
-                // console.log(fluct)
-                new_arr_1[which].push(product + fluct);
-                new_arr_2[which].push(product - fluct);
-                // console.log(new_arr_1)
+            for (const [ix, product] of arr.entries()){
+                new_arr_1[which].push(0);
+                new_arr_2[which].push(0);
+                for (let i = 0; i < product; i ++){
+                    if (this.mt.random() > 0.5){
+                        new_arr_1[which][ix]++;
+                    } else {
+                        new_arr_2[which][ix]++;
+                    }   
+                
+                // let fluct = Math.floor(this.conf["NOISE"]* (2  *this.mt.random() - 1))
+                // if ((product/2 - Math.abs(fluct)) < 0){ 
+                //     fluct = Math.floor(product/2) * Math.sign(fluct)
+                // }
+                // // console.log(fluct)
+                // new_arr_1[which].push(Math.floor(product/2) + fluct)
+                // new_arr_2[which].push(Math.floor(product/2) - fluct)
+                // if (product % 2 !== 0){
+                    
+                }  
             }
         }
+        // console.log("products:", [parent.oxphos_products, parent.translate_products, parent.replication_products],new_arr_1,new_arr_2)
         this.setProducts(new_arr_1[0], new_arr_1[1], new_arr_1[2]);
         parent.setProducts(new_arr_2[0], new_arr_2[1], new_arr_2[2]);
+        
 
-        let fluct = this.conf["NOISE"]* (2  *this.mt.random() - 1);
-        if ((parent.DNA.length/2 - fluct) < 0){
-            fluct = parent.DNA.length/2; 
-        }
+        // let fluct = this.conf["NOISE"]* (2  *this.mt.random() - 1)
+        // if ((parent.DNA.length/2 - Math.abs(fluct)) < 0){
+        //     fluct = parent.DNA.length/2  * Math.sign(fluct)
+        // }
+        // console.log('orig dna length', parent.DNA.length)
         let all_dna = this.shuffleArray(parent.DNA);
         parent.DNA = [];
         this.DNA = []; //redundant for birth call - but to be sure in later implementation
-        for (const [ix, dna] of all_dna.entries()){
-            if (ix < (parent.DNA.length/2 + fluct)){
-                parent.DNA.push(dna);
-            } else {
+        for (let dna of all_dna){
+            if (this.mt.random() > 0.5){
                 this.DNA.push(dna);
-            }
+            } else {
+                parent.DNA.push(dna);
+            }   
         }
+        // for (const [ix, dna] of all_dna.entries()){
+        //     if (ix < (Math.floor(parent.DNA.length/2) - Math.floor(fluct))){
+        //         parent.DNA.push(dna)
+        //     } else {
+        //         this.DNA.push(dna)
+        //     }
+        // }
+        // console.log('child 1 ', parent.DNA, "child 2", this.DNA)
 
 		this.V = parent.V/2;
         parent.V /= 2;
@@ -4764,6 +4798,20 @@ class Mitochondrion extends Cell {
 		throw("Implement changed way to get" + param + " constraint parameter per individual, or remove this from " + typeof this + " Cell class's indivualParams." )
 	}
 
+    heteroplasmy(){
+        // compute heteroplasmy
+        if (this.DNA.length == 0){
+            return 0
+        }
+        let all_proteins = new DNA(this.conf, this.mt).sumQuality();
+        let heteroplasmy = 0;
+        for (let dna of this.DNA){
+            if (dna.sumQuality() < all_proteins){
+                heteroplasmy++;
+            }
+        }
+        return heteroplasmy/this.DNA.length
+    }
 	// getColor(){
 	// 	return 100/this.Y
 	// }

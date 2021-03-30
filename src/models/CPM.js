@@ -435,7 +435,7 @@ class CPM extends GridBasedModel {
 			if( this.cellvolume[t_old] == 0 ){
 				delete this.cellvolume[t_old]
 				delete this.t2k[t_old]
-				// this.cells.splice(t_old, 1)
+				delete this.cells[t_old]
 				this.nr_cells--
 			}
 		}

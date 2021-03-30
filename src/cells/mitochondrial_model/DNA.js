@@ -12,24 +12,31 @@ class DNA {
         this.replicate_quality = new Array(this.conf["N_REPLICATE"]).fill(0);
         this.replicateFlag = false
         this.translateFlag = false
+        // console.log("also in seed", this.translate_quality)
         if (parent instanceof DNA){
-            this.quality = parent.quality
-            if (this.mt.random > conf["MTDNA_MUT_RATE"] ){
+            this.oxphos_quality = [...parent.oxphos_quality]
+            this.translate_quality = [...parent.translate_quality]
+            this.replicate_quality = [...parent.replicate_quality]
+            if (this.mt.random() < conf["MTDNA_MUT_RATE"] ){
+                // console.log("before mutate", this.translate_quality)
                 this.mutate()
+                // console.log("after mutate", this.translate_quality)
             }
         }
     }
 
     mutate(){ 
-        indices = this.oxphos_quality.concat(this.translate_quality, this.replicate_quality).reduce(function(arr, e, i) {
+        let indices = this.oxphos_quality.concat(this.translate_quality, this.replicate_quality).reduce(function(arr, e, i) {
             if (e == 1) arr.push(i);
             return arr;
           }, [])
-        let ix = Math.floor(mt.random() * indices.length)
-
-        if (ix <= this.conf["N_OXPHOS"]){
+        let ix = indices[Math.floor(this.mt.random() * indices.length)]
+        console.log(indices, ix)
+        if (ix < this.conf["N_OXPHOS"]){
+            console.log("setting oxphos ", ix)
             this.oxphos_quality[ix] = 0
-        } else if (ix <= (this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])){
+        } else if (ix < (this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])){
+            console.log("setting otranslate ", ix - this.conf["N_OXPHOS"])
             this.translate_quality[ix - this.conf["N_OXPHOS"] ] = 0
         } else {
             this.replicate_quality[ix - this.conf["N_OXPHOS"] - this.conf["N_TRANSLATE"] ] = 0
@@ -47,6 +54,11 @@ class DNA {
     setTranslateFlag(bool){
         this.translateFlag = bool
     }
+
+    sumQuality(){
+        return  [this.oxphos_quality, this.translate_quality ,this.replicate_quality].reduce((t, e) => t.concat(e)).reduce((t, e) => t + e)
+    }
+
 }
 
 export default DNA

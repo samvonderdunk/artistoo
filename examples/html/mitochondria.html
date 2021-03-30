@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>CellDivision</title>
+<title>Mitochondria</title>
 <style type="text/css">
 body{
 		font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue",
@@ -41,21 +41,27 @@ let config = {
         
         // used internally
 		CELLS : ["empty", CPM.Mitochondrion],
-        NOISE : 1,
+        NOISE : 5,
         N_OXPHOS : 5, 
-        N_TRANSLATE : 5,
-        N_REPLICATE : 15,
+        N_TRANSLATE : 10,
+        N_REPLICATE : 100,
         INIT_OXPHOS : 80,
         N_INIT_DNA : 10,
-        MTDNA_MUT_RATE : 0.1,
+		MTDNA_MUT_RATE : 0.5,
 
 		// Constraint parameters. 
 		// Mostly these have the format of an array in which each element specifies the
 		// parameter value for one of the cellkinds on the grid.
         // First value is always cellkind 0 (the background) and is often not used.
         
-        division_volume : [0, 200],
-        MITO_SHRINK : 2,
+		// division_volume : [0, 200],
+		minimal_division_volume : 150,
+		division_rate : 0.01,
+		fusion_rate : 0.1,
+		deprecation_rate : 0.05,
+		replication_rate : 0.5,
+		translation_rate: 0.5,
+        MITO_SHRINK : 6,
         
         // Adhesion parameters:
          J: [ [15,15], 
@@ -102,7 +108,7 @@ let config = {
 	}
 }
 /*	---------------------------------- */
-let sim, meter, showYcolors, cellColors
+let sim, meter, colorby, cellColors
 
 function initialize(){
 	 /* 	The following functions are defined below and will be added to
@@ -115,9 +121,10 @@ function initialize(){
 	 }
 	sim = new CPM.Simulation( config, custommethods )
 
-	showYcolors = true
+	colorby = "n_DNA"
 
 	meter = new FPSMeter({left:"auto", right:"5px"})
+
 	step()
 }
 
@@ -140,25 +147,18 @@ function postMCSListener(){
 	
 	var C = this.C
 	this.C.cells.forEach(function (item) {
+		// console.log("volumes: ", C.cellvolume[item.id], C.getVolume(item.id))
 		update(C, item)
 	});
 	for( let i of this.C.cellIDs() ){
-		if( this.C.getVolume(i) > this.C.conf.division_volume[this.C.cellKind(i)] ){
+		if( this.C.getVolume(i) > this.C.conf.minimal_division_volume && this.C.random() < this.C.conf["division_rate"]){
 			this.gm.divideCell(i)
 		}
 	}
 }
 
-function update(C, mito){
-	if (mito.id < 0){return}
-    // console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "oxphos products: ", mito.oxphos_products)
-    mito.oxphos = Math.min.apply(Math, mito.oxphos_products) 
-    if (mito.V - C.getVolume(mito.id) < 10){
-        mito.V += mito.oxphos 
-    }
-    mito.V -= mito.conf["MITO_SHRINK"]
-
-    if (mito.DNA.length == 0 ){ return }
+function findDNA(mito) {
+	if (mito.DNA.length == 0 ){ return }
     // takes bottleneck as rate
     var replicate_attempts = Math.min.apply(Math, mito.replication_products) 
     var translate_attempts = Math.min.apply(Math, mito.translate_products)
@@ -186,28 +186,72 @@ function update(C, mito){
             attempts--
         }
     }
-    
-    for (var dna of mito.DNA){
+}
+
+function sumArray(array1, array2){
+	return array1.map(function (num, idx) {
+  		return num + array2[idx];
+	})
+}
+
+function repAndTranslate(mito){
+	for (var dna of mito.DNA){
     //    console.log(dna.translateFlag)
         if (dna.translateFlag){
             // console.log( "translating")
-            // console.log(dna.oxphos_quality, mito.oxphos_products)
-            mito.oxphos_products = mito.oxphos_products.map(function (num, idx) {
-                return num + dna.oxphos_quality[idx];
-            }); 
-            mito.translate_products = mito.translate_products.map(function (num, idx) {
-                return num + dna.translate_quality[idx];
-            }); 
-            mito.replication_products = mito.replication_products.map(function (num, idx) {
-                return num + dna.replicate_quality[idx];
-            }); 
+			// console.log(dna.oxphos_quality, mito.oxphos_products)
+			if (mito.mt.random() < mito.conf['translation_rate']){
+				mito.oxphos_products = sumArray(mito.oxphos_products, dna.oxphos_quality)
+				mito.translate_products = sumArray(mito.translate_products, dna.translate_quality)
+				mito.replication_products = sumArray(mito.replication_products, dna.replicate_quality)
+			}
             dna.setTranslateFlag(false)
         } else if (dna.replicateFlag) { 
-            console.log( "replicating")
-            mito.replicateDNA(dna)
+			// console.log( "replicating")
+			if (mito.mt.random() < mito.conf['replication_rate']){
+				mito.replicateDNA(dna)
+			}
             dna.setReplicateFlag(false)
         }
-    }
+	}
+}
+
+function deprecateProducts(mito){
+	let new_arr = [[], [], []]
+	for (const [which, arr] of [mito.oxphos_products, mito.translate_products, mito.replication_products].entries()){
+		new_arr[which] = [...arr]
+		for (const [ix, product] of arr.entries()){
+			let i = 0
+			for (let i = 0; i < product; i++ ){
+				if (mito.mt.random() < mito.conf['deprecation_rate']){new_arr[which][ix]--;}
+			}
+		}
+	}
+	mito.setProducts(new_arr[0], new_arr[1], new_arr[2])
+}
+
+function update(C, mito, total_oxphos, total_growth_cap){
+	if (mito.id < 0){return}
+	// console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "heteroplasmy", mito.heteroplasmy(), "hei", Math.min.apply(Math, mito.replication_products) )
+	mito.oxphos = Math.min.apply(Math, mito.oxphos_products) 
+	console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "heteroplasmy", mito.heteroplasmy(), "replication:", Math.min.apply(Math, mito.replication_products), mito.oxphos_products, mito.id, C.getVolume(mito.id) )
+	total_oxphos += mito.oxphos
+    if (mito.V - C.getVolume(mito.id) < 10){
+        mito.V += Math.max(mito.oxphos / 10, 10)
+	}
+	if (mito.oxphos < 20) {
+		mito.V -= 20
+	}
+    // mito.V -= mito.conf["MITO_SHRINK"]
+    total_growth_cap += mito.V
+	findDNA(mito)
+
+	repAndTranslate(mito)
+
+	deprecateProducts(mito)
+
+
+	
 }
 // function updateCell(C, cell){
 // 	if (cell.id < 0){return}
@@ -261,11 +305,27 @@ function drawCanvas(){
 
 	// Clear canvas
 	this.Cim.clear( this.conf["CANVASCOLOR"] || "FFFFFF" )
-
-
 		
 	// Draw each cellkind appropriately
-	if (showYcolors){
+	console.log(colorby)
+	
+	if (colorby == "Cell_type"){
+			// Draw each cellkind appropriately
+			let cellcolor=this.conf["CELLCOLOR"], 
+		nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
+		for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
+		
+		// draw the cells of each kind in the right color
+		if( cellcolor[ cellkind ] != -1 ){
+			this.Cim.drawCells( cellkind+1, cellcolor[cellkind] )
+		}
+			
+		// Draw borders if required
+		if(  cellborders[ cellkind  ]  ){
+			this.Cim.drawCellBorders( cellkind+1, "000000" )
+		}
+	}
+	} else {
 		// Function to color cells as function of their cellID number.
 		// we need a trick because otherwise 'this' (the simulation object)
 		// is not available from the colFun() function.
@@ -280,18 +340,12 @@ function drawCanvas(){
 			// Check if the current cellID already has a color, otherwise put a random
 			// color in the cellColors object
 			if( !s.cellColors.hasOwnProperty(cid) ){
-			// this cell gets a random color
 				s.cellColors[cid] = getColor(s.C.cells[cid])
 			}
 
 			// now return the color assigned to this cellID.
 			return s.cellColors[cid]
 		}
-		
-		// var Cim = this.Cim
-		// this.C.cells.forEach(function (item) {
-		// 	colorByY(Cim, item)
-		// });
 		let nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
 		for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
 			this.Cim.drawCells( cellkind+1, colFun)
@@ -301,24 +355,9 @@ function drawCanvas(){
 				this.Cim.drawCellBorders( cellkind+1, "000000" )
 			}
 		}
-	} else {
-			// Draw each cellkind appropriately
-		let cellcolor=this.conf["CELLCOLOR"], 
-		nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
-		for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
-		
-		// draw the cells of each kind in the right color
-		if( cellcolor[ cellkind ] != -1 ){
-			this.Cim.drawCells( cellkind+1, cellcolor[cellkind] )
-		}
-			
-		// Draw borders if required
-		if(  cellborders[ cellkind  ]  ){
-			this.Cim.drawCellBorders( cellkind+1, "000000" )
-		}
-	}
+	} 	
 }
-}
+
 const cmap = new ColorMap({
 		colormap: 'bluered',
 		nshades: 100,
@@ -330,7 +369,14 @@ function getColor (cell) {
 	if (cell.id < 0){
 		return
 	}
-	let c = Math.floor(cell.DNA.length *3) 
+	var c = 0
+	if (colorby == 'n_DNA'){
+		c = Math.floor(cell.DNA.length *4) 
+	} else if  (colorby == 'heteroplasmy'){
+		c = Math.floor(cell.heteroplasmy() *100)
+	} else if (colorby == 'oxphos'){
+		c = Math.floor(cell.oxphos)
+	}
 	if (c >= cmap.length){
 		c = cmap.length - 1
 	} else if (c < 0){
@@ -343,7 +389,13 @@ function getColor (cell) {
 }
 
 function changeColorBy(){
-	showYcolors = !showYcolors
+	var radios = document.getElementsByName('Visualization');
+	for (var i = 0, length = radios.length; i < length; i++) {
+		if (radios[i].checked) {
+			colorby = radios[i].value
+			break;
+		}
+	}
 }
 
 
@@ -352,12 +404,15 @@ function changeColorBy(){
 <body onload="initialize()">
 <h1>Stochastic Correction</h1>
 
-<label class="switch">
-		<input type="checkbox" name="colorby" oninput="changeColorBy()"  checked>
-		<span class="slider round"></span>
-		<label for="colorby"> Show Y amount</label>
-	
-	</label>
+<input type="radio" name="Visualization" value="Cell_type" >Cell Type (fastest)<br>
+<input type="radio" name="Visualization" value="n_DNA" checked>Number of DNA copies<br>
+<input type="radio" name="Visualization" value="oxphos" checked>Oxphos<br>
+<input type="radio" name="Visualization" value="heteroplasmy">Heteroplasmy<br>
+<div>
+    <button type="submit" onclick="changeColorBy()">Submit</button>
+  </div>
+
+
 <p>
  Replicator and mutant RNA compete in vesicles
 </p>
