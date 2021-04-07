@@ -20,6 +20,8 @@ module	GridBasedModel	src/models/GridBasedModel.js
 # cells 
 module Cell src/cells/Cell.js
 module StochasticCorrector src/cells/StochasticCorrector.js
+module SuperCell src/cells/SuperCell.js
+module SubCell src/cells/SubCell.js
 
 # stats
 module	Stat	src/stats/Stat.js
@@ -56,6 +58,7 @@ module	ConnectivityConstraint	src/hamiltonian/ConnectivityConstraint.js
 module 	SoftConnectivityConstraint	src/hamiltonian/SoftConnectivityConstraint.js
 module	LocalConnectivityConstraint	src/hamiltonian/LocalConnectivityConstraint.js
 module	SoftLocalConnectivityConstraint src/hamiltonian/SoftLocalConnectivityConstraint.js
+module  SubCellConstraint src/hamiltonian/SubCellConstraint.js
 
 # constraints: hard constraints
 module	HardConstraint	src/hamiltonian/HardConstraint.js

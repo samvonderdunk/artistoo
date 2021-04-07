@@ -1516,13 +1516,17 @@ class Constraint {
 	}
 
 	getParam(param, cid){
-		if ( typeof cid === "number"){
-			if (this.hasOwnProperty("C") && this.C.hasOwnProperty("cells")){
-				return this.C.getParamsOfId(param, cid)
+		try {
+			if ( typeof cid === "number"){
+				if (this.hasOwnProperty("C") && this.C.hasOwnProperty("cells")){
+					return this.C.getParamsOfId(param, cid)
+				}
+				return this.conf[param][this.C.cellKind(cid)]
 			}
-			return this.conf[param][this.C.cellKind(cid)]
+			return this.conf[param]
+		} catch (error){
+			throw("Parameter: " + param + " of cellkind: " + this.C.cellKind(cid) + " cell: " + cid + " not found")
 		}
-		return this.conf[param]
 	}
 	
 	/** The constructor of a constraint takes a configuration object.
@@ -4561,6 +4565,44 @@ class StochasticCorrector extends Cell {
 	// }
 }
 
+class SuperCell extends Cell {
+
+	constructor (conf, kind, id, mt) {
+		super(conf, kind, id, mt);
+		this.host = this.id;
+		this.subcells = []; //TODO decide whether these are IDs or Cells.
+	}
+
+	birth(parent){
+		super.birth(parent); // sets ParentId
+		this.divideSubCells();
+		for (let subcell of this.subcells){
+			subcell.host = this.id;
+		}
+	}
+    
+	divideSubCells(){return} // stub
+}
+
+class SubCell extends Cell {
+
+	// first host should be set during seeding!
+
+	constructor (conf, kind, id, mt) {
+		super(conf, kind, id, mt);
+		this.host = -1;
+	}
+
+	birth(parent){
+		super.birth(parent); // sets ParentId
+		this.host = parent.host;
+	}
+	
+	setHost(new_host){
+		this.host=new_host;
+	}
+}
+
 /**	This Stat creates a {@link CellArrayObject} with the border cellpixels of each cell on the grid. 
 	Keys are the {@link CellId} of cells on the grid, corresponding values are arrays
 	containing the pixels belonging to that cell. Coordinates are stored as {@link ArrayCoordinate}.
@@ -7042,6 +7084,57 @@ class SoftLocalConnectivityConstraint extends SoftConstraint {
 
 	
 
+}
+
+/** 
+	
+	 * @example
+	 
+	*/
+class SubCellConstraint extends SoftConstraint {
+
+	
+	/** The constructor of the SubCellConstraint requires a conf object with parameters.
+	@param {object} conf - parameter object for this constraint
+    @param {PerKindNonNegative} conf.LAMBDA_SUB - strength of the constraint per cellkind.
+    @param {Cells} conf.CELLS - strength of the constraint per cellkind.
+	*/
+	constructor(conf){
+		super(conf);
+	}
+	
+	/** This method checks that all required parameters are present in the object supplied to
+	the constructor, and that they are of the right format. It throws an error when this
+	is not the case.*/
+	confChecker(){
+		let checker = new ParameterChecker( this.conf, this.C );
+		/* eslint-disable */
+		console.log("HEY", this.conf);
+		checker.confCheckParameter( "LAMBDA_SUB", "KindArray", "NonNegative" );
+		console.log("HEY");
+	}
+	
+	/** Method to compute the Hamiltonian for this constraint. 
+	 @param {IndexCoordinate} src_i - coordinate of the source pixel that tries to copy.
+	 @param {IndexCoordinate} tgt_i - coordinate of the target pixel the source is trying
+	 to copy into.
+	 @param {CellId} src_type - cellid of the source pixel.
+	 @param {CellId} tgt_type - cellid of the target pixel. This argument is not actually
+	 used but is given for consistency with other soft constraints; the CPM always calls
+	 this method with four arguments.
+	 @return {number} the change in Hamiltonian for this copy attempt and this constraint.*/ 
+	/* eslint-disable no-unused-vars*/
+	deltaH( src_i, tgt_i, src_type, tgt_type ){
+		let l = this.getParam("LAMBDA_SUB", src_type);
+		if( !l || src_type == 0 || tgt_type == 0){
+			return 0
+		}
+		if (this.getParam("host", src_type) != this.getParam("host", tgt_type)){
+			return l
+		} else {
+			return 0
+		}
+	}
 }
 
 /** 
@@ -10561,4 +10654,7 @@ exports.SoftConstraint = SoftConstraint;
 exports.SoftLocalConnectivityConstraint = SoftLocalConnectivityConstraint;
 exports.Stat = Stat;
 exports.StochasticCorrector = StochasticCorrector;
+exports.SubCell = SubCell;
+exports.SubCellConstraint = SubCellConstraint;
+exports.SuperCell = SuperCell;
 exports.VolumeConstraint = VolumeConstraint;

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Supercells</title>
+<style type="text/css">
+body{
+		font-family: "MS Comic Sans", "Helvetica Neue Light", "Helvetica Neue",
+		 Helvetica, Arial, "Lucida Grande", sans-serif;
+	 padding : 15px;
+}
+td {
+	 padding: 10px;
+	 vertical-align: top;
+}
+</style>
+
+
+<script src="./artistoo.js"></script>
+<script src="./fpsmeter.min.js"></script>
+<script src="./colormap.js"></script>
+
+<script>
+"use strict"
+
+
+/*	----------------------------------
+	CONFIGURATION SETTINGS
+	----------------------------------
+*/
+let config = {
+
+	// Grid settings
+	ndim : 2,
+	field_size : [150,150],
+	
+	// CPM parameters and configuration
+	conf : {
+		// Basic CPM parameters
+		torus : [false,false],				// Should the grid have linked borders?
+		seed : 5,							// Seed for random number generation.
+		T : 20,								// CPM temperature
+        
+    
+		CELLS : ["empty", CPM.SuperCell, CPM.SubCell],
+	
+        division_volume : [0, 250, 250],
+		// Constraint parameters. 
+		// Mostly these have the format of an array in which each element specifies the
+		// parameter value for one of the cellkinds on the grid.
+		// First value is always cellkind 0 (the background) and is often not used.
+        
+        // Adhesion parameters:
+         J: [ [15,15,15], 
+			[15,15,15], // epidermal cells
+            [15,15,15] ],
+            
+        LAMBDA_SUB: [0, 0, 50] ,
+		
+		
+		// VolumeConstraint parameters
+		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
+		V : [0,4002, 100]					
+		
+	},
+	
+	// Simulation setup and configuration: this controls stuff like grid initialization,
+	// runtime, and what the output should look like.
+	simsettings : { 
+	
+		// Cells on the grid
+		NRCELLS : [10, 10],						// Number of cells to seed for all
+		// non-background cellkinds. 
+		// Runtime etc
+		BURNIN : 0,
+		RUNTIME : 1000,
+		RUNTIME_BROWSER : "Inf",
+		
+		// Visualization
+		CANVASCOLOR : "EEEEEE",
+		CELLCOLOR : ["AA111A","FFA110"],
+		SHOWBORDERS : [true, true],				// Should cellborders be displayed?
+		BORDERCOL : ["666666", "666666"],				// color of the cell borders
+		zoom : 3,							// zoom in on canvas with this factor.
+		
+		// Output images
+		SAVEIMG : true,						// Should a png image of the grid be saved
+		// during the simulation?
+		IMGFRAMERATE : 1,					// If so, do this every <IMGFRAMERATE> MCS.
+		SAVEPATH : "output/img/CellDivision",	// ... And save the image in this folder.
+		EXPNAME : "CellDivision",					// Used for the filename of output images.
+		
+		// Output stats etc
+		STATSOUT : { browser: false, node: true }, // Should stats be computed?
+		LOGRATE : 10							// Output stats every <LOGRATE> MCS.
+
+	}
+}
+/*	---------------------------------- */
+let sim, meter, showYcolors, cellColors
+
+function initialize(){
+	 /* 	The following functions are defined below and will be added to
+	 	the simulation object. If Custom-methods above is set to false,
+	 	this object is ignored and not used in the html/node files. */
+	 let custommethods = {
+	 	postMCSListener : postMCSListener,
+		initializeGrid : initializeGrid
+	 }
+	sim = new CPM.Simulation( config, custommethods )
+
+    sim.C.add( new CPM.SubCellConstraint( config["conf"] ) )
+
+
+	showYcolors = false
+
+	meter = new FPSMeter({left:"auto", right:"5px"})
+	step()
+}
+
+
+function step(){
+    sim.step()
+    meter.tick()
+    if (sim.time == 100){
+        console.log(sim.C)
+        sim.addGridManipulator() 
+        console.log(sim.gm)
+        let subCellId = sim.gm.seedCellAt( 2, [sim.C.midpoint[0]/2 +10, sim.C.midpoint[1] ] )
+        sim.C.cells[subCellId].host = 0
+    }
+	if( sim.conf["RUNTIME_BROWSER"] == "Inf" | sim.time+1 < sim.conf["RUNTIME_BROWSER"] ){
+		requestAnimationFrame( step )
+	}
+}
+
+
+
+/* The following custom methods will be added to the simulation object*/
+function postMCSListener(){
+	
+	// // add the initializer if not already there
+	// if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
+	
+	// var C = this.C
+	// this.C.cells.forEach(function (item) {
+	// 	updateCell(C, item)
+	// });
+	// for( let i of this.C.cellIDs() ){
+	// 	if( this.C.getVolume(i) > this.C.conf.division_volume[this.C.cellKind(i)] ){
+	// 		this.gm.divideCell(i)
+	// 	}
+	// }
+}
+
+function initializeGrid(){
+	
+	// add the initializer if not already there
+	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
+    
+    let superCellId = this.gm.seedCellAt( 1, [this.C.midpoint[0]/2, this.C.midpoint[1] ] )
+    // this.sim.step()
+    // let subCellId = this.gm.seedCellAt( 2, [this.C.midpoint[0]/2 +10, this.C.midpoint[1] ] )
+    // this.C.cells[subCellId].host = superCellId
+	// let nrcells = this.conf["NRCELLS"], cellkind, i
+		
+	// // Seed the right number of cells for each cellkind 
+	// for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
+		
+	// 	for( i = 0; i < nrcells[cellkind]; i++ ){
+	// 		// first cell always at the midpoint. Any other cells
+	// 		// randomly.				
+	// 		if( i == 0 ){
+    //             this.gm.seedCellAt( cellkind+1, [this.C.midpoint[0]/2, this.C.midpoint[1] ] )
+	// 		} else {
+	// 			this.gm.seedCell( cellkind+1 )
+	// 		}
+	// 	}
+	// }
+}
+
+
+
+</script>
+</head>
+<body onload="initialize()">
+<h1>Supercells</h1>
+
+
+<p>
+ Cells in other cells.
+</p>
+</body>
+</html>

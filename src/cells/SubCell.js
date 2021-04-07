@@ -3,22 +3,21 @@ import Cell from "./Cell.js"
 
 class SubCell extends Cell {
 
+	// first host should be set during seeding!
+
 	constructor (conf, kind, id, mt) {
 		super(conf, kind, id, mt)
+		this.host = -1
 	}
 
 	birth(parent){
 		super.birth(parent) // sets ParentId
-		// this.V  = parent.V
-		// this.divideProducts(parent) 
+		this.host = parent.host
 	}
-
-	// setXY(X, Y){
-	// 	this.X = Math.max(0, X)
-	// 	this.Y = Math.max(0, Y)
-	// }
-
 	
+	setHost(new_host){
+		this.host=new_host
+	}
 }
 
 export default SubCell
