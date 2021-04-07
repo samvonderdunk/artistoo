@@ -4808,12 +4808,12 @@ var CPM = (function (exports) {
 	            return arr;
 	          }, []);
 	        let ix = indices[Math.floor(this.mt.random() * indices.length)];
-	        console.log(indices, ix);
+	        // console.log(indices, ix)
 	        if (ix < this.conf["N_OXPHOS"]){
-	            console.log("setting oxphos ", ix);
+	            // console.log("setting oxphos ", ix)
 	            this.oxphos_quality[ix] = 0;
 	        } else if (ix < (this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])){
-	            console.log("setting otranslate ", ix - this.conf["N_OXPHOS"]);
+	            // console.log("setting otranslate ", ix - this.conf["N_OXPHOS"])
 	            this.translate_quality[ix - this.conf["N_OXPHOS"] ] = 0;
 	        } else {
 	            this.replicate_quality[ix - this.conf["N_OXPHOS"] - this.conf["N_TRANSLATE"] ] = 0;

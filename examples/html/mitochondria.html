@@ -47,7 +47,7 @@ let config = {
         N_REPLICATE : 100,
         INIT_OXPHOS : 80,
         N_INIT_DNA : 10,
-		MTDNA_MUT_RATE : 0.5,
+		MTDNA_MUT_RATE : 0.1,
 
 		// Constraint parameters. 
 		// Mostly these have the format of an array in which each element specifies the
@@ -58,12 +58,13 @@ let config = {
 		minimal_division_volume : 150,
 		division_rate : 0.01,
 		fusion_rate : 0.1,
-		deprecation_rate : 0.05,
-		replication_rate : 0.5,
-		translation_rate: 0.5,
+		deprecation_rate : 0.12,
+		replication_rate : 1,
+		translation_rate: 1,
+		host_selfishness : 0.5, 
         MITO_SHRINK : 6,
         
-        // Adhesion parameters:
+        // Adhesion parameters: 
          J: [ [15,15], 
 			[15,15], // epidermal cells
 		 ],
@@ -121,7 +122,8 @@ function initialize(){
 	 }
 	sim = new CPM.Simulation( config, custommethods )
 
-	colorby = "n_DNA"
+	// colorby = "n_DNA"
+	changeColorBy()
 
 	meter = new FPSMeter({left:"auto", right:"5px"})
 
@@ -146,13 +148,34 @@ function postMCSListener(){
 	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
 	
 	var C = this.C
-	this.C.cells.forEach(function (item) {
-		// console.log("volumes: ", C.cellvolume[item.id], C.getVolume(item.id))
-		update(C, item)
-	});
-	for( let i of this.C.cellIDs() ){
-		if( this.C.getVolume(i) > this.C.conf.minimal_division_volume && this.C.random() < this.C.conf["division_rate"]){
-			this.gm.divideCell(i)
+	var host_cell = {"total_mito_vol": 0, "total_oxphos" : 0}
+	// update mitochondria
+	for (let cellID of this.C.cellIDs()){
+		update(C, C.getCell(cellID), host_cell)
+		if( this.C.getVolume(cellID) > this.C.conf.minimal_division_volume && this.C.random() < this.C.conf["division_rate"]){
+			this.gm.divideCell(cellID)
+		}
+	}
+	// derive how many cell products are made
+	// currently hardcoded - should be changed maybe to DNA class or subclass mtDNA and nDNA off DNA.js
+	let replication_products = new Array(this.C.conf["N_REPLICATE"]).fill(Math.floor((1-this.C.conf['host_selfishness']) * host_cell.total_oxphos / this.C.conf['N_REPLICATE']))
+	// distribute 
+	var cumsum_norm =[]
+	var cumsum = 0
+	for (let cid of this.C.cellIDs()){
+		cumsum += this.C.cellvolume[cid]
+		cumsum_norm.push({"cid":cid, "vol_part": cumsum/host_cell.total_mito_vol })
+	}
+	// cumsum_norm = cumsum_norm.reverse() // enables finding first
+	// console.log(host_cell.total_oxphos,replication_products, cumsum_norm, host_cell.total_mito_vol)
+	for (const [ix, product] of replication_products.entries()){
+		for (let i = 0; i < product; i++){
+			let ran = this.C.mt.random()
+			let mito = cumsum_norm.find(element => ran < element['vol_part']   )
+			this.C.getCell(mito.cid).replication_products[ix]++
+			// console.log(mito, ran)
+			// console.log(cumsum_norm)
+			// console.log(this.C.getCell(mito.cid), ran)
 		}
 	}
 }
@@ -230,12 +253,12 @@ function deprecateProducts(mito){
 	mito.setProducts(new_arr[0], new_arr[1], new_arr[2])
 }
 
-function update(C, mito, total_oxphos, total_growth_cap){
+function update(C, mito, host_cell){
 	if (mito.id < 0){return}
 	// console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "heteroplasmy", mito.heteroplasmy(), "hei", Math.min.apply(Math, mito.replication_products) )
 	mito.oxphos = Math.min.apply(Math, mito.oxphos_products) 
-	console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "heteroplasmy", mito.heteroplasmy(), "replication:", Math.min.apply(Math, mito.replication_products), mito.oxphos_products, mito.id, C.getVolume(mito.id) )
-	total_oxphos += mito.oxphos
+	// console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "heteroplasmy", mito.heteroplasmy(), "replication:", Math.min.apply(Math, mito.replication_products), mito.oxphos_products, mito.id, C.getVolume(mito.id) )
+	host_cell.total_oxphos += mito.oxphos
     if (mito.V - C.getVolume(mito.id) < 10){
         mito.V += Math.max(mito.oxphos / 10, 10)
 	}
@@ -243,7 +266,7 @@ function update(C, mito, total_oxphos, total_growth_cap){
 		mito.V -= 20
 	}
     // mito.V -= mito.conf["MITO_SHRINK"]
-    total_growth_cap += mito.V
+    host_cell.total_mito_vol += C.getVolume(mito.id)
 	findDNA(mito)
 
 	repAndTranslate(mito)
@@ -253,23 +276,6 @@ function update(C, mito, total_oxphos, total_growth_cap){
 
 	
 }
-// function updateCell(C, cell){
-// 	if (cell.id < 0){return}
-//     let vol = C.getVolume(cell.id)
-//     // console.log(cell.X, " ",cell.Y, " ", cell.V)
-//     let V = cell.V
-//     if ((cell.V - vol) < 10 && cell.X > 0){
-//         V += C.conf.y_growth_contribution[cell.kind]*(cell.Y/vol)/((cell.Y/vol)+0.1)
-        
-//     }
-//     V -= C.conf.shrink_rate[cell.kind]
-//     cell.setV(V)
-    
-//     let dy = C.conf.rY[cell.kind]*cell.Y*(vol-cell.X-cell.Y)/vol*C.conf.speed_internal_dynamics[cell.kind]
-//     let X = cell.X + (1-C.conf.Q[cell.kind])*dy+( C.conf.rX[cell.kind]*cell.X*(vol-cell.X-cell.Y)/vol - C.conf.d[cell.kind]*cell.X )*C.conf.speed_internal_dynamics[cell.kind]
-//     let Y = cell.Y + C.conf.Q[cell.kind]*dy - C.conf.d[cell.kind]*cell.Y*C.conf.speed_internal_dynamics[cell.kind]
-// 	cell.setXY(X,Y)
-// }
 
 function initializeGrid(){
 	
@@ -296,19 +302,8 @@ function initializeGrid(){
 
 // Custom drawing function to draw the preferred directions.
 function drawCanvas(){
-	
-	/* This part is the normal drawing function */
-	
-	// Add the canvas if required
-
 	if( !this.helpClasses["canvas"] ){ this.addCanvas() }
-
-	// Clear canvas
 	this.Cim.clear( this.conf["CANVASCOLOR"] || "FFFFFF" )
-		
-	// Draw each cellkind appropriately
-	console.log(colorby)
-	
 	if (colorby == "Cell_type"){
 			// Draw each cellkind appropriately
 			let cellcolor=this.conf["CELLCOLOR"], 
@@ -326,31 +321,19 @@ function drawCanvas(){
 		}
 	}
 	} else {
-		// Function to color cells as function of their cellID number.
-		// we need a trick because otherwise 'this' (the simulation object)
-		// is not available from the colFun() function.
 		let s = this
 		let colFun = function( cid ){
-
-			// First time function is called, attach an empty object 'cellColors' to
-			// simulation object; this tracks the color for each cellID on the grid.
 			if( !s.hasOwnProperty( cellColors ) ){
 				s.cellColors = {}
 			}
-			// Check if the current cellID already has a color, otherwise put a random
-			// color in the cellColors object
 			if( !s.cellColors.hasOwnProperty(cid) ){
 				s.cellColors[cid] = getColor(s.C.cells[cid])
 			}
-
-			// now return the color assigned to this cellID.
 			return s.cellColors[cid]
 		}
 		let nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
 		for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
 			this.Cim.drawCells( cellkind+1, colFun)
-
-			// Draw borders if required
 			if(  cellborders[ cellkind  ]  ){
 				this.Cim.drawCellBorders( cellkind+1, "000000" )
 			}
