@@ -35,7 +35,7 @@ let config = {
 	// CPM parameters and configuration
 	conf : {
 		// Basic CPM parameters
-		torus : [false,false],				// Should the grid have linked borders?
+		torus : [true,true],				// Should the grid have linked borders?
 		seed : 5,							// Seed for random number generation.
 		T : 20,								// CPM temperature
         
@@ -49,16 +49,27 @@ let config = {
 		// First value is always cellkind 0 (the background) and is often not used.
         
         // Adhesion parameters:
-         J: [ [15,15,15], 
-			[15,15,15], // epidermal cells
-            [15,15,15] ],
-            
-        LAMBDA_SUB: [0, 0, 50] ,
+        //  J: [ [15,15,150], 
+		// 	[15,15,15], 
+        //     [150, 15,15] ],
+        J: [ [0,0,0], 
+			[0,0,0], 
+            [0,0,0] ],
+        
+        J_INT:  [ 
+			[10,20], 
+            [10,50] ],
+
+        J_EXT:  [ [15,15,150], 
+			[15,15,150], 
+            [150, 150,15] ],
+
+        LAMBDA_SUB: [0, 0, 500] ,
 		
 		
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
-		V : [0,4002, 100]					
+		V : [0,3002, 200]					
 		
 	},
 	
@@ -67,7 +78,7 @@ let config = {
 	simsettings : { 
 	
 		// Cells on the grid
-		NRCELLS : [10, 10],						// Number of cells to seed for all
+		NRCELLS : [5, 5],						// Number of cells to seed for all
 		// non-background cellkinds. 
 		// Runtime etc
 		BURNIN : 0,
@@ -121,18 +132,49 @@ function step(){
     sim.step()
     meter.tick()
     if (sim.time == 100){
-        console.log(sim.C)
-        sim.addGridManipulator() 
-        console.log(sim.gm)
-        let subCellId = sim.gm.seedCellAt( 2, [sim.C.midpoint[0]/2 +10, sim.C.midpoint[1] ] )
-        sim.C.cells[subCellId].host = 0
+        seedSubCells()
+        
     }
 	if( sim.conf["RUNTIME_BROWSER"] == "Inf" | sim.time+1 < sim.conf["RUNTIME_BROWSER"] ){
 		requestAnimationFrame( step )
 	}
 }
 
+function seedSubCells(){
+    let nrcells = sim.conf["NRCELLS"][1], i
+    // Only seed Supercells in initialize
+    // let cellkind = 0
+    if (!sim.gm){
+        sim.addGridManipulator()
+    } 
+    let cellpixelsbyid = sim.C.getStat(CPM.PixelsByCell)
+    for (let cid of Object.keys(cellpixelsbyid)) {
+        if (sim.C.cellKind(cid) == 1){
+            for (let i =0; i < sim.conf["NRCELLS"][1]; i++){
+                let coord = cellpixelsbyid[cid][Math.floor(sim.C.mt.random()*cellpixelsbyid[cid].length)]
+                let nid = sim.gm.seedCellAt( 2, coord )
+                sim.C.cells[nid].host = cid
+            }
+        }
+    }
+    // for (let cell of sim.C.cells){
+    //     if (cell.kind == 1){
 
+    //     }
+    // }
+    // for( i = 0; i < nrcells[cellkind]; i++ ){			
+    //     if( i == 0 ){
+    //         this.gm.seedCellAt( cellkind+1, [this.C.midpoint[0]/2, this.C.midpoint[1] ] )
+    //     } else {
+    //         this.gm.seedCell( cellkind+1 )
+    //     }
+    // }
+    // console.log(sim.C)
+    // sim.addGridManipulator() 
+    // console.log(sim.gm)
+    // let subCellId = sim.gm.seedCellAt( 2, [sim.C.midpoint[0]/2 +10, sim.C.midpoint[1] ] )
+    // sim.C.cells[subCellId].host = 1
+}
 
 /* The following custom methods will be added to the simulation object*/
 function postMCSListener(){
@@ -155,26 +197,18 @@ function initializeGrid(){
 	
 	// add the initializer if not already there
 	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
-    
-    let superCellId = this.gm.seedCellAt( 1, [this.C.midpoint[0]/2, this.C.midpoint[1] ] )
-    // this.sim.step()
-    // let subCellId = this.gm.seedCellAt( 2, [this.C.midpoint[0]/2 +10, this.C.midpoint[1] ] )
-    // this.C.cells[subCellId].host = superCellId
-	// let nrcells = this.conf["NRCELLS"], cellkind, i
-		
-	// // Seed the right number of cells for each cellkind 
-	// for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
-		
-	// 	for( i = 0; i < nrcells[cellkind]; i++ ){
-	// 		// first cell always at the midpoint. Any other cells
-	// 		// randomly.				
-	// 		if( i == 0 ){
-    //             this.gm.seedCellAt( cellkind+1, [this.C.midpoint[0]/2, this.C.midpoint[1] ] )
-	// 		} else {
-	// 			this.gm.seedCell( cellkind+1 )
-	// 		}
-	// 	}
-	// }
+
+    let nrcells = this.conf["NRCELLS"][0], i
+    // Only seed Supercells in initialize
+    // let cellkind = 0
+    for( i = 0; i < nrcells; i++ ){			
+        if( i == 0 ){
+            this.gm.seedCellAt( 1, [this.C.midpoint[0]/2, this.C.midpoint[1] ] )
+        } else {
+            this.gm.seedCell(1)
+        }
+    }
+	
 }
 
 

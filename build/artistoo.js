@@ -7313,11 +7313,38 @@ var CPM = (function (exports) {
 		the constructor, and that they are of the right format. It throws an error when this
 		is not the case.*/
 		confChecker(){
-			let checker = new ParameterChecker( this.conf, this.C );
 			/* eslint-disable */
-			console.log("HEY", this.conf);
-			checker.confCheckParameter( "LAMBDA_SUB", "KindArray", "NonNegative" );
-			console.log("HEY");
+			let checker = new ParameterChecker( this.conf, this.C );
+			
+			// console.log("HEY", this.conf)
+			// checker.confCheckParameter( "LAMBDA_SUB", "KindArray", "NonNegative" )
+			// console.log("HEY")
+		}
+
+		/**  Returns the Hamiltonian around a pixel i with cellid tp by checking all its
+		neighbors that belong to a different cellid.
+		@param {IndexCoordinate} i - coordinate of the pixel to evaluate hamiltonian at.
+		@param {CellId} tp - cellid of this pixel.
+		@return {number} sum over all neighbors of adhesion energies (only non-zero for 
+		neighbors belonging to a different cellid).	
+		@private
+		 */
+		H( i, tp ){
+			let r = 0, tn;
+			/* eslint-disable */
+			const N = this.C.grid.neighi( i );
+			for( let j = 0 ; j < N.length ; j ++ ){
+				tn = this.C.pixti( N[j] );
+				if( tn != tp ){ 
+					if (tn == 0 || tp == 0 || this.getParam("host", tn) != this.getParam("host", tp)){
+						r += this.conf["J_EXT"][this.C.cellKind(tn)][this.C.cellKind(tp)];
+					} else {
+						// r -= this.conf["J"][this.C.cellKind(tn)][this.C.cellKind(tp)]
+						r += this.conf["J_INT"][this.C.cellKind(tn)-1][this.C.cellKind(tp)-1];
+					}
+				}
+			}
+			return r
 		}
 		
 		/** Method to compute the Hamiltonian for this constraint. 
@@ -7331,15 +7358,7 @@ var CPM = (function (exports) {
 		 @return {number} the change in Hamiltonian for this copy attempt and this constraint.*/ 
 		/* eslint-disable no-unused-vars*/
 		deltaH( src_i, tgt_i, src_type, tgt_type ){
-			let l = this.getParam("LAMBDA_SUB", src_type);
-			if( !l || src_type == 0 || tgt_type == 0){
-				return 0
-			}
-			if (this.getParam("host", src_type) != this.getParam("host", tgt_type)){
-				return l
-			} else {
-				return 0
-			}
+			return this.H( tgt_i, src_type ) - this.H( src_i, tgt_type )
 		}
 	}
 
