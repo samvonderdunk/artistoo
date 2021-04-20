@@ -14,10 +14,6 @@ class SubCell extends Cell {
 		super.birth(parent) // sets ParentId
 		this.host = parent.host
 	}
-	
-	setHost(new_host){
-		this.host=new_host
-	}
 }
 
 export default SubCell

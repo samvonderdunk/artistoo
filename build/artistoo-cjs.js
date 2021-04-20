@@ -1515,18 +1515,22 @@ class Constraint {
 		return this.conf
 	}
 
-	getParam(param, cid){
-		try {
-			if ( typeof cid === "number"){
-				if (this.hasOwnProperty("C") && this.C.hasOwnProperty("cells")){
-					return this.C.getParamsOfId(param, cid)
-				}
-				return this.conf[param][this.C.cellKind(cid)]
-			}
-			return this.conf[param]
-		} catch (error){
-			throw("Parameter: " + param + " of cellkind: " + this.C.cellKind(cid) + " cell: " + cid + " not found")
+	/** Get a cellid or cellkind-specific parameter for a constraint, decides whether to look for Cell-specific
+	 * parameters or to retrieve from this.conf at postion of the Cellkind.
+	 * Assumes that parameter is an array of values per kind in
+	 * @param {string} param - name of parameter in conf object
+	 * @param {CellId} cid - Cell Id of cell in question, if id-specific parameter is not present, cellkind of cid is used
+	@return {any} parameter - the requested parameter
+	*/
+	cellParameter(param, cid){
+		// this is equal to {let cellspecific = this.C.cells[cid][param])}
+		// however, returns undefined if any of the called objects is not present
+		// this allows overwriting in Cell - all other variables are called from this.conf
+		let cellspecific = ((((this || {}).C || {}).cells || {})[cid] || {})[param];
+		if (cellspecific !== undefined){
+			return cellspecific
 		}
+		return this.conf[param][this.C.cellKind(cid)]
 	}
 	
 	/** The constructor of a constraint takes a configuration object.
@@ -2093,6 +2097,7 @@ class Adhesion extends SoftConstraint {
 	*/
 	J( t1, t2 ){
 		return this.conf["J"][this.C.cellKind(t1)][this.C.cellKind(t2)]
+		// return this.cellParameter("J", this.C.cellKind(t1))[this.C.cellKind(t2)]
 	}
 	/**  Returns the Hamiltonian around a pixel i with cellid tp by checking all its
 	neighbors that belong to a different cellid.
@@ -2197,10 +2202,10 @@ class VolumeConstraint extends SoftConstraint {
 	@return {number} the volume energy of this cell.
 	*/
 	volconstraint ( vgain, t ){
-		const l = this.getParam("LAMBDA_V", t);
+		const l = this.cellParameter("LAMBDA_V", t);
 		// the background "cell" has no volume constraint.
 		if( t == 0 || l == 0 ) return 0
-		const vdiff = this.getParam("V", t) - (this.C.getVolume(t) + vgain);
+		const vdiff = this.cellParameter("V", t) - (this.C.getVolume(t) + vgain);
 		return l*vdiff*vdiff
 	}
 }
@@ -2306,20 +2311,18 @@ class ActivityConstraint extends SoftConstraint {
 	deltaH ( sourcei, targeti, src_type, tgt_type ){
 
 		let deltaH = 0, maxact, lambdaact;
-		const src_kind = this.C.cellKind( src_type );
-		const tgt_kind = this.C.cellKind( tgt_type );
 
 		// use parameters for the source cell, unless that is the background.
 		// In that case, use parameters of the target cell.
 		if( src_type != 0 ){
-			maxact = this.conf["MAX_ACT"][src_kind];
-			lambdaact = this.conf["LAMBDA_ACT"][src_kind];
+			maxact = this.cellParameter("MAX_ACT", src_type);
+			lambdaact = this.cellParameter("LAMBDA_ACT", src_type);
 		} else {
 			// special case: punishment for a copy attempt from background into
 			// an active cell. This effectively means that the active cell retracts,
 			// which is different from one cell pushing into another (active) cell.
-			maxact = this.conf["MAX_ACT"][tgt_kind];
-			lambdaact = this.conf["LAMBDA_ACT"][tgt_kind];
+			maxact = this.cellParameter("MAX_ACT", tgt_type);
+			lambdaact = this.cellParameter("LAMBDA_ACT", tgt_type);
 		}
 		if( !maxact || !lambdaact ){
 			return 0
@@ -2430,8 +2433,7 @@ class ActivityConstraint extends SoftConstraint {
 	/* eslint-disable no-unused-vars*/
 	postSetpixListener( i, t_old, t ){
 		// After setting a pixel, it gets the MAX_ACT value of its cellkind.
-		const k = this.C.cellKind( t );
-		this.cellpixelsact[i] = this.conf["MAX_ACT"][k];
+		this.cellpixelsact[i] = this.cellParameter("MAX_ACT", t);
 	}
 	
 	/** The postMCSListener of the ActivityConstraint ensures that pixel activities
@@ -2614,11 +2616,8 @@ class PerimeterConstraint extends SoftConstraint {
 		if( src_type === tgt_type ){
 			return 0
 		}
-		// const ts = this.C.cellKind(src_type)
-		const ls = this.getParam("LAMBDA_P", src_type);
-		const lt = this.getParam("LAMBDA_P", tgt_type);
-		// const tt = this.C.cellKind(tgt_type)
-		// const lt = this.getConf(tgt_type)["LAMBDA_P"][tt]
+		const ls = this.cellParameter("LAMBDA_P", src_type);
+		const lt = this.cellParameter("LAMBDA_P", tgt_type);
 		if( !(ls>0) && !(lt>0) ){
 			return 0
 		}
@@ -2642,16 +2641,14 @@ class PerimeterConstraint extends SoftConstraint {
 		}
 		let r = 0.0;
 		if( ls > 0 ){
-			// const pt = this.getConf(src_type)["P"][ts],
-			const pt = this.getParam("P", src_type),
+			const pt = this.cellParameter("P", src_type),
 				ps = this.cellperimeters[src_type];
 			const hnew = (ps+pchange[src_type])-pt,
 				hold = ps-pt;
 			r += ls*((hnew*hnew)-(hold*hold));
 		}
 		if( lt > 0 ){
-			// const pt = this.getConf(tgt_type)["P"][tt],
-			const pt = this.getParam("P", tgt_type),
+			const pt = this.cellParameter("P", tgt_type),
 				ps = this.cellperimeters[tgt_type];
 			const hnew = (ps+pchange[tgt_type])-pt,
 				hold = ps-pt;
@@ -2758,11 +2755,11 @@ class BarrierConstraint extends HardConstraint {
 	fulfilled( src_i, tgt_i, src_type, tgt_type ){
 	
 		// Fulfilled = false when either src or tgt pixel is of the barrier cellkind	
-		if( this.conf["IS_BARRIER"][this.C.cellKind( src_type ) ] ){
+		if( this.cellParameter("IS_BARRIER", src_type ) ){
 			return false
 		}
 
-		if( this.conf["IS_BARRIER"][this.C.cellKind( tgt_type ) ] ){
+		if( this.cellParameter("IS_BARRIER", tgt_type ) ){
 			return false
 		}
 
@@ -2791,27 +2788,35 @@ let AutoAdderConfig = {
 	IS_BARRIER : BarrierConstraint
 };
 
-/* eslint-disable no-unused-vars*/
 class Cell {
-    
+	
+	/** The constructor of class Cell.
+	 * @param {object} conf - configuration settings of the simulation, containing the
+	 * relevant parameters. Note: this should include all constraint parameters.
+	 * @param {CellKind} kind - the cellkind of this cell, the parameters of kind are used 
+	 * when parameters are not explicitly overwritten
+	 * @param {object} mt - the Mersenne Twister object of the CPM, to draw random 
+	 * numbers within the seeding of the entire simulation 
+	 * @param {CellId} id - the CellId of this cell (its key in the CPM.cells), unique identifier
+	 * */
 	constructor (conf, kind, id, mt){
-		this.parentId = 0;
-		this.id = id;
 		this.conf = conf;
 		this.kind = kind;
 		this.mt = mt; 
+		this.id = id;
+
+		/** The id of the parent cell, all seeded cells have parent -1, to overwrite this
+		 * this.birth(parent) needs to be called 
+		@type{number}*/
+		this.parentId = -1;
 	}
 
+	/** Adds parentId number, and can be overwritten to execute functionality on 
+	 * birth events. 
+	 @param {Cell} parent - the parent Cell object
+	 */
 	birth (parent){
 		this.parentId = parent.id; 
-	}
-
-	getParam(param){
-		if( this.hasOwnProperty(param)){
-			return this[param]
-		} else {
-			return this.conf[param][this.kind]
-		}
 	}
 }
 
@@ -3028,6 +3033,10 @@ class CPM extends GridBasedModel {
 	}
 
 
+	/** Adds Cell tracking to the simulation. This uses the {@link Cell} subclasses to track
+	 * inheritance and cellId-specific parameters and internal state
+	 @param {object} conf - the configuration object containing "CELLS".
+	 */
 	addCells( conf ){
 		if (!this.hasOwnProperty("cells")){
 			this.cells = [new Cell(conf, 0, -1, this)];
@@ -3128,10 +3137,6 @@ class CPM extends GridBasedModel {
 		return this.cells[t]
 	}
 
-	getParamsOfId(param, cid){
-		return this.cells[cid].getParam(param)
-	}
-	
 	/* ------------- COMPUTING THE HAMILTONIAN --------------- */
 
 	/** returns total change in hamiltonian for all registered soft constraints together.
@@ -3308,11 +3313,9 @@ class CPM extends GridBasedModel {
 	}
 
 	/* ------------- MANIPULATING CELLS ON THE GRID --------------- */
-	//  TODO: Rename or split so that it is clear that this no longer only makes a new ID
 	/** Initiate a new {@link CellId} for a cell of {@link CellKind} "kind", and create elements
-	   for this cell in the relevant arrays (cellvolume, t2k).
+	   for this cell in the relevant arrays (cellvolume, t2k, cells (if these are tracked)).
 	   @param {CellKind} kind - cellkind of the cell that has to be made.
-	   @param {CellId} parentId - id of the parent, if this is birth
 	   @return {CellId} of the new cell.*/
 	makeNewCellID ( kind ){
 		const newid = ++ this.last_cell_id;
@@ -3324,6 +3327,10 @@ class CPM extends GridBasedModel {
 		return newid
 	}
 
+	/** Calls a birth event in a new daughter Cell object, and hands 
+	 * the other daughter (as parent) on to the Cell.
+	   @param {CellId} childId - id of the newly created Cell object
+	   @param {CellId} parentId - id of the other daughter (that kept the parent id)*/
 	birth (childId, parentId){
 		this.cells[childId].birth(this.cells[parentId] );
 	}
@@ -3717,8 +3724,6 @@ class ActivityMultiBackground extends ActivityConstraint {
 		}
 
 		let deltaH = 0, maxact, lambdaact;
-		const src_kind = this.C.cellKind( src_type );
-		const tgt_kind = this.C.cellKind( tgt_type );
 		let bgindex1 = 0, bgindex2 = 0;
 		
 		for( let bgkind = 0; bgkind < this.bgvoxels.length; bgkind++ ){
@@ -3734,14 +3739,14 @@ class ActivityMultiBackground extends ActivityConstraint {
 		// use parameters for the source cell, unless that is the background.
 		// In that case, use parameters of the target cell.
 		if( src_type != 0 ){
-			maxact = this.conf["MAX_ACT"][src_kind];
-			lambdaact = this.conf["LAMBDA_ACT_MBG"][src_kind][bgindex1];
+			maxact = this.cellParameter("MAX_ACT", src_type);
+			lambdaact = this.cellParameter("LAMBDA_ACT_MBG", src_type)[bgindex1];
 		} else {
 			// special case: punishment for a copy attempt from background into
 			// an active cell. This effectively means that the active cell retracts,
 			// which is different from one cell pushing into another (active) cell.
-			maxact = this.conf["MAX_ACT"][tgt_kind];
-			lambdaact = this.conf["LAMBDA_ACT_MBG"][tgt_kind][bgindex2];
+			maxact = this.cellParameter("MAX_ACT", tgt_type);
+			lambdaact = this.cellParameter("LAMBDA_ACT_MBG", tgt_type)[bgindex2];
 		}
 		if( !maxact || !lambdaact ){
 			return 0
@@ -4520,8 +4525,8 @@ class CA extends GridBasedModel {
 
 class StochasticCorrector extends Cell {
 
-	constructor (conf, kind, id, mt, parent) {
-		super(conf, kind, id, mt, parent);
+	constructor (conf, kind, id, mt) {
+		super(conf, kind, id, mt);
 		this.X = conf["INIT_X"][kind];
 		this.Y = conf["INIT_Y"][kind];
 		this.V = conf["INIT_V"][kind];	
@@ -4555,14 +4560,6 @@ class StochasticCorrector extends Cell {
 		this.V = V/2;
 		parent.V = V/2;
 	}
-
-	// get V() {
-	// 	return this.conf["V"][this.kind]
-	// }
-
-	// set V(V){
-	// 	this.conf["V"][this.kind] = V
-	// }
 }
 
 class SuperCell extends Cell {
@@ -4601,6 +4598,253 @@ class SubCell extends Cell {
 	setHost(new_host){
 		this.host=new_host;
 	}
+}
+
+class DNA {
+
+	/* eslint-disable */ 
+	constructor (conf, mt ,parent) {
+        this.mt = mt;
+        this.conf = conf;
+
+        this.oxphos_quality = new Array(this.conf["N_OXPHOS"]).fill(1);
+        this.translate_quality = new Array(this.conf["N_TRANSLATE"]).fill(1);
+        this.replicate_quality = new Array(this.conf["N_REPLICATE"]).fill(0);
+        this.replicateFlag = false;
+        this.translateFlag = false;
+        // console.log("also in seed", this.translate_quality)
+        if (parent instanceof DNA){
+            this.oxphos_quality = [...parent.oxphos_quality];
+            this.translate_quality = [...parent.translate_quality];
+            this.replicate_quality = [...parent.replicate_quality];
+            if (this.mt.random() < conf["MTDNA_MUT_RATE"] ){
+                // console.log("before mutate", this.translate_quality)
+                this.mutate();
+                // console.log("after mutate", this.translate_quality)
+            }
+        }
+    }
+
+    mutate(){ 
+        let indices = this.oxphos_quality.concat(this.translate_quality, this.replicate_quality).reduce(function(arr, e, i) {
+            if (e == 1) arr.push(i);
+            return arr;
+          }, []);
+        let ix = indices[Math.floor(this.mt.random() * indices.length)];
+        // console.log(indices, ix)
+        if (ix < this.conf["N_OXPHOS"]){
+            // console.log("setting oxphos ", ix)
+            this.oxphos_quality[ix] = 0;
+        } else if (ix < (this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])){
+            // console.log("setting otranslate ", ix - this.conf["N_OXPHOS"])
+            this.translate_quality[ix - this.conf["N_OXPHOS"] ] = 0;
+        } else {
+            this.replicate_quality[ix - this.conf["N_OXPHOS"] - this.conf["N_TRANSLATE"] ] = 0;
+        }
+    }
+
+    notBusy(){
+        return (this.replicateFlag == false && this.translateFlag == false)
+    }
+
+    setReplicateFlag(bool){
+        this.replicateFlag = bool;
+    }
+
+    setTranslateFlag(bool){
+        this.translateFlag = bool;
+    }
+
+    sumQuality(){
+        return  [this.oxphos_quality, this.translate_quality ,this.replicate_quality].reduce((t, e) => t.concat(e)).reduce((t, e) => t + e)
+    }
+
+}
+
+class Mitochondrion extends Cell {
+
+	/* eslint-disable */ 
+	constructor (conf, kind, id, C, parent) {
+        super(conf, kind, id, C, parent);
+        
+        this.DNA = [];
+        this.oxphos_products = new Array(this.conf["N_OXPHOS"]).fill(this.conf["INIT_OXPHOS"]);
+        this.translate_products = new Array(this.conf["N_TRANSLATE"]).fill(5);
+        this.replication_products = new Array(this.conf["N_REPLICATE"]).fill(5);
+       
+        this.oxphos = this.conf["INIT_OXPHOS"];
+        this.V = this.conf["INIT_OXPHOS"];
+
+        this.individualParams = ["V", "P"];
+
+		// this.X = conf["INIT_X"][kind]
+		// this.Y = conf["INIT_Y"][kind]
+		// this.V = conf["INIT_V"][kind]
+
+		if (parent instanceof Cell){ // copy on birth
+            this.divideProducts(parent);
+		} else {
+            for (let i = 0 ; i < this.conf["N_INIT_DNA"]; i++){
+                this.DNA[i] = new DNA(this.conf, this.mt);
+            }
+        }
+    }
+
+    // update(){
+    //     this.oxphos += Math.min(this.oxphos_products) - this.conf["MITO_SHRINK"]
+
+    //     if (this.DNA.length == 0 ){ return }
+    //     // takes bottleneck as rate
+    //     var rep_attempts = Math.min(this.replication_products) 
+    //     var translate_attempts = Math.min(this.translate_products)
+    //     var attempts = rep_attempts + translate_attempts
+
+    //     // replication and translation machinery try to find DNA to execute on
+    //     while (attempts > 0){
+    //         if (this.mt.random() < rep_attempts/attempts){
+    //             // attempt to find a DNA to replicate
+    //             let ix = Math.floor(mt.random() * this.DNA.length)
+    //             if (this.DNA[ix].notBusy()){ 
+    //                 this.DNA[ix].setReplicateFlag(true)
+    //             }
+    //             replicate_attempts--
+    //             attempts--
+    //         } else {
+    //             // attempt to translate
+    //             let ix = Math.floor(mt.random() * this.DNA.length)
+    //             if (this.DNA[ix].notBusy()){
+    //                 this.DNA[jx].setTranslateFlag(true)
+    //             }
+    //             translate_attempts-- //technically redundant
+    //             attempts--
+    //         }
+    //     }
+    //     for (var dna of this.DNA){
+    //         if (dna.translateFlag){
+    //             console.log(dna.oxphos_quality, this.oxphos_products)
+    //             this.oxphos_products += dna.oxphos_quality
+    //             this.translate_products += dna.translate_quality
+    //             this.replication_products += dna.replication_quality
+    //             dna.setTranslateFlag(false)
+    //         } else if (dna.replicateFlag) { 
+    //             this.DNA.push(new DNA(conf, mt, dna))
+    //             dna.setReplicateFlag(false)
+    //         }
+    //     }
+
+    // }
+
+    divideProducts(parent){
+        let new_arr_1 = [[], [], []];
+        let new_arr_2 = [[], [], []];
+        for (const [which, arr] of [parent.oxphos_products, parent.translate_products, parent.replication_products].entries()){
+            // console.log(arr, typeof arr)
+            for (const [ix, product] of arr.entries()){
+                new_arr_1[which].push(0);
+                new_arr_2[which].push(0);
+                for (let i = 0; i < product; i ++){
+                    if (this.mt.random() > 0.5){
+                        new_arr_1[which][ix]++;
+                    } else {
+                        new_arr_2[which][ix]++;
+                    }   
+                
+                // let fluct = Math.floor(this.conf["NOISE"]* (2  *this.mt.random() - 1))
+                // if ((product/2 - Math.abs(fluct)) < 0){ 
+                //     fluct = Math.floor(product/2) * Math.sign(fluct)
+                // }
+                // // console.log(fluct)
+                // new_arr_1[which].push(Math.floor(product/2) + fluct)
+                // new_arr_2[which].push(Math.floor(product/2) - fluct)
+                // if (product % 2 !== 0){
+                    
+                }  
+            }
+        }
+        // console.log("products:", [parent.oxphos_products, parent.translate_products, parent.replication_products],new_arr_1,new_arr_2)
+        this.setProducts(new_arr_1[0], new_arr_1[1], new_arr_1[2]);
+        parent.setProducts(new_arr_2[0], new_arr_2[1], new_arr_2[2]);
+        
+
+        // let fluct = this.conf["NOISE"]* (2  *this.mt.random() - 1)
+        // if ((parent.DNA.length/2 - Math.abs(fluct)) < 0){
+        //     fluct = parent.DNA.length/2  * Math.sign(fluct)
+        // }
+        // console.log('orig dna length', parent.DNA.length)
+        let all_dna = this.shuffleArray(parent.DNA);
+        parent.DNA = [];
+        this.DNA = []; //redundant for birth call - but to be sure in later implementation
+        for (let dna of all_dna){
+            if (this.mt.random() > 0.5){
+                this.DNA.push(dna);
+            } else {
+                parent.DNA.push(dna);
+            }   
+        }
+        // for (const [ix, dna] of all_dna.entries()){
+        //     if (ix < (Math.floor(parent.DNA.length/2) - Math.floor(fluct))){
+        //         parent.DNA.push(dna)
+        //     } else {
+        //         this.DNA.push(dna)
+        //     }
+        // }
+        // console.log('child 1 ', parent.DNA, "child 2", this.DNA)
+
+		this.V = parent.V/2;
+        parent.V /= 2;
+        // throw("HEY")
+    }
+    
+    shuffleArray(unshuffled) {
+        let shuffled = unshuffled; // not always necessary - could be done in place - this is to maybe use it later for any arrays that need to retain structure
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(this.mt.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled
+    }
+
+    replicateDNA(dna){
+        this.DNA.push(new DNA(this.conf, this.mt, dna));
+    }
+
+    setProducts(oxphos_products, translate_products, replication_products){
+        this.oxphos_products = oxphos_products;
+        this.translate_products = translate_products;
+        this.replication_products = replication_products;
+    }
+
+    fuse(partner) {
+
+    }
+
+	/* eslint-disable */ 
+	getIndividualParam(param){
+		if (param == "V"){
+			// console.log(this.V)
+			return this.V
+		} 
+		throw("Implement changed way to get" + param + " constraint parameter per individual, or remove this from " + typeof this + " Cell class's indivualParams." )
+	}
+
+    heteroplasmy(){
+        // compute heteroplasmy
+        if (this.DNA.length == 0){
+            return 0
+        }
+        let all_proteins = new DNA(this.conf, this.mt).sumQuality();
+        let heteroplasmy = 0;
+        for (let dna of this.DNA){
+            if (dna.sumQuality() < all_proteins){
+                heteroplasmy++;
+            }
+        }
+        return heteroplasmy/this.DNA.length
+    }
+	// getColor(){
+	// 	return 100/this.Y
+	// }
+	
 }
 
 /**	This Stat creates a {@link CellArrayObject} with the border cellpixels of each cell on the grid. 
@@ -5817,10 +6061,9 @@ class PersistenceConstraint extends SoftConstraint {
 			centroids = this.C.getStat( Centroids );
 		}
 		for( let t of this.C.cellIDs() ){
-			const k = this.C.cellKind(t);
-			let ld = this.getConf(t)["LAMBDA_DIR"][k];
-			let dt = this.getConf(t)["DELTA_T"] && this.getConf(t)["DELTA_T"][k] ? 
-				this.getConf(t)["DELTA_T"][k] : 10;
+			let ld = this.cellParameter("LAMBDA_DIR", t);
+			let dt = this.conf["DELTA_T"] && this.conf["DELTA_T"][this.C.cellKind(t)] ? // cannot convert this call easily to cellParameter
+				this.cellParameter("DELTA_T", t) : 10;
 			if( ld == 0 ){
 				delete this.cellcentroidlists[t];
 				delete this.celldirections[t];
@@ -5853,7 +6096,7 @@ class PersistenceConstraint extends SoftConstraint {
 					}
 				}
 				// apply angular diffusion to target direction if needed
-				let per = this.getConf(t)["PERSIST"][k];
+				let per = this.cellParameter("PERSIST", t);
 				if( per < 1 ){
 					this.normalize(dx);
 					this.normalize(this.celldirections[t]);
@@ -5912,7 +6155,7 @@ class PreferredDirectionConstraint extends SoftConstraint {
 		
 		// Custom check for the attractionpoint
 		checker.confCheckPresenceOf( "DIR" );
-		let pt = this.getParam("DIR");
+		let pt = this.conf["DIR"];
 		if( !( pt instanceof Array ) ){
 			throw( "DIR must be an array with the start and end coordinate of the preferred direction vector!" )
 		}
@@ -5935,12 +6178,12 @@ class PreferredDirectionConstraint extends SoftConstraint {
 	 @return {number} the change in Hamiltonian for this copy attempt and this constraint.*/ 
 	/* eslint-disable no-unused-vars*/
 	deltaH( src_i, tgt_i, src_type, tgt_type ){
-		let l = this.getParam("LAMBDA_DIR", src_type);
+		let l = this.cellParameter("LAMBDA_DIR", src_type);
 		if( !l ){
 			return 0
 		}
 		let torus = this.C.conf.torus;
-		let dir = this.getParam("DIR", src_type);
+		let dir = this.cellParameter("DIR", src_type);
 		let p1 = this.C.grid.i2p( src_i ), p2 = this.C.grid.i2p( tgt_i );
 		// To bias a copy attempt p1 -> p2 in the direction of vector 'dir'.
 		let r = 0.;
@@ -6059,7 +6302,7 @@ class ChemotaxisConstraint extends SoftConstraint {
 	deltaHCoarse( sourcei, targeti, src_type, tgt_type ){
 		let sp = this.C.grid.i2p( sourcei ), tp = this.C.grid.i2p( targeti );
 		let delta = this.field.pixt( tp ) - this.field.pixt( sp );
-		let lambdachem = this.conf["LAMBDA_CH"][this.C.cellKind(src_type)];
+		let lambdachem = this.cellParameter("LAMBDA_CH", this.C.cellKind(src_type));
 		return -delta*lambdachem
 	}
 
@@ -6161,7 +6404,7 @@ class AttractionPointConstraint extends SoftConstraint {
 		// deltaH is only non-zero when the source pixel belongs to a cell with
 		// an attraction point, so it does not act on copy attempts where the
 		// background would invade the cell.
-		let l = this.conf["LAMBDA_ATTRACTIONPOINT"][this.C.cellKind( src_type )];
+		let l = this.cellParameter("LAMBDA_ATTRACTIONPOINT", src_type );
 		if( !l ){
 			return 0
 		}
@@ -6173,7 +6416,7 @@ class AttractionPointConstraint extends SoftConstraint {
 
 		// tgt is the attraction point; p1 is the source location and p2 is
 		// the location of the target pixel.
-		let tgt = this.conf["ATTRACTIONPOINT"][this.C.cellKind( src_type )];
+		let tgt = this.cellParameter("ATTRACTIONPOINT", src_type );
 		let p1 = this.C.grid.i2p( src_i ), p2 = this.C.grid.i2p( tgt_i );
 
 		// To bias a copy attempt p1 -> p2 in the direction of vector 'dir'.
@@ -6466,7 +6709,7 @@ class ConnectivityConstraint extends HardConstraint {
 		// connectedness of src cell cannot change if it was connected in the first place.
 		
 		// connectedness of tgt cell
-		if( tgt_type != 0 && this.conf["CONNECTED"][this.C.cellKind(tgt_type)] ){
+		if( tgt_type != 0 && this.cellParameter("CONNECTED",tgt_type) ){
 			return this.checkConnected( tgt_i, src_type, tgt_type )
 		}
 		
@@ -6775,7 +7018,7 @@ class SoftConnectivityConstraint extends SoftConstraint {
 	deltaH( src_i, tgt_i, src_type, tgt_type ){
 		// connectedness of src cell cannot change if it was connected in the first place.
 		
-		let lambda = this.getParam("LAMBDA_CONNECTIVITY", tgt_type);
+		let lambda = this.cellParameter("LAMBDA_CONNECTIVITY", tgt_type);
 		
 		// connectedness of tgt cell
 		if( tgt_type != 0 && lambda > 0 ){
@@ -6903,7 +7146,7 @@ class LocalConnectivityConstraint extends HardConstraint {
 		// connectedness of src cell cannot change if it was connected in the first place.
 		
 		// connectedness of tgt cell
-		if( tgt_type !== 0 && this.conf["CONNECTED"][this.C.cellKind(tgt_type)] ){
+		if( tgt_type !== 0 && this.cellParameter("CONNECTED",tgt_type) ){
 			return this.checkConnected( tgt_i, src_type, tgt_type )
 		}
 		
@@ -6955,7 +7198,7 @@ class SoftLocalConnectivityConstraint extends SoftConstraint {
 
 		//
 		if( "NBH_TYPE" in this.conf ){
-			let v = this.getParam("NBH_TYPE");
+			let v = this.conf["NBH_TYPE"];
 			let values = [ "Neumann", "Moore" ];
 			let found = false;
 			for( let val of values ){
@@ -7072,7 +7315,7 @@ class SoftLocalConnectivityConstraint extends SoftConstraint {
 	deltaH( src_i, tgt_i, src_type, tgt_type ){
 		// connectedness of src cell cannot change if it was connected in the first place.
 		
-		let lambda = this.getParam("LAMBDA_CONNECTIVITY", tgt_type);
+		let lambda = this.cellParameter("LAMBDA_CONNECTIVITY", tgt_type);
 		
 		// connectedness of tgt cell. Only check when the lambda is non-zero.
 		if( tgt_type != 0 && lambda > 0 ){
@@ -7197,12 +7440,12 @@ class HardVolumeRangeConstraint extends HardConstraint {
 	fulfilled( src_i, tgt_i, src_type, tgt_type ){
 		// volume gain of src cell
 		if( src_type != 0 && this.C.getVolume(src_type) + 1 > 
-			this.conf["LAMBDA_VRANGE_MAX"][this.C.cellKind(src_type)] ){
+			this.cellParameter("LAMBDA_VRANGE_MAX", src_type) ){
 			return false
 		}
 		// volume loss of tgt cell
 		if( tgt_type != 0 && this.C.getVolume(tgt_type) - 1 < 
-			this.conf["LAMBDA_VRANGE_MIN"][this.C.cellKind(tgt_type)] ){
+			this.cellParameter("LAMBDA_VRANGE_MIN",tgt_type) ){
 			return false
 		}
 		return true
@@ -10652,6 +10895,7 @@ exports.CoarseGrid = CoarseGrid;
 exports.ConnectedComponentsByCell = ConnectedComponentsByCell;
 exports.Connectedness = Connectedness;
 exports.ConnectivityConstraint = ConnectivityConstraint;
+exports.DNA = DNA;
 exports.Grid = Grid;
 exports.Grid2D = Grid2D;
 exports.Grid3D = Grid3D;
@@ -10660,6 +10904,7 @@ exports.GridManipulator = GridManipulator;
 exports.HardConstraint = HardConstraint;
 exports.HardVolumeRangeConstraint = HardVolumeRangeConstraint;
 exports.LocalConnectivityConstraint = LocalConnectivityConstraint;
+exports.Mitochondrion = Mitochondrion;
 exports.ModelDescription = ModelDescription;
 exports.MorpheusImport = MorpheusImport;
 exports.MorpheusWriter = MorpheusWriter;
