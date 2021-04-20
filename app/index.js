@@ -10,6 +10,8 @@ import GridBasedModel from "../src/models/GridBasedModel.js"
  
 import Cell from "../src/cells/Cell.js" 
 import StochasticCorrector from "../src/cells/StochasticCorrector.js" 
+import SuperCell from "../src/cells/SuperCell.js" 
+import SubCell from "../src/cells/SubCell.js" 
  
 import Stat from "../src/stats/Stat.js" 
 import PixelsByCell from "../src/stats/PixelsByCell.js" 
@@ -40,6 +42,7 @@ import ConnectivityConstraint from "../src/hamiltonian/ConnectivityConstraint.js
 import SoftConnectivityConstraint from "../src/hamiltonian/SoftConnectivityConstraint.js" 
 import LocalConnectivityConstraint from "../src/hamiltonian/LocalConnectivityConstraint.js" 
 import SoftLocalConnectivityConstraint from "../src/hamiltonian/SoftLocalConnectivityConstraint.js" 
+import SubCellConstraint from "../src/hamiltonian/SubCellConstraint.js" 
  
 import HardConstraint from "../src/hamiltonian/HardConstraint.js" 
 import HardVolumeRangeConstraint from "../src/hamiltonian/HardVolumeRangeConstraint.js" 
@@ -61,6 +64,8 @@ export {
 	GridBasedModel,
 	Cell,
 	StochasticCorrector,
+	SuperCell,
+	SubCell,
 	Stat,
 	PixelsByCell,
 	BorderPixelsByCell,
@@ -88,6 +93,7 @@ export {
 	SoftConnectivityConstraint,
 	LocalConnectivityConstraint,
 	SoftLocalConnectivityConstraint,
+	SubCellConstraint,
 	HardConstraint,
 	HardVolumeRangeConstraint,
 	BarrierConstraint,
