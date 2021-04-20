@@ -12,6 +12,8 @@ import Cell from "../src/cells/Cell.js"
 import StochasticCorrector from "../src/cells/StochasticCorrector.js" 
 import SuperCell from "../src/cells/SuperCell.js" 
 import SubCell from "../src/cells/SubCell.js" 
+import Mitochondrion from "../src/cells/mitochondrial_model/Mitochondrion.js" 
+import DNA from "../src/cells/mitochondrial_model/DNA.js" 
  
 import Stat from "../src/stats/Stat.js" 
 import PixelsByCell from "../src/stats/PixelsByCell.js" 
@@ -66,6 +68,8 @@ export {
 	StochasticCorrector,
 	SuperCell,
 	SubCell,
+	Mitochondrion,
+	DNA,
 	Stat,
 	PixelsByCell,
 	BorderPixelsByCell,

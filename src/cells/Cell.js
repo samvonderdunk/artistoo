@@ -30,6 +30,13 @@ class Cell {
 		this.parentId = parent.id 
 	}
 
+	// getColor(){
+	// 	return this.conf['CELLCOLOR'][this.kind]
+	// }
+	
+}
+
+
 }
 
 export default Cell
