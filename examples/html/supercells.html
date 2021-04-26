@@ -35,7 +35,7 @@ let config = {
 	// CPM parameters and configuration
 	conf : {
 		// Basic CPM parameters
-		torus : [false,false],				// Should the grid have linked borders?
+		torus : [true,true],				// Should the grid have linked borders?
 		seed : 5,							// Seed for random number generation.
 		T : 20,								// CPM temperature
         
@@ -106,7 +106,7 @@ let config = {
 	}
 }
 /*	---------------------------------- */
-let sim, meter, showYcolors, cellColors
+let sim, meter, showHost, cellColors
 
 function initialize(){
 	 /* 	The following functions are defined below and will be added to
@@ -114,14 +114,15 @@ function initialize(){
 	 	this object is ignored and not used in the html/node files. */
 	 let custommethods = {
 	 	postMCSListener : postMCSListener,
-		initializeGrid : initializeGrid
+		initializeGrid : initializeGrid,
+		drawCanvas : drawCanvas
 	 }
 	sim = new CPM.Simulation( config, custommethods )
 
     sim.C.add( new CPM.SubCellConstraint( config["conf"] ) )
 
 
-	showYcolors = false
+	showHost = false
 
 	meter = new FPSMeter({left:"auto", right:"5px"})
 	step()
@@ -163,19 +164,14 @@ function seedSubCells(){
 
 /* The following custom methods will be added to the simulation object*/
 function postMCSListener(){
-	
-	// // add the initializer if not already there
-	// if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
-	
-	// var C = this.C
-	// this.C.cells.forEach(function (item) {
-	// 	updateCell(C, item)
-	// });
+	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
 	for( let cid of this.C.cellIDs() ){
 		if( this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)] && sim.time > 200){
-			let nid = divideCell(cid)
+			let nid = this.gm.divideCell(cid)
 			if (this.C.cells[cid] instanceof CPM.SubCell){
 				this.C.cells[this.C.cells[cid].host].subcells.push(nid)
+			} else if (this.C.cells[cid] instanceof CPM.SuperCell){
+				transferSubCells(cid, nid)
 			}
 		}
 	}
@@ -198,95 +194,110 @@ function initializeGrid(){
     }
 }
 
-function divideCell( id ){
-	let C = sim.C
-	let torus = C.conf.torus.indexOf(true) >= 0
-	if( C.ndim != 2 || torus ){
-		throw("The divideCell methods is only implemented for 2D non-torus lattices yet!")
-	}
-	let com = C.getStat( CPM.Centroids )[id]
-	let bxx = 0, bxy = 0, byy=0, cx, cy, x2, y2, side, T, D, x0, y0, x1, y1, L2
-	let pixels = C.getStat( CPM.PixelsByCell )
-	let cp =pixels[id]
-	// Loop over the pixels belonging to this cell
-	for( let j = 0 ; j < cp.length ; j ++ ){
-		cx = cp[j][0] - com[0] // x position rel to centroid
-		cy = cp[j][1] - com[1] // y position rel to centroid
-
-		// sum of squared distances:
-		bxx += cx*cx
-		bxy += cx*cy
-		byy += cy*cy
-	}
-
-	// This code computes a "dividing line", which is perpendicular to the longest
-	// axis of the cell.
-	if( bxy == 0 ){
-		x0 = 0
-		y0 = 0
-		x1 = 1
-		y1 = 0
-	} else {
-		T = bxx + byy
-		D = bxx*byy - bxy*bxy
-		//L1 = T/2 + Math.sqrt(T*T/4 - D)
-		L2 = T/2 - Math.sqrt(T*T/4 - D)
-		x0 = 0
-		y0 = 0
-		x1 = L2 - byy
-		y1 = bxy
-	}
-	// console.log( id )
-	// create a new ID for the second cell
-	
-	let nid = C.makeNewCellID( C.cellKind( id ))
-	if (C.hasOwnProperty("cells")){
-		C.birth( nid, id )
-	}
-	
-	// Loop over the pixels belonging to this cell
-	//let sidea = 0, sideb = 0
-	//let pix_id = []
-	//let pix_nid = []
-	//let sidea = 0, sideb=0
-
-	for( let j = 0 ; j < cp.length ; j ++ ){
-		// coordinates of current cell relative to center of mass
-		x2 = cp[j][0]-com[0]
-		y2 = cp[j][1]-com[1]
-
-		// Depending on which side of the dividing line this pixel is,
-		// set it to the new type
-		side = (x1 - x0)*(y2 - y0) - (x2 - x0)*(y1 - y0)
-		if( side > 0 ){
-			//sidea++
-			C.setpix( cp[j], nid ) 
-			// console.log( cp[j] + " " + C.cellKind( id ) )
-			//pix_nid.push( cp[j] )
-		} else {
-			//pix_id.push( cp[j] )
-			//sideb++
-
-		}
-	}
-	for (let cid of Object.keys(pixels)) {
-		let cell = C.cells[cid]
-		if (cell instanceof CPM.SubCell && cell.host == id){
-			let pix = pixels[cid][Math.floor(C.mt.random() * pixels[cid].length)]
-			x2 = pix[0]-com[0]
-			y2 = pix[1]-com[1]
-			side = (x1 - x0)*(y2 - y0) - (x2 - x0)*(y1 - y0)
-			if (side > 0){
-				cell.host = nid
+function transferSubCells (parent, child){
+	let neighs = sim.C.getStat( CPM.CellNeighborList )
+	for (let cid of Object.keys(neighs)) {
+		let cell = sim.C.cells[cid]
+		if (cell instanceof CPM.SubCell && cell.host == parent){
+			if (child in neighs[cid]){
+				cell.host = child
+				if (parent in neighs[cid] && sim.C.random() < 0.5){
+					cell.host = parent
+				}
 			}
 		}
 	}
-	//console.log( "3 " + C.cellKind( id ) )
-	//cp[id] = pix_id
-	//cp[nid] = pix_nid
-	C.stat_values = {} // remove cached stats or this will crash!!!
-	return nid
 }
+
+// Custom drawing function to draw the preferred directions.
+function drawCanvas(){
+	
+	/* This part is the normal drawing function */
+	
+	// Add the canvas if required
+
+	if( !this.helpClasses["canvas"] ){ this.addCanvas() }
+
+	// Clear canvas
+	this.Cim.clear( this.conf["CANVASCOLOR"] || "FFFFFF" )
+
+
+		
+	// Draw each cellkind appropriately
+	if (showHost){
+		// Function to color cells as function of their cellID number.
+		// we need a trick because otherwise 'this' (the simulation object)
+		// is not available from the colFun() function.
+		let s = this
+		let colFun = function( cid ){
+
+			// First time function is called, attach an empty object 'cellColors' to
+			// simulation object; this tracks the color for each cellID on the grid.
+			if( !s.hasOwnProperty( cellColors ) ){
+				s.cellColors = {}
+			}
+			// Check if the current cellID already has a color, otherwise put a random
+			// color in the cellColors object
+			if( !s.cellColors.hasOwnProperty(cid) ){
+			// this cell gets a random color
+				s.cellColors[cid] = getColor(s.C.cells[cid])
+			}
+
+			// now return the color assigned to this cellID.
+			return s.cellColors[cid]
+		}
+		
+		let nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
+		for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
+			this.Cim.drawCells( cellkind+1, colFun)
+
+			// Draw borders if required
+			if(  cellborders[ cellkind  ]  ){
+				this.Cim.drawCellBorders( cellkind+1, "000000" )
+			}
+		}
+	} else {
+			// Draw each cellkind appropriately
+		let cellcolor=this.conf["CELLCOLOR"], 
+		nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
+		for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
+		
+		// draw the cells of each kind in the right color
+		if( cellcolor[ cellkind ] != -1 ){
+			this.Cim.drawCells( cellkind+1, cellcolor[cellkind] )
+		}
+			
+		// Draw borders if required
+		if(  cellborders[ cellkind  ]  ){
+			this.Cim.drawCellBorders( cellkind+1, "000000" )
+		}
+	}
+}
+}
+const cmap = new ColorMap({
+		colormap: 'viridis',
+		nshades: 100,
+		format: 'hex',
+		alpha: 1
+})
+
+function getColor (cell) {
+	if (cell.id < 0){
+		return
+	}
+	let c = Math.floor(cell.host) 
+	if (c >= cmap.length){
+		c = cmap.length - 1
+	} else if (c < 0){
+		c = 0
+	}
+	return cmap[c].substring(1)
+}
+
+function changeColorBy(){
+	showHost = !showHost
+}
+
 
 
 </script>
@@ -294,6 +305,12 @@ function divideCell( id ){
 <body onload="initialize()">
 <h1>Supercells</h1>
 
+<label class="switch">
+	<input type="checkbox" name="colorby" oninput="changeColorBy()"  unchecked>
+	<span class="slider round"></span>
+	<label for="colorby"> Show host</label>
+
+</label>
 
 <p>
  Cells in other cells.
