@@ -497,7 +497,7 @@ class GridManipulator {
 			x1 = L2 - byy
 			y1 = bxy
 		}
-
+		// console.log( id )
 		// create a new ID for the second cell
 		let nid = C.makeNewCellID( C.cellKind( id ) )
 

@@ -31,6 +31,25 @@ class Constraint {
 	get parameters(){
 		return this.conf
 	}
+
+	/** Get a cellid or cellkind-specific parameter for a constraint, decides whether to look for Cell-specific
+	 * parameters or to retrieve from this.conf at postion of the Cellkind.
+	 * Assumes that parameter is an array of values per kind in
+	 * @param {string} param - name of parameter in conf object
+	 * @param {CellId} cid - Cell Id of cell in question, if id-specific parameter is not present, cellkind of cid is used
+	@return {any} parameter - the requested parameter
+	*/
+	cellParameter(param, cid){
+		// this is equal to {let cellspecific = this.C.cells[cid][param])}
+		// however, returns undefined if any of the called objects is not present
+		// this allows overwriting in Cell - all other variables are called from this.conf
+		let cellspecific = ((((this || {}).C || {}).cells || {})[cid] || {})[param]
+		if (cellspecific !== undefined){
+			return cellspecific
+		}
+		return this.conf[param][this.C.cellKind(cid)]
+	}
+	
 	/** The constructor of a constraint takes a configuration object.
 	This method is usually overwritten by the actual constraint so that the entries
 	of this object can be documented.
