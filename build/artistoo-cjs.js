@@ -5623,20 +5623,9 @@ class GridManipulator {
 		}
 		// console.log( id )
 		// create a new ID for the second cell
-		
-		let nid = C.makeNewCellID( C.cellKind( id ));
-		if (C.hasOwnProperty("cells")){
-			C.birth( nid, id );
-		}
-		
-		// Loop over the pixels belonging to this cell
-		//let sidea = 0, sideb = 0
-		//let pix_id = []
-		//let pix_nid = []
-		//let sidea = 0, sideb=0
-		console.log(partition);
+		let nid = C.makeNewCellID( C.cellKind( id ) );
+
 		if (partition === 0.5){
-			console.log("HEY");
 			for( let j = 0 ; j < cp.length ; j ++ ){
 				//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
 				if( x1*pixdist[j][1]-pixdist[j][0]*y1 > 0 ){
@@ -5648,14 +5637,12 @@ class GridManipulator {
 			for( let j = 0 ; j < cp.length ; j ++ ){
 				sides[j] = ({i : j, side : x1*pixdist[j][1]-pixdist[j][0]*y1});
 			}
-			console.log(sides);
 			sides.sort(function(a,b) {
 				return a.side - b.side;
 			});
 			if (this.C.random() < 0.5){
 				sides.reverse();
 			}
-			console.log(sides);
 			for( let j = 0 ; j < cp.length ; j ++ ){
 				if (j < partition * cp.length){
 					C.setpix( cp[sides[j].i], nid ); 

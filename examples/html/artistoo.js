@@ -1439,6 +1439,7 @@ var CPM = (function (exports) {
 			cellvolumes will be added with key = {@link CellId}, value = volume.
 			@type{number[]}*/
 			this.cellvolume = [];
+
 			/** Tracks the elapsed time in MCS
 			@type {number}*/
 			this.time = 0;
@@ -1719,6 +1720,25 @@ var CPM = (function (exports) {
 		get parameters(){
 			return this.conf
 		}
+
+		/** Get a cellid or cellkind-specific parameter for a constraint, decides whether to look for Cell-specific
+		 * parameters or to retrieve from this.conf at postion of the Cellkind.
+		 * Assumes that parameter is an array of values per kind in
+		 * @param {string} param - name of parameter in conf object
+		 * @param {CellId} cid - Cell Id of cell in question, if id-specific parameter is not present, cellkind of cid is used
+		@return {any} parameter - the requested parameter
+		*/
+		cellParameter(param, cid){
+			// this is equal to {let cellspecific = this.C.cells[cid][param])}
+			// however, returns undefined if any of the called objects is not present
+			// this allows overwriting in Cell - all other variables are called from this.conf
+			let cellspecific = ((((this || {}).C || {}).cells || {})[cid] || {})[param];
+			if (cellspecific !== undefined){
+				return cellspecific
+			}
+			return this.conf[param][this.C.cellKind(cid)]
+		}
+		
 		/** The constructor of a constraint takes a configuration object.
 		This method is usually overwritten by the actual constraint so that the entries
 		of this object can be documented.
@@ -2283,6 +2303,7 @@ var CPM = (function (exports) {
 		*/
 		J( t1, t2 ){
 			return this.conf["J"][this.C.cellKind(t1)][this.C.cellKind(t2)]
+			// return this.cellParameter("J", this.C.cellKind(t1))[this.C.cellKind(t2)]
 		}
 		/**  Returns the Hamiltonian around a pixel i with cellid tp by checking all its
 		neighbors that belong to a different cellid.
@@ -2387,10 +2408,10 @@ var CPM = (function (exports) {
 		@return {number} the volume energy of this cell.
 		*/
 		volconstraint ( vgain, t ){
-			const k = this.C.cellKind(t), l = this.conf["LAMBDA_V"][k];
+			const l = this.cellParameter("LAMBDA_V", t);
 			// the background "cell" has no volume constraint.
 			if( t == 0 || l == 0 ) return 0
-			const vdiff = this.conf["V"][k] - (this.C.getVolume(t) + vgain);
+			const vdiff = this.cellParameter("V", t) - (this.C.getVolume(t) + vgain);
 			return l*vdiff*vdiff
 		}
 	}
@@ -2496,20 +2517,18 @@ var CPM = (function (exports) {
 		deltaH ( sourcei, targeti, src_type, tgt_type ){
 
 			let deltaH = 0, maxact, lambdaact;
-			const src_kind = this.C.cellKind( src_type );
-			const tgt_kind = this.C.cellKind( tgt_type );
 
 			// use parameters for the source cell, unless that is the background.
 			// In that case, use parameters of the target cell.
 			if( src_type != 0 ){
-				maxact = this.conf["MAX_ACT"][src_kind];
-				lambdaact = this.conf["LAMBDA_ACT"][src_kind];
+				maxact = this.cellParameter("MAX_ACT", src_type);
+				lambdaact = this.cellParameter("LAMBDA_ACT", src_type);
 			} else {
 				// special case: punishment for a copy attempt from background into
 				// an active cell. This effectively means that the active cell retracts,
 				// which is different from one cell pushing into another (active) cell.
-				maxact = this.conf["MAX_ACT"][tgt_kind];
-				lambdaact = this.conf["LAMBDA_ACT"][tgt_kind];
+				maxact = this.cellParameter("MAX_ACT", tgt_type);
+				lambdaact = this.cellParameter("LAMBDA_ACT", tgt_type);
 			}
 			if( !maxact || !lambdaact ){
 				return 0
@@ -2620,8 +2639,7 @@ var CPM = (function (exports) {
 		/* eslint-disable no-unused-vars*/
 		postSetpixListener( i, t_old, t ){
 			// After setting a pixel, it gets the MAX_ACT value of its cellkind.
-			const k = this.C.cellKind( t );
-			this.cellpixelsact[i] = this.conf["MAX_ACT"][k];
+			this.cellpixelsact[i] = this.cellParameter("MAX_ACT", t);
 		}
 		
 		/** The postMCSListener of the ActivityConstraint ensures that pixel activities
@@ -2804,10 +2822,8 @@ var CPM = (function (exports) {
 			if( src_type === tgt_type ){
 				return 0
 			}
-			const ts = this.C.cellKind(src_type);
-			const ls = this.conf["LAMBDA_P"][ts];
-			const tt = this.C.cellKind(tgt_type);
-			const lt = this.conf["LAMBDA_P"][tt];
+			const ls = this.cellParameter("LAMBDA_P", src_type);
+			const lt = this.cellParameter("LAMBDA_P", tgt_type);
 			if( !(ls>0) && !(lt>0) ){
 				return 0
 			}
@@ -2831,14 +2847,14 @@ var CPM = (function (exports) {
 			}
 			let r = 0.0;
 			if( ls > 0 ){
-				const pt = this.conf["P"][ts],
+				const pt = this.cellParameter("P", src_type),
 					ps = this.cellperimeters[src_type];
 				const hnew = (ps+pchange[src_type])-pt,
 					hold = ps-pt;
 				r += ls*((hnew*hnew)-(hold*hold));
 			}
 			if( lt > 0 ){
-				const pt = this.conf["P"][tt],
+				const pt = this.cellParameter("P", tgt_type),
 					ps = this.cellperimeters[tgt_type];
 				const hnew = (ps+pchange[tgt_type])-pt,
 					hold = ps-pt;
@@ -2945,11 +2961,11 @@ var CPM = (function (exports) {
 		fulfilled( src_i, tgt_i, src_type, tgt_type ){
 		
 			// Fulfilled = false when either src or tgt pixel is of the barrier cellkind	
-			if( this.conf["IS_BARRIER"][this.C.cellKind( src_type ) ] ){
+			if( this.cellParameter("IS_BARRIER", src_type ) ){
 				return false
 			}
 
-			if( this.conf["IS_BARRIER"][this.C.cellKind( tgt_type ) ] ){
+			if( this.cellParameter("IS_BARRIER", tgt_type ) ){
 				return false
 			}
 
@@ -2977,6 +2993,39 @@ var CPM = (function (exports) {
 		LAMBDA_P : PerimeterConstraint,
 		IS_BARRIER : BarrierConstraint
 	};
+
+	class Cell {
+		
+		/** The constructor of class Cell.
+		 * @param {object} conf - configuration settings of the simulation, containing the
+		 * relevant parameters. Note: this should include all constraint parameters.
+		 * @param {CellKind} kind - the cellkind of this cell, the parameters of kind are used 
+		 * when parameters are not explicitly overwritten
+		 * @param {object} mt - the Mersenne Twister object of the CPM, to draw random 
+		 * numbers within the seeding of the entire simulation 
+		 * @param {CellId} id - the CellId of this cell (its key in the CPM.cells), unique identifier
+		 * */
+		constructor (conf, kind, id, mt){
+			this.conf = conf;
+			this.kind = kind;
+			this.mt = mt; 
+			this.id = id;
+
+			/** The id of the parent cell, all seeded cells have parent -1, to overwrite this
+			 * this.birth(parent) needs to be called 
+			@type{number}*/
+			this.parentId = -1;
+		}
+
+		/** Adds parentId number, and can be overwritten to execute functionality on 
+		 * birth events. 
+		 @param {Cell} parent - the parent Cell object
+		 */
+		birth (parent){
+			this.parentId = parent.id; 
+		}
+
+	}
 
 	/** The core CPM class. Can be used for two- or three-dimensional simulations.
 	*/
@@ -3013,7 +3062,8 @@ var CPM = (function (exports) {
 			this.time = 0;
 
 			// ---------- CPM specific stuff here
-			
+
+
 			/** Number of non-background cells currently on the grid.
 			@type{number}*/
 			this.nr_cells = 0;
@@ -3036,6 +3086,8 @@ var CPM = (function (exports) {
 			*/
 			this.t2k = [];	// cell type ("kind"). Example: this.t2k[1] is the cellKind of cell 1.
 			this.t2k[0] = 0;	// Background cell; there is just one cell of this type.
+
+			
 
 			//  ---------- CPM constraints
 			/** Array of objects of (@link SoftConstraint) subclasses attached to the CPM.
@@ -3070,8 +3122,9 @@ var CPM = (function (exports) {
 			for( let x of Object.keys( conf ) ){
 				if( x in AutoAdderConfig ){
 					this.add( new AutoAdderConfig[x]( conf ) );
-				}
+				} 
 			}
+			if ("CELLS" in conf){this.addCells( conf );}
 		}
 
 		/** Completely reset; remove all cells and set time back to zero. Only the
@@ -3086,6 +3139,9 @@ var CPM = (function (exports) {
 			this.time = 0;
 			this.cellvolume = [];
 			this.stat_values = {};
+			if (this.hasOwnProperty("cells")){
+				this.cells = [this.cells[0]]; // keep empty declared
+			}
 		}
 
 		/* This is no different from the GridBasedModel function and can go. 
@@ -3168,6 +3224,7 @@ var CPM = (function (exports) {
 					}
 					this.hard_constraints_indices[tName].push( i-1 );
 					break
+
 				}
 			}
 			if( typeof t["postSetpixListener"] === "function" ){
@@ -3180,6 +3237,32 @@ var CPM = (function (exports) {
 			if( typeof t["postAdd"] === "function" ){
 				t.postAdd();
 			}
+		}
+
+
+		/** Adds Cell tracking to the simulation. This uses the {@link Cell} subclasses to track
+		 * inheritance and cellId-specific parameters and internal state
+		 @param {object} conf - the configuration object containing "CELLS".
+		 */
+		addCells( conf ){
+			if (!this.hasOwnProperty("cells")){
+				this.cells = [new Cell(conf, 0, -1, this)];
+			}
+			if (!this.hasOwnProperty("cellclasses")){
+				this.cellclasses = ["EMPTY"]; //cell classes per kind - 0 is blank
+			}
+			let i = 1;
+			if ("CELLS" in conf){	
+				if (!this.hasOwnProperty("n_cell_kinds")){
+					this.n_cell_kinds = conf["CELLS"].length - 1;
+				} else if (this.n_cell_kinds !== conf["CELLS"].length -1 ) {
+					throw("Incorrect number of CELLS defined - do constraints and CELLS all contain the same number? CELLS expects some null value in index 0 for background ")
+				}
+				while (i <= this.n_cell_kinds && conf["CELLS"][i] !== "undefined"){
+					this.cellclasses.push(conf["CELLS"][i]);
+					i ++;
+				}
+			} 
 		}
 		
 		/** Get a {@link Constraint} object linked to this CPM by the name of its class.
@@ -3196,7 +3279,7 @@ var CPM = (function (exports) {
 		@param {number} [num = 0] - if multiple constraints of this class are present, 
 		return the num-th one added to the CPM. 
 		*/
-		getConstraint( constraintname, num ){
+		getConstraint( constraintname, num ) {
 		
 			if( !num ){
 				num = 0;
@@ -3254,7 +3337,13 @@ var CPM = (function (exports) {
 			this.t2k[ t ] = k;
 		}
 		
-		
+		/** Get the {@link Cell} of the cell with {@link CellId} t. 
+		@param {CellId} t - id of the cell to get kind of.
+		@return {Cell} the cellkind. */
+		getCell ( t ){
+			return this.cells[t]
+		}
+
 		/* ------------- COMPUTING THE HAMILTONIAN --------------- */
 
 		/** returns total change in hamiltonian for all registered soft constraints together.
@@ -3373,6 +3462,9 @@ var CPM = (function (exports) {
 					delete this.cellvolume[t_old];
 					delete this.t2k[t_old];
 					this.nr_cells--;
+					if (this.hasOwnProperty("cells")){
+						delete this.cells[t_old];
+					}
 				}
 			}
 			// update volume of the new cell and cellid of the pixel.
@@ -3428,18 +3520,27 @@ var CPM = (function (exports) {
 		}
 
 		/* ------------- MANIPULATING CELLS ON THE GRID --------------- */
-
 		/** Initiate a new {@link CellId} for a cell of {@link CellKind} "kind", and create elements
-		   for this cell in the relevant arrays (cellvolume, t2k).
+		   for this cell in the relevant arrays (cellvolume, t2k, cells (if these are tracked)).
 		   @param {CellKind} kind - cellkind of the cell that has to be made.
 		   @return {CellId} of the new cell.*/
 		makeNewCellID ( kind ){
 			const newid = ++ this.last_cell_id;
+			if (this.hasOwnProperty("cells")){
+				this.cells[newid] =new this.cellclasses[kind](this.conf, kind, newid, this.mt );
+			}
 			this.cellvolume[newid] = 0;
 			this.setCellKind( newid, kind );
 			return newid
 		}
 
+		/** Calls a birth event in a new daughter Cell object, and hands 
+		 * the other daughter (as parent) on to the Cell.
+		   @param {CellId} childId - id of the newly created Cell object
+		   @param {CellId} parentId - id of the other daughter (that kept the parent id)*/
+		birth (childId, parentId){
+			this.cells[childId].birth(this.cells[parentId] );
+		}
 	}
 
 	/** This class encapsulates a lower-resolution grid and makes it
@@ -3830,8 +3931,6 @@ var CPM = (function (exports) {
 			}
 
 			let deltaH = 0, maxact, lambdaact;
-			const src_kind = this.C.cellKind( src_type );
-			const tgt_kind = this.C.cellKind( tgt_type );
 			let bgindex1 = 0, bgindex2 = 0;
 			
 			for( let bgkind = 0; bgkind < this.bgvoxels.length; bgkind++ ){
@@ -3847,14 +3946,14 @@ var CPM = (function (exports) {
 			// use parameters for the source cell, unless that is the background.
 			// In that case, use parameters of the target cell.
 			if( src_type != 0 ){
-				maxact = this.conf["MAX_ACT"][src_kind];
-				lambdaact = this.conf["LAMBDA_ACT_MBG"][src_kind][bgindex1];
+				maxact = this.cellParameter("MAX_ACT", src_type);
+				lambdaact = this.cellParameter("LAMBDA_ACT_MBG", src_type)[bgindex1];
 			} else {
 				// special case: punishment for a copy attempt from background into
 				// an active cell. This effectively means that the active cell retracts,
 				// which is different from one cell pushing into another (active) cell.
-				maxact = this.conf["MAX_ACT"][tgt_kind];
-				lambdaact = this.conf["LAMBDA_ACT_MBG"][tgt_kind][bgindex2];
+				maxact = this.cellParameter("MAX_ACT", tgt_type);
+				lambdaact = this.cellParameter("LAMBDA_ACT_MBG", tgt_type)[bgindex2];
 			}
 			if( !maxact || !lambdaact ){
 				return 0
@@ -4452,6 +4551,7 @@ var CPM = (function (exports) {
 		 *
 		 * */
 		drawCellsOfId( id, col ){
+			
 			if( !col ){
 				col = "000000";
 			}
@@ -4559,7 +4659,9 @@ var CPM = (function (exports) {
 		 * If left unspecified, it gets the default value of black ("000000").
 		 * col can also be a function that returns a hex value for a cell id.
 		 * */
+
 		drawPixelSet( pixelarray, col ){
+		
 			if( ! col ){
 				col = "000000";
 			}
@@ -4649,6 +4751,45 @@ var CPM = (function (exports) {
 			value as value. The cache must be cleared when the grid changes!
 			@type {object} */
 			this.stat_values = {};
+		}
+	}
+
+	class StochasticCorrector extends Cell {
+
+		constructor (conf, kind, id, mt) {
+			super(conf, kind, id, mt);
+			this.X = conf["INIT_X"][kind];
+			this.Y = conf["INIT_Y"][kind];
+			this.V = conf["INIT_V"][kind];	
+		}
+
+		birth(parent){
+			super.birth(parent); // sets ParentId
+			this.V  = parent.V;
+			this.divideXY(parent); 
+		}
+
+		setXY(X, Y){
+			this.X = Math.max(0, X);
+			this.Y = Math.max(0, Y);
+		}
+
+		divideXY(parent){
+			let prevX = parent.X;
+			let prevY = parent.Y;
+			let fluctX = this.conf["NOISE"][this.kind] * (2  *this.mt.random() - 1);
+			let fluctY = this.conf["NOISE"][this.kind] * (2  *this.mt.random() - 1);
+
+			if ((prevX / 2 - fluctX) < 0)
+				fluctX = prevX/2;
+			if ((prevY / 2 - fluctY) < 0)
+				fluctY = prevY/2;
+
+			this.setXY(prevX/2+fluctX ,prevY/2 +fluctY );
+			parent.setXY(prevX/2 - fluctX,prevY/2 - fluctY);
+			let V = this.V;
+			this.V = V/2;
+			parent.V = V/2;
 		}
 	}
 
@@ -5686,18 +5827,11 @@ var CPM = (function (exports) {
 				x1 = L2 - byy;
 				y1 = bxy;
 			}
-
+			// console.log( id )
 			// create a new ID for the second cell
 			let nid = C.makeNewCellID( C.cellKind( id ) );
 
-			// Loop over the pixels belonging to this cell
-			//let sidea = 0, sideb = 0
-			//let pix_id = []
-			//let pix_nid = []
-			//let sidea = 0, sideb=0
-			console.log(partition);
 			if (partition === 0.5){
-				console.log("HEY");
 				for( let j = 0 ; j < cp.length ; j ++ ){
 					//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
 					if( x1*pixdist[j][1]-pixdist[j][0]*y1 > 0 ){
@@ -5709,14 +5843,12 @@ var CPM = (function (exports) {
 				for( let j = 0 ; j < cp.length ; j ++ ){
 					sides[j] = ({i : j, side : x1*pixdist[j][1]-pixdist[j][0]*y1});
 				}
-				console.log(sides);
 				sides.sort(function(a,b) {
 					return a.side - b.side;
 				});
 				if (this.C.random() < 0.5){
 					sides.reverse();
 				}
-				console.log(sides);
 				for( let j = 0 ; j < cp.length ; j ++ ){
 					if (j < partition * cp.length){
 						C.setpix( cp[sides[j].i], nid ); 
@@ -5878,10 +6010,9 @@ var CPM = (function (exports) {
 				centroids = this.C.getStat( Centroids );
 			}
 			for( let t of this.C.cellIDs() ){
-				const k = this.C.cellKind(t);
-				let ld = this.conf["LAMBDA_DIR"][k];
-				let dt = this.conf["DELTA_T"] && this.conf["DELTA_T"][k] ? 
-					this.conf["DELTA_T"][k] : 10;
+				let ld = this.cellParameter("LAMBDA_DIR", t);
+				let dt = this.conf["DELTA_T"] && this.conf["DELTA_T"][this.C.cellKind(t)] ? // cannot convert this call easily to cellParameter
+					this.cellParameter("DELTA_T", t) : 10;
 				if( ld == 0 ){
 					delete this.cellcentroidlists[t];
 					delete this.celldirections[t];
@@ -5914,7 +6045,7 @@ var CPM = (function (exports) {
 						}
 					}
 					// apply angular diffusion to target direction if needed
-					let per = this.conf["PERSIST"][k];
+					let per = this.cellParameter("PERSIST", t);
 					if( per < 1 ){
 						this.normalize(dx);
 						this.normalize(this.celldirections[t]);
@@ -5996,12 +6127,12 @@ var CPM = (function (exports) {
 		 @return {number} the change in Hamiltonian for this copy attempt and this constraint.*/ 
 		/* eslint-disable no-unused-vars*/
 		deltaH( src_i, tgt_i, src_type, tgt_type ){
-			let l = this.conf["LAMBDA_DIR"][this.C.cellKind( src_type )];
+			let l = this.cellParameter("LAMBDA_DIR", src_type);
 			if( !l ){
 				return 0
 			}
 			let torus = this.C.conf.torus;
-			let dir = this.conf["DIR"][this.C.cellKind( src_type )];
+			let dir = this.cellParameter("DIR", src_type);
 			let p1 = this.C.grid.i2p( src_i ), p2 = this.C.grid.i2p( tgt_i );
 			// To bias a copy attempt p1 -> p2 in the direction of vector 'dir'.
 			let r = 0.;
@@ -6120,7 +6251,7 @@ var CPM = (function (exports) {
 		deltaHCoarse( sourcei, targeti, src_type, tgt_type ){
 			let sp = this.C.grid.i2p( sourcei ), tp = this.C.grid.i2p( targeti );
 			let delta = this.field.pixt( tp ) - this.field.pixt( sp );
-			let lambdachem = this.conf["LAMBDA_CH"][this.C.cellKind(src_type)];
+			let lambdachem = this.cellParameter("LAMBDA_CH", this.C.cellKind(src_type));
 			return -delta*lambdachem
 		}
 
@@ -6222,7 +6353,7 @@ var CPM = (function (exports) {
 			// deltaH is only non-zero when the source pixel belongs to a cell with
 			// an attraction point, so it does not act on copy attempts where the
 			// background would invade the cell.
-			let l = this.conf["LAMBDA_ATTRACTIONPOINT"][this.C.cellKind( src_type )];
+			let l = this.cellParameter("LAMBDA_ATTRACTIONPOINT", src_type );
 			if( !l ){
 				return 0
 			}
@@ -6234,7 +6365,7 @@ var CPM = (function (exports) {
 
 			// tgt is the attraction point; p1 is the source location and p2 is
 			// the location of the target pixel.
-			let tgt = this.conf["ATTRACTIONPOINT"][this.C.cellKind( src_type )];
+			let tgt = this.cellParameter("ATTRACTIONPOINT", src_type );
 			let p1 = this.C.grid.i2p( src_i ), p2 = this.C.grid.i2p( tgt_i );
 
 			// To bias a copy attempt p1 -> p2 in the direction of vector 'dir'.
@@ -6527,7 +6658,7 @@ var CPM = (function (exports) {
 			// connectedness of src cell cannot change if it was connected in the first place.
 			
 			// connectedness of tgt cell
-			if( tgt_type != 0 && this.conf["CONNECTED"][this.C.cellKind(tgt_type)] ){
+			if( tgt_type != 0 && this.cellParameter("CONNECTED",tgt_type) ){
 				return this.checkConnected( tgt_i, src_type, tgt_type )
 			}
 			
@@ -6836,7 +6967,7 @@ var CPM = (function (exports) {
 		deltaH( src_i, tgt_i, src_type, tgt_type ){
 			// connectedness of src cell cannot change if it was connected in the first place.
 			
-			let lambda = this.conf["LAMBDA_CONNECTIVITY"][this.C.cellKind(tgt_type)];
+			let lambda = this.cellParameter("LAMBDA_CONNECTIVITY", tgt_type);
 			
 			// connectedness of tgt cell
 			if( tgt_type != 0 && lambda > 0 ){
@@ -6964,7 +7095,7 @@ var CPM = (function (exports) {
 			// connectedness of src cell cannot change if it was connected in the first place.
 			
 			// connectedness of tgt cell
-			if( tgt_type !== 0 && this.conf["CONNECTED"][this.C.cellKind(tgt_type)] ){
+			if( tgt_type !== 0 && this.cellParameter("CONNECTED",tgt_type) ){
 				return this.checkConnected( tgt_i, src_type, tgt_type )
 			}
 			
@@ -7133,7 +7264,7 @@ var CPM = (function (exports) {
 		deltaH( src_i, tgt_i, src_type, tgt_type ){
 			// connectedness of src cell cannot change if it was connected in the first place.
 			
-			let lambda = this.conf["LAMBDA_CONNECTIVITY"][this.C.cellKind(tgt_type)];
+			let lambda = this.cellParameter("LAMBDA_CONNECTIVITY", tgt_type);
 			
 			// connectedness of tgt cell. Only check when the lambda is non-zero.
 			if( tgt_type != 0 && lambda > 0 ){
@@ -7188,12 +7319,12 @@ var CPM = (function (exports) {
 		fulfilled( src_i, tgt_i, src_type, tgt_type ){
 			// volume gain of src cell
 			if( src_type != 0 && this.C.getVolume(src_type) + 1 > 
-				this.conf["LAMBDA_VRANGE_MAX"][this.C.cellKind(src_type)] ){
+				this.cellParameter("LAMBDA_VRANGE_MAX", src_type) ){
 				return false
 			}
 			// volume loss of tgt cell
 			if( tgt_type != 0 && this.C.getVolume(tgt_type) - 1 < 
-				this.conf["LAMBDA_VRANGE_MIN"][this.C.cellKind(tgt_type)] ){
+				this.cellParameter("LAMBDA_VRANGE_MIN",tgt_type) ){
 				return false
 			}
 			return true
@@ -10634,6 +10765,7 @@ var CPM = (function (exports) {
 	exports.CA = CA;
 	exports.CPM = CPM;
 	exports.Canvas = Canvas;
+	exports.Cell = Cell;
 	exports.CellNeighborList = CellNeighborList;
 	exports.Centroids = Centroids;
 	exports.CentroidsWithTorusCorrection = CentroidsWithTorusCorrection;
@@ -10662,6 +10794,7 @@ var CPM = (function (exports) {
 	exports.SoftConstraint = SoftConstraint;
 	exports.SoftLocalConnectivityConstraint = SoftLocalConnectivityConstraint;
 	exports.Stat = Stat;
+	exports.StochasticCorrector = StochasticCorrector;
 	exports.VolumeConstraint = VolumeConstraint;
 
 	return exports;
