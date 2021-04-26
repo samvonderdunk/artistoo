@@ -1,7 +1,7 @@
-import Cell from "../Cell.js" 
+import SubCell from "../SubCell.js" 
 import DNA from "./DNA.js" 
 
-class Mitochondrion extends Cell {
+class Mitochondrion extends SubCell {
 
 	/* eslint-disable */ 
 	constructor (conf, kind, id, C, parent) {

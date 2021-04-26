@@ -1,6 +1,6 @@
-import Cell from "../Cell.js" 
+import SuperCell from "../SuperCell.js" 
 
-class HostCell extends Cell {
+class HostCell extends SuperCell {
 
 		/* eslint-disable */ 
 	constructor (conf, kind, id, C, parent) {
