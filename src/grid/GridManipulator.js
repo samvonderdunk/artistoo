@@ -451,7 +451,7 @@ class GridManipulator {
 		* C.getStat( PixelsByCell )
 	 */
 	/* eslint-disable */
-	divideCell( id ){
+	divideCell( id , partition = 0.5){
 		let C = this.C
 		if( C.ndim != 2 ){
 			throw("The divideCell method is only implemented for 2D lattices yet!")
@@ -460,7 +460,7 @@ class GridManipulator {
 		let bxx = 0, bxy = 0, byy=0, cx, cy, x2, y2, side, T, D, x0, y0, x1, y1, L2
 
 		// Loop over the pixels belonging to this cell
-	 	let si = this.C.extents, c = new Array(2)
+	 	let si = this.C.extents, pixdist = {}, c = new Array(2)
 		for( let j = 0 ; j < cp.length ; j ++ ){
 			for ( let dim = 0 ; dim < 2 ; dim ++ ){
 				c[dim] = cp[j][dim] - com[dim]
@@ -474,6 +474,7 @@ class GridManipulator {
 					}
 				}
 			}
+			pixdist[j] = [...c]
 			bxx += c[0]*c[0]
 			bxy += c[0]*c[1]
 			byy += c[1]*c[1]
@@ -500,34 +501,31 @@ class GridManipulator {
 		// create a new ID for the second cell
 		let nid = C.makeNewCellID( C.cellKind( id ) )
 
-		// Loop over the pixels belonging to this cell
-		//let sidea = 0, sideb = 0
-		//let pix_id = []
-		//let pix_nid = []
-		//let sidea = 0, sideb=0
-
-		for( let j = 0 ; j < cp.length ; j ++ ){
-			// coordinates of current cell relative to center of mass
-			x2 = cp[j][0]-com[0]
-			y2 = cp[j][1]-com[1]
-
-			// Depending on which side of the dividing line this pixel is,
-			// set it to the new type
-			side = (x1 - x0)*(y2 - y0) - (x2 - x0)*(y1 - y0)
-			if( side > 0 ){
-				//sidea++
-				C.setpix( cp[j], nid ) 
-				// console.log( cp[j] + " " + C.cellKind( id ) )
-				//pix_nid.push( cp[j] )
-			} else {
-				//pix_id.push( cp[j] )
-				//sideb++
-
+		if (partition === 0.5){
+			for( let j = 0 ; j < cp.length ; j ++ ){
+				//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
+				if( x1*pixdist[j][1]-pixdist[j][0]*y1 > 0 ){
+					C.setpix( cp[j], nid ) 
+				}
+			}
+		} else {
+			let sides = new Array(cp.length)
+			for( let j = 0 ; j < cp.length ; j ++ ){
+				sides[j] = ({i : j, side : x1*pixdist[j][1]-pixdist[j][0]*y1})
+			}
+			sides.sort(function(a,b) {
+				return a.side - b.side;
+			})
+			if (this.C.random() < 0.5){
+				sides.reverse()
+			}
+			for( let j = 0 ; j < cp.length ; j ++ ){
+				if (j < partition * cp.length){
+					C.setpix( cp[sides[j].i], nid ) 
+				}
 			}
 		}
-		//console.log( "3 " + C.cellKind( id ) )
-		//cp[id] = pix_id
-		//cp[nid] = pix_nid
+		
 		C.stat_values = {} // remove cached stats or this will crash!!!
 		return nid
 	}
