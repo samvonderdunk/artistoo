@@ -194,7 +194,7 @@ function findDNA(mito) {
             // attempt to find a DNA to replicate
             let ix = Math.floor(mito.mt.random() * mito.DNA.length)
             if (mito.DNA[ix].notBusy()){ 
-                mito.DNA[ix].setReplicateFlag(true)
+                mito.DNA[ix].replicateFlag = true
             }
             replicate_attempts--
             attempts--
@@ -203,7 +203,7 @@ function findDNA(mito) {
             // attempt to translate
             let ix = Math.floor(mito.mt.random() * mito.DNA.length)
             if (mito.DNA[ix].notBusy()){
-                mito.DNA[ix].setTranslateFlag(true)
+                mito.DNA[ix].translateFlag = true
             }
             translate_attempts-- //technically redundant
             attempts--
@@ -228,13 +228,13 @@ function repAndTranslate(mito){
 				mito.translate_products = sumArray(mito.translate_products, dna.translate_quality)
 				mito.replication_products = sumArray(mito.replication_products, dna.replicate_quality)
 			}
-            dna.setTranslateFlag(false)
+            dna.translateFlag = false
         } else if (dna.replicateFlag) { 
 			// console.log( "replicating")
 			if (mito.mt.random() < mito.conf['replication_rate']){
 				mito.replicateDNA(dna)
 			}
-            dna.setReplicateFlag(false)
+            dna.replicateFlag = false
         }
 	}
 }
@@ -272,9 +272,6 @@ function update(C, mito, host_cell){
 	repAndTranslate(mito)
 
 	deprecateProducts(mito)
-
-
-	
 }
 
 function initializeGrid(){

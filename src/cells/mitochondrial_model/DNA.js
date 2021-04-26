@@ -18,9 +18,7 @@ class DNA {
             this.translate_quality = [...parent.translate_quality]
             this.replicate_quality = [...parent.replicate_quality]
             if (this.mt.random() < conf["MTDNA_MUT_RATE"] ){
-                // console.log("before mutate", this.translate_quality)
                 this.mutate()
-                // console.log("after mutate", this.translate_quality)
             }
         }
     }
@@ -46,15 +44,7 @@ class DNA {
     notBusy(){
         return (this.replicateFlag == false && this.translateFlag == false)
     }
-
-    setReplicateFlag(bool){
-        this.replicateFlag = bool
-    }
-
-    setTranslateFlag(bool){
-        this.translateFlag = bool
-    }
-
+    
     sumQuality(){
         return  [this.oxphos_quality, this.translate_quality ,this.replicate_quality].reduce((t, e) => t.concat(e)).reduce((t, e) => t + e)
     }
