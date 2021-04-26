@@ -3011,7 +3011,7 @@ class CPM extends GridBasedModel {
 				i = this.hard_constraints.push( t );
 				
 				// Write this index to an array in the 
-				// this.hard_constraints_indices object, for lookup later. 
+				// this.hard_constraints_indices object, for lookup later.
 				if( !this.hard_constraints_indices.hasOwnProperty(tName) ){
 					this.hard_constraints_indices[tName] = [];
 				}
@@ -4333,7 +4333,10 @@ class Canvas {
 
 	/**
 	 * Draw all cells of cellid "id" in color col (hex). Note that this function
-	 * also works for CA.
+	 * also works for CA. However, it has not yet been optimised and is very slow
+	 * if called many times. For multicellular CPMs, you are better off using
+	 * {@link drawCells} with an appropriate coloring function (see that method's
+	 * documentation).
 	 *
 	 * @param {CellId} id - id of the cell to color.
 	 * @param {HexColor} col - Optional: hex code for the color to use.
@@ -4352,7 +4355,8 @@ class Canvas {
 
 		// Use the pixels() iterator to get the id of all non-background pixels.
 		this.getImageData();
-
+		// this currently just loops over all pixels on the grid, which makes it slow
+		// if you repeat this process for many cells. Optimise later.
 		for( let x of this.C.pixels() ){
 			if( x[1] === id ){
 
@@ -4376,7 +4380,37 @@ class Canvas {
 	 * If left unspecified, it gets the default value of black ("000000").
 	 * col can also be a function that returns a hex value for a cell id, but
 	 * this is only supported for CPMs.
-	 * */
+	 *
+	 * @example <caption>Drawing cells by "kind" or "ID"</caption>
+	 *
+	 * // Draw all cells of kind 1 in red
+	 * Cim.drawCells( 1, "FF0000" )
+	 *
+	 * // To color cells by their ID instead of their kind, we can parse
+	 * // a function to 'col' instead of a string. The example function
+	 * // below reads the color for each cellID from an object of keys (ids)
+	 * // and values (colors):
+	 * Cim.colFun = function( cid ){
+	 *
+	 * 	// First time function is called, attach an empty object 'cellColorMap' to
+	 * 	// simulation object; this tracks the color for each cellID on the grid.
+	 * 	if( !Cim.hasOwnProperty( "cellColorMap" ) ){
+	 * 		Cim.cellColorMap = {}
+	 * 	}
+	 *
+	 * 	// Check if the current cellID already has a color, otherwise put a random
+	 * 	// color in the cellColorMap object
+	 * 	if( !Cim.cellColorMap.hasOwnProperty(cid) ){
+	 * 		// this cell gets a random color
+	 * 		Cim.cellColorMap[cid] = Math.floor(Math.random()*16777215).toString(16).toUpperCase()
+	 * 	}
+	 *
+	 * 	// now return the color assigned to this cellID.
+	 * 	return Cim.cellColorMap[cid]
+	 * }
+	 * // Now use this function to draw the cells, colored by their ID
+	 * Cim.drawCells( 1, Cim.colFun )
+	 */
 	drawCells( kind, col ){
 		if( !( this.C instanceof CPM ) ){
 			if( typeof col != "string" ){
@@ -4391,19 +4425,9 @@ class Canvas {
 			if (typeof col == "string") {
 				this.col(col);
 			}
-			// Object cst contains pixel index of all pixels belonging to non-background,
+			// Object contains all pixels belonging to non-background,
 			// non-stroma cells.
-
 			let cellpixelsbyid = this.C.getStat(PixelsByCell);
-
-			/*for( let x of this.C.pixels() ){
-				if( kind < 0 || this.C.cellKind(x[1]) == kind ){
-					if( !cellpixelsbyid[x[1]] ){
-						cellpixelsbyid[x[1]] = []
-					}
-					cellpixelsbyid[x[1]].push( x[0] )
-				}
-			}*/
 
 			this.getImageData();
 			for (let cid of Object.keys(cellpixelsbyid)) {
@@ -5838,31 +5862,39 @@ class GridManipulator {
 		* // Check which pixels belong to which cell. Should be roughly half half.
 		* C.getStat( PixelsByCell )
 	 */
-	divideCell( id ){
+	/* eslint-disable */
+	divideCell( id , partition = 0.5){
 		let C = this.C;
-		let torus = C.conf.torus.indexOf(true) >= 0;
-		if( C.ndim != 2 || torus ){
-			throw("The divideCell methods is only implemented for 2D non-torus lattices yet!")
+		if( C.ndim != 2 ){
+			throw("The divideCell method is only implemented for 2D lattices yet!")
 		}
-		let cp = C.getStat( PixelsByCell )[id], com = C.getStat( Centroids )[id];
-		let bxx = 0, bxy = 0, byy=0, cx, cy, x2, y2, side, T, D, x0, y0, x1, y1, L2;
+		let cp = C.getStat( PixelsByCell )[id], com = C.getStat( CentroidsWithTorusCorrection )[id];
+		let bxx = 0, bxy = 0, byy=0, T, D, x1, y1, L2;
 
 		// Loop over the pixels belonging to this cell
+	 	let si = this.C.extents, pixdist = {}, c = new Array(2);
 		for( let j = 0 ; j < cp.length ; j ++ ){
-			cx = cp[j][0] - com[0]; // x position rel to centroid
-			cy = cp[j][1] - com[1]; // y position rel to centroid
-
-			// sum of squared distances:
-			bxx += cx*cx;
-			bxy += cx*cy;
-			byy += cy*cy;
+			for ( let dim = 0 ; dim < 2 ; dim ++ ){
+				c[dim] = cp[j][dim] - com[dim];
+				if( C.conf.torus[dim] && j > 0 ){
+					// If distance is greater than half the grid size, correct the
+					// coordinate.
+					if( c[dim] > si[dim]/2 ){
+						c[dim] -= si[dim];
+					} else if( c[dim] < -si[dim]/2 ){
+						c[dim] += si[dim];
+					}
+				}
+			}
+			pixdist[j] = [...c];
+			bxx += c[0]*c[0];
+			bxy += c[0]*c[1];
+			byy += c[1]*c[1];
 		}
 
 		// This code computes a "dividing line", which is perpendicular to the longest
 		// axis of the cell.
 		if( bxy == 0 ){
-			x0 = 0;
-			y0 = 0;
 			x1 = 1;
 			y1 = 0;
 		} else {
@@ -5870,43 +5902,38 @@ class GridManipulator {
 			D = bxx*byy - bxy*bxy;
 			//L1 = T/2 + Math.sqrt(T*T/4 - D)
 			L2 = T/2 - Math.sqrt(T*T/4 - D);
-			x0 = 0;
-			y0 = 0;
 			x1 = L2 - byy;
 			y1 = bxy;
 		}
 		// console.log( id )
 		// create a new ID for the second cell
-		
-		let nid = C.makeNewCellID( C.cellKind( id ));
-		if (C.hasOwnProperty("cells")){
-			C.birth( nid, id );
-		}
-		
-		// Loop over the pixels belonging to this cell
-		//let sidea = 0, sideb = 0
-		//let pix_id = []
-		//let pix_nid = []
-		//let sidea = 0, sideb=0
+		let nid = C.makeNewCellID( C.cellKind( id ) );
 
-		for( let j = 0 ; j < cp.length ; j ++ ){
-			// coordinates of current cell relative to center of mass
-			x2 = cp[j][0]-com[0];
-			y2 = cp[j][1]-com[1];
-
-			// Depending on which side of the dividing line this pixel is,
-			// set it to the new type
-			side = (x1 - x0)*(y2 - y0) - (x2 - x0)*(y1 - y0);
-			if( side > 0 ){
-				//sidea++
-				C.setpix( cp[j], nid ); 
-				// console.log( cp[j] + " " + C.cellKind( id ) )
-				//pix_nid.push( cp[j] )
+		if (partition === 0.5){
+			for( let j = 0 ; j < cp.length ; j ++ ){
+				//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
+				if( x1*pixdist[j][1]-pixdist[j][0]*y1 > 0 ){
+					C.setpix( cp[j], nid ); 
+				}
+			}
+		} else {
+			let sides = new Array(cp.length);
+			for( let j = 0 ; j < cp.length ; j ++ ){
+				sides[j] = ({i : j, side : x1*pixdist[j][1]-pixdist[j][0]*y1});
+			}
+			sides.sort(function(a,b) {
+				return a.side - b.side;
+			});
+			if (this.C.random() < 0.5){
+				sides.reverse();
+			}
+			for( let j = 0 ; j < cp.length ; j ++ ){
+				if (j < partition * cp.length){
+					C.setpix( cp[sides[j].i], nid ); 
+				}
 			}
 		}
-		//console.log( "3 " + C.cellKind( id ) )
-		//cp[id] = pix_id
-		//cp[nid] = pix_nid
+		
 		C.stat_values = {}; // remove cached stats or this will crash!!!
 		return nid
 	}
