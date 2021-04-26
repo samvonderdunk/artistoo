@@ -500,6 +500,9 @@ class GridManipulator {
 		// console.log( id )
 		// create a new ID for the second cell
 		let nid = C.makeNewCellID( C.cellKind( id ) )
+		if (C.hasOwnProperty("cells")){
+			C.birth(nid, id)
+		}
 
 		if (partition === 0.5){
 			for( let j = 0 ; j < cp.length ; j ++ ){

@@ -45,7 +45,7 @@ class SubCellConstraint extends SoftConstraint {
 		for( let j = 0 ; j < N.length ; j ++ ){
 			tn = this.C.pixti( N[j] )
 			if( tn != tp ){ 
-				if (tn == 0 || tp == 0 || this.getParam("host", tn) != this.getParam("host", tp)){
+				if (tn == 0 || tp == 0 || this.cellParameter("host", tn) != this.cellParameter("host", tp)){
 					r += this.conf["J_EXT"][this.C.cellKind(tn)][this.C.cellKind(tp)]
 				} else {
 					// r -= this.conf["J"][this.C.cellKind(tn)][this.C.cellKind(tp)]
