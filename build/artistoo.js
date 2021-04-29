@@ -4892,26 +4892,36 @@ var CPM = (function (exports) {
 			super(conf, kind, id, mt);
 	        
 			this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.mt));
-	        this.oxphos_products = new Array(this.conf["N_OXPHOS"]).fill(80);
-	        this.translate_products = new Array(this.conf["N_TRANSLATE"]).fill(5);
-	        this.replication_products = new Array(this.conf["N_REPLICATE"]).fill(5);
+	        // this.oxphos_products = new Array(this.conf["N_OXPHOS"]).fill(80);
+	        // this.translate_products = new Array(this.conf["N_TRANSLATE"]).fill(5);
+	        // this.replication_products = new Array(this.conf["N_REPLICATE"]).fill(5);
+	        // this.products = 
 	       
 	        this.oxphos = this.conf["INIT_OXPHOS"];
 	        this.V = this.conf["INIT_OXPHOS"];
+
+	        this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
+	            for (let i = 0 ; i < this.products.length; i++){
+	                if (i < this.conf["N_OXPHOS"] ){
+	                    this.products[i] = 80;
+	                } else if (i < this.conf["N_TRANSLATE"]){
+	                    this.products[i] = 5;
+	                } else {
+	                    this.products[i] = 5;
+	                }
+	            }
 		}
 		
 		clear(){
-			this.DNA = [];
-	        this.oxphos_products = new Array(this.conf["N_OXPHOS"]).fill(0);
-	        this.translate_products = new Array(this.conf["N_TRANSLATE"]).fill(0);
-	        this.replication_products = new Array(this.conf["N_REPLICATE"]).fill(0);
+	        this.DNA = [];
+	        this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
 		}
 
 	    birth(parent, partition = 0.5){
 			this.clear();
-			this.divideProducts(parent.oxphos_products, this.oxphos_products, partition);
-	        this.divideProducts(parent.translate_products, this.translate_products, partition);
-	        this.divideProducts(parent.replication_products, this.replication_products, partition);
+			this.divideProducts(parent.products, this.products, partition);
+	        // this.divideProducts(parent.translate_products, this.translate_products, partition)
+	        // this.divideProducts(parent.replication_products, this.replication_products, partition)
 		   
 			let new_parent = [];
 	        for (let dna of parent.DNA){
@@ -4934,6 +4944,16 @@ var CPM = (function (exports) {
 	                if (this.mt.random() < partition){
 	                    parent_arr[ix]--;
 	                    child_arr[ix]++;
+	                }
+	            }
+	        }  
+	    }
+
+	    deprecateProducts(){
+	        for (const [ix, product] of this.products.entries()){
+	            for (let i = 0; i < product; i ++){
+	                if (this.mt.random() < this.conf['deprecation_rate']){
+	                    this.products[ix]--;
 	                }
 	            }
 	        }  
@@ -4965,6 +4985,20 @@ var CPM = (function (exports) {
 	        }
 	        return heteroplasmy/this.DNA.length
 	    }
+
+	    get oxphos_products() {
+	        return this.products.slice(0, this.conf["N_OXPHOS"])
+	    }
+	    get translate_products() {
+	        return this.products.slice(this.conf["N_OXPHOS"], this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])
+	    }
+	    get replication_products() {
+	        return this.products.slice(this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"] )
+	    }
+	    get replicate_products(){
+	        return this.replication_products()
+	    }
+
 	}
 
 	/**	This Stat creates a {@link CellArrayObject} with the border cellpixels of each cell on the grid. 

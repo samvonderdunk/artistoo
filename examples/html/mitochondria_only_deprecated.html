@@ -58,7 +58,7 @@ let config = {
 		minimal_division_volume : 150,
 		division_rate : 0.01,
 		fusion_rate : 0.1,
-		deprecation_rate : 0.12,
+		deprecation_rate : 0.08,
 		replication_rate : 1,
 		translation_rate: 1,
 		host_selfishness : 0.5, 
@@ -172,7 +172,7 @@ function postMCSListener(){
 		for (let i = 0; i < product; i++){
 			let ran = this.C.mt.random()
 			let mito = cumsum_norm.find(element => ran < element['vol_part']   )
-			this.C.getCell(mito.cid).replication_products[ix]++
+			this.C.getCell(mito.cid).products[ix+this.C.conf["N_OXPHOS"]+this.C.conf["N_TRANSLATE"]]++
 			// console.log(mito, ran)
 			// console.log(cumsum_norm)
 			// console.log(this.C.getCell(mito.cid), ran)
@@ -224,12 +224,8 @@ function repAndTranslate(mito){
 	for (var dna of mito.DNA){
     //    console.log(dna.translateFlag)
         if (dna.translateFlag){
-            // console.log( "translating")
-			// console.log(dna.oxphos_quality, mito.oxphos_products)
 			if (mito.mt.random() < mito.conf['translation_rate']){
-				mito.oxphos_products = sumArray(mito.oxphos_products, dna.oxphos_quality)
-				mito.translate_products = sumArray(mito.translate_products, dna.translate_quality)
-				mito.replication_products = sumArray(mito.replication_products, dna.replicate_quality)
+				mito.products = sumArray(mito.products, dna.quality)
 			}
             dna.translateFlag = false
         } else if (dna.replicateFlag) { 
@@ -242,19 +238,19 @@ function repAndTranslate(mito){
 	}
 }
 
-function deprecateProducts(mito){
-	let new_arr = [[], [], []]
-	for (const [which, arr] of [mito.oxphos_products, mito.translate_products, mito.replication_products].entries()){
-		new_arr[which] = [...arr]
-		for (const [ix, product] of arr.entries()){
-			let i = 0
-			for (let i = 0; i < product; i++ ){
-				if (mito.mt.random() < mito.conf['deprecation_rate']){new_arr[which][ix]--;}
-			}
-		}
-	}
-	mito.setProducts(new_arr[0], new_arr[1], new_arr[2])
-}
+// function deprecateProducts(mito){
+// 	let new_arr = [[], [], []]
+// 	for (const [which, arr] of [mito.oxphos_products, mito.translate_products, mito.replication_products].entries()){
+// 		new_arr[which] = [...arr]
+// 		for (const [ix, product] of arr.entries()){
+// 			let i = 0
+// 			for (let i = 0; i < product; i++ ){
+// 				if (mito.mt.random() < mito.conf['deprecation_rate']){new_arr[which][ix]--;}
+// 			}
+// 		}
+// 	}
+// 	// mito.setProducts(new_arr[0], new_arr[1], new_arr[2])
+// }
 
 function update(C, mito, host_cell){
 	if (mito.id < 0){return}
@@ -274,7 +270,7 @@ function update(C, mito, host_cell){
 
 	repAndTranslate(mito)
 
-	deprecateProducts(mito)
+	mito.deprecateProducts()
 }
 
 function initializeGrid(){
@@ -387,9 +383,9 @@ function changeColorBy(){
 <body onload="initialize()">
 <h1>Stochastic Correction</h1>
 
-<input type="radio" name="Visualization" value="Cell_type" >Cell Type (fastest)<br>
-<input type="radio" name="Visualization" value="n_DNA" checked>Number of DNA copies<br>
-<input type="radio" name="Visualization" value="oxphos" checked>Oxphos<br>
+<input type="radio" name="Visualization" value="Cell_type" checked>Cell Type (fastest)<br>
+<input type="radio" name="Visualization" value="n_DNA" >Number of DNA copies<br>
+<input type="radio" name="Visualization" value="oxphos" >Oxphos<br>
 <input type="radio" name="Visualization" value="heteroplasmy">Heteroplasmy<br>
 <div>
     <button type="submit" onclick="changeColorBy()">Submit</button>
