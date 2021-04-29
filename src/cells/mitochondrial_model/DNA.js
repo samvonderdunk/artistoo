@@ -27,15 +27,17 @@ class DNA {
     mutate(){ 
         // find ones - mutation is always loss
         let randomtrue = Math.floor(this.mt.random() * this.sumQuality()), i = 0
-        for (const [ix,gene] of this.quality.entries()){
-            if(gene === 1){
-                i++
-            }
-            if (i == randomtrue){
-                this.quality[ix] = 0
-                break
-            }
-        }
+       
+        this.quality[this.trues[Math.floor(this.mt.random() * this.trues.length)]] = 0
+        // for (const [ix,gene] of this.quality.entries()){
+        //     if(gene === 1){
+        //         i++
+        //     }
+        //     if (i == randomtrue){
+        //         this.quality[ix] = 0
+        //         break
+        //     }
+        // }
     }
 
     notBusy(){
@@ -44,6 +46,13 @@ class DNA {
     
     sumQuality(){
         return  this.quality.reduce((t, e) => t + e)
+    }
+
+    get trues(){
+        return this.quality.reduce(
+            (out, bool, index) => bool ? out.concat(index) : out, 
+            []
+          )
     }
 
     get oxphos_quality() {

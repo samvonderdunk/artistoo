@@ -51,12 +51,13 @@ class Mitochondrion extends SubCell {
     update(current_volume){
         this.oxphos = Math.min.apply(Math, this.oxphos_products) 
         if (this.V - current_volume < 10){
-            this.V += Math.max(this.oxphos / 10, 10)
+            this.V += Math.max(this.oxphos / 100, 20)
         }
         if (this.oxphos < 20) {
             this.V -= 20
         }
-        console.log(this.products)
+        this.V-=3
+        // console.log(this.products)
         this.repAndTranslate()
         this.deprecateProducts()
 	}
@@ -80,7 +81,12 @@ class Mitochondrion extends SubCell {
                     this.products[ix]--
                 }
             }
-        }  
+        }
+        for (let i = 0; i < this.DNA.length; i++){
+            if (this.mt.random() < this.conf["dna_deprecation_rate"]){
+                this.DNA.splice(i, 1)
+            }
+        }
     }
 
     fuse(partner) {
@@ -103,6 +109,7 @@ class Mitochondrion extends SubCell {
 
     repAndTranslate() {
         if (this.DNA.length == 0 ){ return }
+       
         // takes bottleneck as rate
         let replicate_attempts = Math.min.apply(Math, this.replication_products), translate_attempts = Math.min.apply(Math, this.translate_products)
         // replication and translation machinery try to find DNA to execute on
@@ -116,6 +123,7 @@ class Mitochondrion extends SubCell {
                 translate_attempts-- 
             }
         }
+
         for (let dna of this.DNA){
             if (dna.translateFlag){
                 if (this.mt.random() < this.conf['translation_rate']){

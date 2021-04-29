@@ -4852,16 +4852,18 @@ var CPM = (function (exports) {
 
 	    mutate(){ 
 	        // find ones - mutation is always loss
-	        let randomtrue = Math.floor(this.mt.random() * this.sumQuality()), i = 0;
-	        for (const [ix,gene] of this.quality.entries()){
-	            if(gene === 1){
-	                i++;
-	            }
-	            if (i == randomtrue){
-	                this.quality[ix] = 0;
-	                break
-	            }
-	        }
+	        let randomtrue = Math.floor(this.mt.random() * this.sumQuality());
+	       
+	        this.quality[this.trues[Math.floor(this.mt.random() * this.trues.length)]] = 0;
+	        // for (const [ix,gene] of this.quality.entries()){
+	        //     if(gene === 1){
+	        //         i++
+	        //     }
+	        //     if (i == randomtrue){
+	        //         this.quality[ix] = 0
+	        //         break
+	        //     }
+	        // }
 	    }
 
 	    notBusy(){
@@ -4870,6 +4872,13 @@ var CPM = (function (exports) {
 	    
 	    sumQuality(){
 	        return  this.quality.reduce((t, e) => t + e)
+	    }
+
+	    get trues(){
+	        return this.quality.reduce(
+	            (out, bool, index) => bool ? out.concat(index) : out, 
+	            []
+	          )
 	    }
 
 	    get oxphos_quality() {
@@ -4897,15 +4906,15 @@ var CPM = (function (exports) {
 	        this.V = this.conf["INIT_OXPHOS"];
 
 	        this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
-	            for (let i = 0 ; i < this.products.length; i++){
-	                if (i < this.conf["N_OXPHOS"] ){
-	                    this.products[i] = 80;
-	                } else if (i < this.conf["N_TRANSLATE"]){
-	                    this.products[i] = 5;
-	                } else {
-	                    this.products[i] = 5;
-	                }
+	        for (let i = 0 ; i < this.products.length; i++){
+	            if (i < this.conf["N_OXPHOS"] ){
+	                this.products[i] = 80;
+	            } else if (i < this.conf["N_TRANSLATE"]){
+	                this.products[i] = 5;
+	            } else {
+	                this.products[i] = 5;
 	            }
+	        }
 		}
 		
 		clear(){
@@ -4932,6 +4941,21 @@ var CPM = (function (exports) {
 	    }
 
 	    /* eslint-disable*/
+	    update(current_volume){
+	        this.oxphos = Math.min.apply(Math, this.oxphos_products); 
+	        if (this.V - current_volume < 10){
+	            this.V += Math.max(this.oxphos / 100, 20);
+	        }
+	        if (this.oxphos < 20) {
+	            this.V -= 20;
+	        }
+	        this.V-=3;
+	        // console.log(this.products)
+	        this.repAndTranslate();
+	        this.deprecateProducts();
+		}
+
+	   
 	    divideProducts(parent_arr, child_arr, partition){
 	        for (const [ix, product] of parent_arr.entries()){
 	            for (let i = 0; i < product; i ++){
@@ -4950,7 +4974,12 @@ var CPM = (function (exports) {
 	                    this.products[ix]--;
 	                }
 	            }
-	        }  
+	        }
+	        for (let i = 0; i < this.DNA.length; i++){
+	            if (this.mt.random() < this.conf["dna_deprecation_rate"]){
+	                this.DNA.splice(i, 1);
+	            }
+	        }
 	    }
 
 	    fuse(partner) {
@@ -4973,6 +5002,7 @@ var CPM = (function (exports) {
 
 	    repAndTranslate() {
 	        if (this.DNA.length == 0 ){ return }
+	       
 	        // takes bottleneck as rate
 	        let replicate_attempts = Math.min.apply(Math, this.replication_products), translate_attempts = Math.min.apply(Math, this.translate_products);
 	        // replication and translation machinery try to find DNA to execute on
@@ -4986,6 +5016,7 @@ var CPM = (function (exports) {
 	                translate_attempts--; 
 	            }
 	        }
+
 	        for (let dna of this.DNA){
 	            if (dna.translateFlag){
 	                if (this.mt.random() < this.conf['translation_rate']){
