@@ -180,78 +180,6 @@ function postMCSListener(){
 	}
 }
 
-function findDNA(mito) {
-	if (mito.DNA.length == 0 ){ return }
-    // takes bottleneck as rate
-    var replicate_attempts = Math.min.apply(Math, mito.replication_products) 
-    var translate_attempts = Math.min.apply(Math, mito.translate_products)
-    var attempts = replicate_attempts + translate_attempts
-
-    // replication and translation machinery try to find DNA to execute on
-    while (attempts > 0){
-        // console.log(replicate_attempts, translate_attempts, attempts)
-        if (mito.mt.random() < replicate_attempts/attempts){
-            // attempt to find a DNA to replicate
-			let ix = Math.floor(mito.mt.random() * mito.DNA.length)
-			// console.log(mito.DNA[ix], ix)
-            if (mito.DNA[ix].notBusy()){ 
-                mito.DNA[ix].replicateFlag = true
-            }
-            replicate_attempts--
-            attempts--
-        } else {
-            // console.log("SETTING TRANSLATEFLAG")
-			// attempt to translate
-			
-            let ix = Math.floor(mito.mt.random() * mito.DNA.length)
-			// console.log(mito.DNA[ix], ix)
-			if (mito.DNA[ix].notBusy()){
-                mito.DNA[ix].translateFlag = true
-            }
-            translate_attempts-- //technically redundant
-            attempts--
-        }
-    }
-}
-
-function sumArray(array1, array2){
-	return array1.map(function (num, idx) {
-  		return num + array2[idx];
-	})
-}
-
-function repAndTranslate(mito){
-	for (var dna of mito.DNA){
-    //    console.log(dna.translateFlag)
-        if (dna.translateFlag){
-			if (mito.mt.random() < mito.conf['translation_rate']){
-				mito.products = sumArray(mito.products, dna.quality)
-			}
-            dna.translateFlag = false
-        } else if (dna.replicateFlag) { 
-			// console.log( "replicating")
-			if (mito.mt.random() < mito.conf['replication_rate']){
-				mito.replicateDNA(dna)
-			}
-            dna.replicateFlag = false
-        }
-	}
-}
-
-// function deprecateProducts(mito){
-// 	let new_arr = [[], [], []]
-// 	for (const [which, arr] of [mito.oxphos_products, mito.translate_products, mito.replication_products].entries()){
-// 		new_arr[which] = [...arr]
-// 		for (const [ix, product] of arr.entries()){
-// 			let i = 0
-// 			for (let i = 0; i < product; i++ ){
-// 				if (mito.mt.random() < mito.conf['deprecation_rate']){new_arr[which][ix]--;}
-// 			}
-// 		}
-// 	}
-// 	// mito.setProducts(new_arr[0], new_arr[1], new_arr[2])
-// }
-
 function update(C, mito, host_cell){
 	if (mito.id < 0){return}
 	// console.log("oxphos: ", mito.oxphos, "n DNA: ", mito.DNA.length, "heteroplasmy", mito.heteroplasmy(), "hei", Math.min.apply(Math, mito.replication_products) )
@@ -266,11 +194,12 @@ function update(C, mito, host_cell){
 	}
     // mito.V -= mito.conf["MITO_SHRINK"]
     host_cell.total_mito_vol += C.getVolume(mito.id)
-	findDNA(mito)
-
-	repAndTranslate(mito)
+	// findDNA(mito)
+	console.log(mito.products)
+	mito.repAndTranslate()
 
 	mito.deprecateProducts()
+	
 }
 
 function initializeGrid(){

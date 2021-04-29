@@ -4686,11 +4686,7 @@ class Mitochondrion extends SubCell {
 		super(conf, kind, id, mt);
         
 		this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.mt));
-        // this.oxphos_products = new Array(this.conf["N_OXPHOS"]).fill(80);
-        // this.translate_products = new Array(this.conf["N_TRANSLATE"]).fill(5);
-        // this.replication_products = new Array(this.conf["N_REPLICATE"]).fill(5);
-        // this.products = 
-       
+
         this.oxphos = this.conf["INIT_OXPHOS"];
         this.V = this.conf["INIT_OXPHOS"];
 
@@ -4714,8 +4710,6 @@ class Mitochondrion extends SubCell {
     birth(parent, partition = 0.5){
 		this.clear();
 		this.divideProducts(parent.products, this.products, partition);
-        // this.divideProducts(parent.translate_products, this.translate_products, partition)
-        // this.divideProducts(parent.replication_products, this.replication_products, partition)
 	   
 		let new_parent = [];
         for (let dna of parent.DNA){
@@ -4753,16 +4747,6 @@ class Mitochondrion extends SubCell {
         }  
     }
 
-    replicateDNA(dna){
-        this.DNA.push(new DNA(this.conf, this.mt, dna));
-    }
-
-    setProducts(oxphos_products, translate_products, replication_products){
-        this.oxphos_products = oxphos_products;
-        this.translate_products = translate_products;
-        this.replication_products = replication_products;
-    }
-
     fuse(partner) {
 
     }
@@ -4778,6 +4762,39 @@ class Mitochondrion extends SubCell {
             heteroplasmy += (dna.sumQuality() < all_proteins);
         }
         return heteroplasmy/this.DNA.length
+    }
+
+
+    repAndTranslate() {
+        if (this.DNA.length == 0 ){ return }
+        // takes bottleneck as rate
+        let replicate_attempts = Math.min.apply(Math, this.replication_products), translate_attempts = Math.min.apply(Math, this.translate_products);
+        // replication and translation machinery try to find DNA to execute on
+        while ((replicate_attempts + translate_attempts) > 0){
+            let ix = Math.floor(this.mt.random() * this.DNA.length);
+            if (this.mt.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
+                if (this.DNA[ix].notBusy()){ this.DNA[ix].replicateFlag = true;}
+                replicate_attempts--;
+            } else {
+                if (this.DNA[ix].notBusy()){this.DNA[ix].translateFlag = true;}
+                translate_attempts--; 
+            }
+        }
+        for (let dna of this.DNA){
+            if (dna.translateFlag){
+                if (this.mt.random() < this.conf['translation_rate']){
+                    this.products = this.products.map(function (num, idx) {
+                        return num + dna.quality[idx];
+                    });
+                }
+                dna.translateFlag = false;
+            } else if (dna.replicateFlag) { 
+                if (this.mt.random() < this.conf['replication_rate']){
+                    this.DNA.push(new DNA(this.conf, this.mt, dna));
+                }
+                dna.replicateFlag = false;
+            }
+        }
     }
 
     get oxphos_products() {
