@@ -3532,7 +3532,7 @@ var CPM = (function (exports) {
 			this.setCellKind( newid, kind );
 			return newid
 		}
-
+	 
 		/** Calls a birth event in a new daughter Cell object, and hands 
 		 * the other daughter (as parent) on to the Cell.
 		   @param {CellId} childId - id of the newly created Cell object
@@ -4833,37 +4833,34 @@ var CPM = (function (exports) {
 	        this.mt = mt;
 	        this.conf = conf;
 
-	        this.oxphos_quality = new Array(this.conf["N_OXPHOS"]).fill(1);
-	        this.translate_quality = new Array(this.conf["N_TRANSLATE"]).fill(1);
-	        this.replicate_quality = new Array(this.conf["N_REPLICATE"]).fill(0);
 	        this.replicateFlag = false;
 	        this.translateFlag = false;
 	        // console.log("also in seed", this.translate_quality)
 	        if (parent instanceof DNA){
-	            this.oxphos_quality = [...parent.oxphos_quality];
-	            this.translate_quality = [...parent.translate_quality];
-	            this.replicate_quality = [...parent.replicate_quality];
+	            this.quality = [...parent.quality];
 	            if (this.mt.random() < conf["MTDNA_MUT_RATE"] ){
 	                this.mutate();
+	            }
+	        } else {
+	            this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
+	            for (let i = 0 ; i < this.quality.length; i++){
+	                if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"])
+	                    this.quality[i] = 1;
 	            }
 	        }
 	    }
 
 	    mutate(){ 
-	        let indices = this.oxphos_quality.concat(this.translate_quality, this.replicate_quality).reduce(function(arr, e, i) {
-	            if (e == 1) arr.push(i);
-	            return arr;
-	          }, []);
-	        let ix = indices[Math.floor(this.mt.random() * indices.length)];
-	        // console.log(indices, ix)
-	        if (ix < this.conf["N_OXPHOS"]){
-	            // console.log("setting oxphos ", ix)
-	            this.oxphos_quality[ix] = 0;
-	        } else if (ix < (this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])){
-	            // console.log("setting otranslate ", ix - this.conf["N_OXPHOS"])
-	            this.translate_quality[ix - this.conf["N_OXPHOS"] ] = 0;
-	        } else {
-	            this.replicate_quality[ix - this.conf["N_OXPHOS"] - this.conf["N_TRANSLATE"] ] = 0;
+	        // find ones - mutation is always loss
+	        let randomtrue = Math.floor(this.mt.random() * this.sumQuality()), i = 0;
+	        for (const [ix,gene] of this.quality.entries()){
+	            if(gene === 1){
+	                i++;
+	            }
+	            if (i == randomtrue){
+	                this.quality[ix] = 0;
+	                break
+	            }
 	        }
 	    }
 
@@ -4872,8 +4869,19 @@ var CPM = (function (exports) {
 	    }
 	    
 	    sumQuality(){
-	        return  [this.oxphos_quality, this.translate_quality ,this.replicate_quality].reduce((t, e) => t.concat(e)).reduce((t, e) => t + e)
+	        return  this.quality.reduce((t, e) => t + e)
 	    }
+
+	    get oxphos_quality() {
+	        return this.quality.slice(0, this.conf["N_OXPHOS"])
+	    }
+	    get translate_quality() {
+	        return this.quality.slice(this.conf["N_OXPHOS"], this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])
+	    }
+	    get replicate_quality() {
+	        return this.quality.slice(this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"] )
+	    }
+
 
 	}
 
@@ -4907,9 +4915,6 @@ var CPM = (function (exports) {
 		   
 			let new_parent = [];
 	        for (let dna of parent.DNA){
-				// if (!dna instanceof DNA){
-				// 	console.log("HYE")
-				// }
 	            if (this.mt.random() < partition){
 					this.DNA.push(dna);
 	            } else {
@@ -4932,15 +4937,6 @@ var CPM = (function (exports) {
 	                }
 	            }
 	        }  
-	    }
-	    
-	    shuffleArray(unshuffled) {
-	        let shuffled = unshuffled; // not always necessary - could be done in place - this is to maybe use it later for any arrays that need to retain structure
-	        for (let i = shuffled.length - 1; i > 0; i--) {
-	            const j = Math.floor(this.mt.random() * (i + 1));
-	            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-	        }
-	        return shuffled
 	    }
 
 	    replicateDNA(dna){
