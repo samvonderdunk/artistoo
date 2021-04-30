@@ -4591,18 +4591,7 @@ class SuperCell extends Cell {
 	constructor (conf, kind, id, mt) {
 		super(conf, kind, id, mt);
 		this.host = this.id;
-		this.subcells = []; //TODO decide whether these are IDs or Cells.
 	}
-
-	birth(parent){
-		super.birth(parent); // sets ParentId
-		this.divideSubCells();
-		for (let subcell of this.subcells){
-			subcell.host = this.id;
-		}
-	}
-    
-	divideSubCells(){return} // stub
 }
 
 class SubCell extends Cell {
@@ -4717,6 +4706,7 @@ class Mitochondrion extends SubCell {
 	}
 
     birth(parent, partition = 0.5){
+        super.birth(parent);
 		this.clear();
 		this.divideProducts(parent.products, this.products, partition);
 	   
@@ -4738,12 +4728,12 @@ class Mitochondrion extends SubCell {
     update(current_volume){
         this.oxphos = Math.min.apply(Math, this.oxphos_products); 
         if (this.V - current_volume < 10){
-            this.V += Math.max(this.oxphos / 100, 20);
+            this.V += Math.max(this.oxphos / 100, this.conf["MITO_GROWTH_MAX"]);
         }
         if (this.oxphos < 20) {
-            this.V -= 20;
+            this.V -= this.conf["MITOPHAGY_SHRINK"];
         }
-        this.V-=3;
+        this.V-=this.conf["MITO_SHRINK"];
         // console.log(this.products)
         this.repAndTranslate();
         this.deprecateProducts();
@@ -4840,6 +4830,87 @@ class Mitochondrion extends SubCell {
     get replicate_products(){
         return this.replication_products()
     }
+
+}
+
+class nDNA extends DNA {
+
+	/* eslint-disable */ 
+	constructor (conf, mt ,parent) {
+        super(conf,mt, parent);
+        if (parent instanceof DNA){
+            this.quality = [...parent.quality];
+            if (this.mt.random() < conf["NDNA_MUT_RATE"] ){
+                this.mutate();
+            }
+        } else {
+            this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(1);
+            for (let i = 0 ; i < this.quality.length; i++){
+                if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"])
+                    this.quality[i] = 0;
+            }
+        }
+    }
+
+    mutate(){ 
+        let ix = Math.floor(this.mt.random() * this.quality.length);
+        this.quality[ix] = !this.quality[ix];
+    }
+
+
+}
+
+class HostCell extends SuperCell {
+
+	/* eslint-disable */ 
+	constructor (conf, kind, id, mt) {
+		super(conf, kind, id, mt);
+		this.selfishness = 0.5;
+		this.V = conf["INIT_HOST_V"];
+		this.total_oxphos = 0;
+		this.DNA = new nDNA(conf, mt);
+	}
+
+	birth(parent){
+		super.birth(parent);
+		this.mutate_selfishness(parent);
+		this.V = parent.V/2;
+		parent.V /= 2;
+		this.DNA = new nDNA(this.conf, this.mt, parent.DNA);
+	}
+
+	mutate_selfishness(parent){
+		this.selfishness = parent.selfishness + (this.mt.random() - 0.5)*0.1*2;
+		this.selfishness = Math.min(1, this.selfishness);
+		this.selfishness = Math.max(0, this.selfishness);
+	}
+
+	update(C, mitochondria = []){
+		// update mitochondria
+		this.total_oxphos = 0;
+		let volcumsum = [0];
+		for (let mito of mitochondria){
+			volcumsum.push(C.getVolume(mito.id) + volcumsum.slice(-1));
+			mito.update(C.getVolume(mito.id));
+			this.total_oxphos += mito.oxphos;
+		}
+		volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)});
+
+
+		let trues = this.DNA.trues;
+		for (let i = 0; i < this.total_oxphos*(1-this.selfishness); i++){
+			let ix = trues[Math.floor(this.mt.random() * trues.length)];
+			let ran = this.mt.random(); 
+			let mito = volcumsum.findIndex(element => ran < element );
+			mitochondria[mito-1].products[ix]++; //volcumsum counts from 1 as the 
+		}
+		if (this.V - C.getVolume(this.id) < 30){
+			this.V += this.total_oxphos *  this.selfishness; 
+		}
+		this.V -= this.conf["HOST_SHRINK"];
+		
+		
+	}
 
 }
 
@@ -10905,6 +10976,7 @@ exports.GridBasedModel = GridBasedModel;
 exports.GridManipulator = GridManipulator;
 exports.HardConstraint = HardConstraint;
 exports.HardVolumeRangeConstraint = HardVolumeRangeConstraint;
+exports.HostCell = HostCell;
 exports.LocalConnectivityConstraint = LocalConnectivityConstraint;
 exports.Mitochondrion = Mitochondrion;
 exports.ModelDescription = ModelDescription;
@@ -10924,3 +10996,4 @@ exports.SubCell = SubCell;
 exports.SubCellConstraint = SubCellConstraint;
 exports.SuperCell = SuperCell;
 exports.VolumeConstraint = VolumeConstraint;
+exports.nDNA = nDNA;

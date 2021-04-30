@@ -30,6 +30,7 @@ class Mitochondrion extends SubCell {
 	}
 
     birth(parent, partition = 0.5){
+        super.birth(parent)
 		this.clear()
 		this.divideProducts(parent.products, this.products, partition)
 	   
@@ -51,12 +52,12 @@ class Mitochondrion extends SubCell {
     update(current_volume){
         this.oxphos = Math.min.apply(Math, this.oxphos_products) 
         if (this.V - current_volume < 10){
-            this.V += Math.max(this.oxphos / 100, 20)
+            this.V += Math.max(this.oxphos / 100, this.conf["MITO_GROWTH_MAX"])
         }
         if (this.oxphos < 20) {
-            this.V -= 20
+            this.V -= this.conf["MITOPHAGY_SHRINK"]
         }
-        this.V-=3
+        this.V-=this.conf["MITO_SHRINK"]
         // console.log(this.products)
         this.repAndTranslate()
         this.deprecateProducts()

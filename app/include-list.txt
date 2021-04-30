@@ -23,7 +23,9 @@ module StochasticCorrector src/cells/StochasticCorrector.js
 module SuperCell src/cells/SuperCell.js
 module SubCell src/cells/SubCell.js
 module Mitochondrion src/cells/mitochondrial_model/Mitochondrion.js
+module HostCell src/cells/mitochondrial_model/HostCell.js
 module DNA src/cells/mitochondrial_model/DNA.js
+module nDNA src/cells/mitochondrial_model/nDNA.js
 
 # stats
 module	Stat	src/stats/Stat.js

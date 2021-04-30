@@ -1,4 +1,4 @@
-
+import DNA from "./DNA.js" 
 
 class nDNA extends DNA {
 

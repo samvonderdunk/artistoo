@@ -49,11 +49,11 @@ let config = {
         
         J_INT:  [ 
 			[15,15], 
-            [15,150] ],
+            [15,1500] ],
 
         J_EXT:  [ [15,15,1500], 
-			[15,15,1500], 
-            [1500, 1500,1500] ],
+			[150,15,1500], 
+            [1500, 1500,15000] ],
 
         // LAMBDA_SUB: [0, 0, 500] ,
 	
@@ -61,9 +61,11 @@ let config = {
         N_OXPHOS : 5, 
         N_TRANSLATE : 10,
         N_REPLICATE : 100,
-        INIT_OXPHOS : 80,
+        INIT_OXPHOS : 100,
         N_INIT_DNA : 10,
 		MTDNA_MUT_RATE : 0.1,
+		INIT_HOST_V : 500,
+
 
 		// Constraint parameters. 
 		// Mostly these have the format of an array in which each element specifies the
@@ -72,20 +74,22 @@ let config = {
         
 		// division_volume : [0, 200],
 		minimal_division_volume : 150,
-		division_rate : 0.01,
+		fission_rate : 0.5,
 		fusion_rate : 0.1,
 		deprecation_rate : 0.04,
 		dna_deprecation_rate :0.02,
 		replication_rate : 1,
 		translation_rate: 0.5,
-		host_selfishness : 0.5, 
-        MITO_SHRINK : 6,
-        
+		host_selfishness : 0.8, 
+		MITO_SHRINK : 2,
+		MITOPHAGY_SHRINK : 20,
+		HOST_SHRINK : 5,
+		MITO_GROWTH_MAX : 20,
 
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
-		division_volume: [100, 500, 80]
+		division_volume: [100, 800, 100]
 	},
 	
 	// Simulation setup and configuration: this controls stuff like grid initialization,
@@ -170,23 +174,45 @@ function seedSubCells(){
                 let coord = cellpixelsbyid[cid][Math.floor(sim.C.mt.random()*cellpixelsbyid[cid].length)]
                 let nid = sim.gm.seedCellAt( 2, coord )
 				sim.C.cells[nid].host = cid
-				sim.C.cells[cid].subcells.push(nid)
             }
         }
     }
-
 }
 
 /* The following custom methods will be added to the simulation object*/
 function postMCSListener(){
+	if (sim.time < 200){
+		return
+	}
 	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
+
+	let all_sub = {} //sorted by host
+	let all_super = {} //cells by host
+	for (let cid of this.C.cellIDs()){
+		let cell = this.C.cells[cid]
+		if (cell instanceof CPM.SubCell){
+			if (!all_sub.hasOwnProperty(cell.host)){
+				all_sub[cell.host] = []
+			}
+			all_sub[cell.host].push(cell) 
+		} else if (cell instanceof CPM.SuperCell){
+			all_super[cid] = cell
+		}
+	}
+	
+	for (let hostid of Object.keys(all_super)){
+		all_super[hostid].update(this.C, all_sub[hostid])
+	}
+
+
 	for( let cid of this.C.cellIDs() ){
-		if( this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)] && sim.time > 200){
-			let nid = this.gm.divideCell(cid)
-			if (this.C.cells[cid] instanceof CPM.SubCell){
-				this.C.cells[this.C.cells[cid].host].subcells.push(nid)
-			} else if (this.C.cells[cid] instanceof CPM.SuperCell){
-				transferSubCells(cid, nid)
+		if( this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
+			if (this.C.cells[cid] instanceof CPM.SubCell && this.C.random() < this.C.conf['fission_rate']){
+				let nid = this.gm.divideCell(cid)
+			}
+			 if (this.C.cells[cid] instanceof CPM.SuperCell){
+				let nid = this.gm.divideCell(cid)
+				transferSubCells(cid, nid) //this may still be problematic
 			}
 		}
 	}
@@ -209,17 +235,25 @@ function initializeGrid(){
     }
 }
 
+function euclidean(x0, y0, x1, y1){
+	return Math.sqrt(Math.pow(x0-x1, 2)+Math.pow(y0-y1,2))
+}
+
 function transferSubCells (parent, child){
-	let neighs = sim.C.getStat( CPM.CellNeighborList )
-	for (let cid of Object.keys(neighs)) {
+	let centroids = sim.C.getStat( CPM.CentroidsWithTorusCorrection )
+	for (let cid of Object.keys(centroids)) {
 		let cell = sim.C.cells[cid]
 		if (cell instanceof CPM.SubCell && cell.host == parent){
-			if (child in neighs[cid]){
-				cell.host = child
-				if (parent in neighs[cid] && sim.C.random() < 0.5){
-					cell.host = parent
+			if (euclidean(centroids[cid][0], centroids[cid][1], centroids[child][0], centroids[child][1])
+					< euclidean(centroids[cid][0], centroids[cid][1], centroids[parent][0], centroids[parent][1])){
+						cell.host = child
 				}
-			}
+			// if (child in neighs[cid]){
+				
+			// 	if (parent in neighs[cid] && sim.C.random() < 0.5){
+			// 		cell.host = parent
+			// 	}
+			// }
 		}
 	}
 }

@@ -48,10 +48,7 @@ let config = {
 		// parameter value for one of the cellkinds on the grid.
 		// First value is always cellkind 0 (the background) and is often not used.
         
-        // Adhesion parameters:
-        //  J: [ [15,15,150], 
-		// 	[15,15,15], 
-        //     [150, 15,15] ],
+
         J: [ [0,0,0], 
 			[0,0,0], 
             [0,0,0] ],
@@ -155,7 +152,6 @@ function seedSubCells(){
                 let coord = cellpixelsbyid[cid][Math.floor(sim.C.mt.random()*cellpixelsbyid[cid].length)]
                 let nid = sim.gm.seedCellAt( 2, coord )
 				sim.C.cells[nid].host = cid
-				sim.C.cells[cid].subcells.push(nid)
             }
         }
     }
@@ -168,10 +164,12 @@ function postMCSListener(){
 	for( let cid of this.C.cellIDs() ){
 		if( this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)] && sim.time > 200){
 			let nid = this.gm.divideCell(cid)
-			if (this.C.cells[cid] instanceof CPM.SubCell){
-				this.C.cells[this.C.cells[cid].host].subcells.push(nid)
-			} else if (this.C.cells[cid] instanceof CPM.SuperCell){
+			let cell = this.C.cells[nid]
+			if (cell instanceof CPM.SuperCell){
 				transferSubCells(cid, nid)
+				// tracking subcells per host is very difficult as they do not receive notice of disappearing cells
+				// solution: all cells are tracked in CPM, hand the supercell a copy of the cell list with hosts
+				// optional: rewrite to include a pixlistener - this seems like too much hassle.
 			}
 		}
 	}
