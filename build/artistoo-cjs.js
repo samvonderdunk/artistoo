@@ -4685,7 +4685,7 @@ class Mitochondrion extends SubCell {
         
 		this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.mt));
 
-        this.oxphos = this.conf["INIT_OXPHOS"];
+        // this.oxphos = this.conf["INIT_OXPHOS"]
         this.V = this.conf["INIT_OXPHOS"];
 
         this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
@@ -4726,14 +4726,19 @@ class Mitochondrion extends SubCell {
 
     /* eslint-disable*/
     update(current_volume){
-        this.oxphos = Math.min.apply(Math, this.oxphos_products); 
+        // console.log(this.oxphos, this.oxphos_products, current_volume) 
+        let dV = 0;
         if (this.V - current_volume < 10){
-            this.V += Math.max(this.oxphos / 100, this.conf["MITO_GROWTH_MAX"]);
+            dV += this.oxphos / 100;
         }
         if (this.oxphos < 20) {
-            this.V -= this.conf["MITOPHAGY_SHRINK"];
+            dV -= this.conf["MITOPHAGY_SHRINK"];
+            // console.log("IN MITOPHAGY",this.conf["MITOPHAGY_SHRINK"] , this.V)
         }
-        this.V-=this.conf["MITO_SHRINK"];
+        dV-=this.conf["MITO_SHRINK"];
+        dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV);
+        this.V += dV;
+        this.V = Math.max(0, this.V);
         // console.log(this.products)
         this.repAndTranslate();
         this.deprecateProducts();
@@ -4830,7 +4835,9 @@ class Mitochondrion extends SubCell {
     get replicate_products(){
         return this.replication_products()
     }
-
+    get oxphos(){
+        return Math.min.apply(Math, this.oxphos_products)
+    }
 }
 
 class nDNA extends DNA {
@@ -4904,12 +4911,16 @@ class HostCell extends SuperCell {
 			let mito = volcumsum.findIndex(element => ran < element );
 			mitochondria[mito-1].products[ix]++; //volcumsum counts from 1 as the 
 		}
+		let dV = 0;
 		if (this.V - C.getVolume(this.id) < 30){
-			this.V += this.total_oxphos *  this.selfishness; 
+			dV += this.total_oxphos *  this.selfishness; 
+		} if (mitochondria.length === 0){
+			dV -= this.conf["EMPTY_HOST_SHRINK"];
 		}
-		this.V -= this.conf["HOST_SHRINK"];
-		
-		
+		dV -= this.conf["HOST_SHRINK"];
+		dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV);
+		this.V += dV;
+		this.V = Math.max(0, this.V);
 	}
 
 }

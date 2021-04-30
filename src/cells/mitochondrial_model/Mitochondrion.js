@@ -9,7 +9,7 @@ class Mitochondrion extends SubCell {
         
 		this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.mt));
 
-        this.oxphos = this.conf["INIT_OXPHOS"]
+        // this.oxphos = this.conf["INIT_OXPHOS"]
         this.V = this.conf["INIT_OXPHOS"]
 
         this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
@@ -50,14 +50,19 @@ class Mitochondrion extends SubCell {
 
     /* eslint-disable*/
     update(current_volume){
-        this.oxphos = Math.min.apply(Math, this.oxphos_products) 
+        // console.log(this.oxphos, this.oxphos_products, current_volume) 
+        let dV = 0
         if (this.V - current_volume < 10){
-            this.V += Math.max(this.oxphos / 100, this.conf["MITO_GROWTH_MAX"])
+            dV += this.oxphos / 100
         }
         if (this.oxphos < 20) {
-            this.V -= this.conf["MITOPHAGY_SHRINK"]
+            dV -= this.conf["MITOPHAGY_SHRINK"]
+            // console.log("IN MITOPHAGY",this.conf["MITOPHAGY_SHRINK"] , this.V)
         }
-        this.V-=this.conf["MITO_SHRINK"]
+        dV-=this.conf["MITO_SHRINK"]
+        dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV)
+        this.V += dV
+        this.V = Math.max(0, this.V)
         // console.log(this.products)
         this.repAndTranslate()
         this.deprecateProducts()
@@ -114,6 +119,7 @@ class Mitochondrion extends SubCell {
         // takes bottleneck as rate
         let replicate_attempts = Math.min.apply(Math, this.replication_products), translate_attempts = Math.min.apply(Math, this.translate_products)
         // replication and translation machinery try to find DNA to execute on
+
         while ((replicate_attempts + translate_attempts) > 0){
             let ix = Math.floor(this.mt.random() * this.DNA.length)
             if (this.mt.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
@@ -154,7 +160,9 @@ class Mitochondrion extends SubCell {
     get replicate_products(){
         return this.replication_products()
     }
-
+    get oxphos(){
+        return Math.min.apply(Math, this.oxphos_products)
+    }
 }
 
 export default Mitochondrion
