@@ -60,9 +60,9 @@ let config = {
         // NOISE : 5,
         N_OXPHOS : 5, 
         N_TRANSLATE : 10,
-        N_REPLICATE : 100,
+        N_REPLICATE : 10,
         INIT_OXPHOS : 100,
-        N_INIT_DNA : 30,
+        N_INIT_DNA : 100,
 		MTDNA_MUT_RATE : 0.1,
 		INIT_HOST_V : 500,
 
@@ -74,22 +74,26 @@ let config = {
         
 		// division_volume : [0, 200],
 		minimal_division_volume : 150,
-		fission_rate : 0.5,
-		fusion_rate : 0.1,
+		fission_rate : 0.05,
+		fusion_rate : 0.005,
 		deprecation_rate : 0.03,
-		dna_deprecation_rate :0.05,
+		dna_deprecation_rate :0.06,
 		replication_rate : 1,
-		translation_rate: 1,
-		host_selfishness : 0.6, 
+		translation_rate: 1, 
+		host_selfishness : 0.2, 
 		MITO_SHRINK : 2,
 		MITOPHAGY_SHRINK : 20,
 		HOST_SHRINK : 20,
 		EMPTY_HOST_SHRINK: 70,
 		MITO_GROWTH_MAX : 10,
 		HOST_GROWTH_MAX : 10,
+		MITO_V_PER_OXPHOS : 0.2,
+		HOST_V_PER_OXPHOS : 0.8,
+
+		MITO_PARTITION : 0.2,
 
 		// VolumeConstraint parameters
-		LAMBDA_V : [0, 100, 100],				// VolumeConstraint importance per cellkind
+		LAMBDA_V : [0, 10, 10],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
 		division_volume: [100, 800, 100]
 	},
@@ -188,6 +192,8 @@ function postMCSListener(){
 	}
 	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
 
+	let neighs = sim.C.getStat( CPM.CellNeighborList )
+
 	let all_sub = {} //sorted by host
 	let all_super = {} //cells by host
 	for (let cid of this.C.cellIDs()){
@@ -206,15 +212,28 @@ function postMCSListener(){
 		all_super[hostid].update(this.C, all_sub[hostid])
 	}
 
-
 	for( let cid of this.C.cellIDs() ){
-		if( this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
-			if (this.C.cells[cid] instanceof CPM.SubCell && this.C.random() < this.C.conf['fission_rate']){
-				let nid = this.gm.divideCell(cid)
+		if (this.C.cells[cid] instanceof CPM.SubCell){
+			if (this.C.random() < 0.02){
+				let cell = this.C.cells[cid]
+				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "heteroplasmy: ", cell.heteroplasmy(), cell.products)
 			}
-			 if (this.C.cells[cid] instanceof CPM.SuperCell){
+			if (this.C.random() < this.C.conf['fission_rate'] && this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
+				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
+			} else {
+				// console.log(neighs, cid)
+				for (let neigh of Object.keys(neighs[cid])){
+					// console.log(neigh)
+					if (this.C.cells[neigh] instanceof CPM.Mitochondrion && this.C.random() < this.C.conf['fusion_rate']){
+						this.gm.fuseCells(cid, neigh)
+					}
+				}
+			}
+		}
+		if (this.C.cells[cid] instanceof CPM.SuperCell){
+			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				let nid = this.gm.divideCell(cid)
-				transferSubCells(cid, nid) //this may still be problematic
+				transferSubCells(cid, nid) 
 			}
 		}
 	}
@@ -250,12 +269,6 @@ function transferSubCells (parent, child){
 					< euclidean(centroids[cid][0], centroids[cid][1], centroids[parent][0], centroids[parent][1])){
 						cell.host = child
 				}
-			// if (child in neighs[cid]){
-				
-			// 	if (parent in neighs[cid] && sim.C.random() < 0.5){
-			// 		cell.host = parent
-			// 	}
-			// }
 		}
 	}
 }
@@ -328,7 +341,7 @@ function getColor (cell, conf) {
 				c = Math.floor(cell.host/10)
 				break
 			case 'n_DNA':
-				c = Math.floor(cell.DNA.length *4) 
+				c = Math.floor(cell.DNA.length) 
 				break
 			case 'heteroplasmy':
 				c = Math.floor(cell.heteroplasmy() *100)
@@ -348,9 +361,6 @@ function getColor (cell, conf) {
 	}
 	// console.log(c, cmap[c], cmap)
 	if (!no_cmap){ 
-		if (c >50){
-			console.log(c, cell.oxphos, cell.oxphos_products)
-		}
 		c = Math.min(cmap.length-1, c)
 		c = Math.max(1, c)
 		

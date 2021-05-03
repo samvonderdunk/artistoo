@@ -532,6 +532,18 @@ class GridManipulator {
 		C.stat_values = {} // remove cached stats or this will crash!!!
 		return nid
 	}
+
+	fuseCells(cid1, cid2){
+		if (this.C.hasOwnProperty("cells")){
+			this.C.cells[cid1].fuse(this.C.cells[cid2])
+		}
+		let cp2 = this.C.getStat( PixelsByCell )[cid2]
+		for( let j = 0 ; j < cp2.length ; j ++ ){
+			this.C.setpix( cp2[j], cid1 ) 
+		}
+		this.C.stat_values = {} // remove cached stats or this will crash!!!
+		return cid1
+	}
 }
 
 

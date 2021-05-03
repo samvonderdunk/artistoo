@@ -29,6 +29,9 @@ class Cell {
 	birth (parent){
 		this.parentId = parent.id 
 	}
+
+	/* eslint-disable */
+	fuse(partner){}
 }
 
 export default Cell

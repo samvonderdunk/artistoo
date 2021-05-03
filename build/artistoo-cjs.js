@@ -2818,6 +2818,9 @@ class Cell {
 	birth (parent){
 		this.parentId = parent.id; 
 	}
+
+	/* eslint-disable */
+	fuse(partner){}
 }
 
 /** The core CPM class. Can be used for two- or three-dimensional simulations.
@@ -4729,7 +4732,7 @@ class Mitochondrion extends SubCell {
         // console.log(this.oxphos, this.oxphos_products, current_volume) 
         let dV = 0;
         if (this.V - current_volume < 10){
-            dV += this.oxphos / 100;
+            dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"];
         }
         if (this.oxphos < 20) {
             dV -= this.conf["MITOPHAGY_SHRINK"];
@@ -4738,7 +4741,7 @@ class Mitochondrion extends SubCell {
         dV-=this.conf["MITO_SHRINK"];
         dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV);
         this.V += dV;
-        this.V = Math.max(0, this.V);
+        // this.V = Math.max(0, this.V)
         // console.log(this.products)
         this.repAndTranslate();
         this.deprecateProducts();
@@ -4772,7 +4775,10 @@ class Mitochondrion extends SubCell {
     }
 
     fuse(partner) {
-
+        this.products = this.products.map(function (num, idx) {
+            return num + partner.products[idx];
+        });
+        this.DNA = [...this.DNA, ...partner.DNA];
     }
 
     heteroplasmy(){
@@ -4795,6 +4801,7 @@ class Mitochondrion extends SubCell {
         // takes bottleneck as rate
         let replicate_attempts = Math.min.apply(Math, this.replication_products), translate_attempts = Math.min.apply(Math, this.translate_products);
         // replication and translation machinery try to find DNA to execute on
+
         while ((replicate_attempts + translate_attempts) > 0){
             let ix = Math.floor(this.mt.random() * this.DNA.length);
             if (this.mt.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
@@ -4912,15 +4919,15 @@ class HostCell extends SuperCell {
 			mitochondria[mito-1].products[ix]++; //volcumsum counts from 1 as the 
 		}
 		let dV = 0;
-		if (this.V - C.getVolume(this.id) < 30){
-			dV += this.total_oxphos *  this.selfishness; 
+		if (this.V - C.getVolume(this.id) < 10){
+			dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"];
 		} if (mitochondria.length === 0){
 			dV -= this.conf["EMPTY_HOST_SHRINK"];
 		}
 		dV -= this.conf["HOST_SHRINK"];
 		dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV);
 		this.V += dV;
-		this.V = Math.max(0, this.V);
+		// this.V = Math.max(0, this.V)
 	}
 
 }
@@ -5993,6 +6000,18 @@ class GridManipulator {
 		
 		C.stat_values = {}; // remove cached stats or this will crash!!!
 		return nid
+	}
+
+	fuseCells(cid1, cid2){
+		if (this.C.hasOwnProperty("cells")){
+			this.C.cells[cid1].fuse(this.C.cells[cid2]);
+		}
+		let cp2 = this.C.getStat( PixelsByCell )[cid2];
+		for( let j = 0 ; j < cp2.length ; j ++ ){
+			this.C.setpix( cp2[j], cid1 ); 
+		}
+		this.C.stat_values = {}; // remove cached stats or this will crash!!!
+		return cid1
 	}
 }
 

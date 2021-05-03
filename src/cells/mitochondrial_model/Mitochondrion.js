@@ -53,7 +53,7 @@ class Mitochondrion extends SubCell {
         // console.log(this.oxphos, this.oxphos_products, current_volume) 
         let dV = 0
         if (this.V - current_volume < 10){
-            dV += this.oxphos / 100
+            dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"]
         }
         if (this.oxphos < 20) {
             dV -= this.conf["MITOPHAGY_SHRINK"]
@@ -62,7 +62,7 @@ class Mitochondrion extends SubCell {
         dV-=this.conf["MITO_SHRINK"]
         dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV)
         this.V += dV
-        this.V = Math.max(0, this.V)
+        // this.V = Math.max(0, this.V)
         // console.log(this.products)
         this.repAndTranslate()
         this.deprecateProducts()
@@ -96,7 +96,10 @@ class Mitochondrion extends SubCell {
     }
 
     fuse(partner) {
-
+        this.products = this.products.map(function (num, idx) {
+            return num + partner.products[idx];
+        })
+        this.DNA = [...this.DNA, ...partner.DNA]
     }
 
     heteroplasmy(){

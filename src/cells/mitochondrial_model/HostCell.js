@@ -46,15 +46,15 @@ class HostCell extends SuperCell {
 			mitochondria[mito-1].products[ix]++ //volcumsum counts from 1 as the 
 		}
 		let dV = 0
-		if (this.V - C.getVolume(this.id) < 30){
-			dV += this.total_oxphos *  this.selfishness 
+		if (this.V - C.getVolume(this.id) < 10){
+			dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"]
 		} if (mitochondria.length === 0){
 			dV -= this.conf["EMPTY_HOST_SHRINK"]
 		}
 		dV -= this.conf["HOST_SHRINK"]
 		dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV)
 		this.V += dV
-		this.V = Math.max(0, this.V)
+		// this.V = Math.max(0, this.V)
 	}
 
 }
