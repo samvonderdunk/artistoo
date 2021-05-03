@@ -82,12 +82,15 @@ class Mitochondrion extends SubCell {
 
     deprecateProducts(){
         for (const [ix, product] of this.products.entries()){
-            for (let i = 0; i < product; i ++){
-                if (this.mt.random() < this.conf['deprecation_rate']){
-                    this.products[ix]--
-                }
-            }
+            this.products[ix] -= this.binomial(product, this.conf['deprecation_rate'])
         }
+        // for (const [ix, product] of this.products.entries()){
+        //     for (let i = 0; i < product; i ++){
+        //         if (this.mt.random() < this.conf['deprecation_rate']){
+        //             this.products[ix]--
+        //         }
+        //     }
+        // }
         for (let i = 0; i < this.DNA.length; i++){
             if (this.mt.random() < this.conf["dna_deprecation_rate"]){
                 this.DNA.splice(i, 1)
@@ -165,6 +168,19 @@ class Mitochondrion extends SubCell {
     }
     get oxphos(){
         return Math.min.apply(Math, this.oxphos_products)
+    }
+    
+    /* eslint-disable */
+    binomial(n, p){
+        let log_q = Math.log(1.0-p), k = 0, sum = 0
+        for (;;){
+            sum += Math.log(this.mt.random())/(n-k)
+            if (sum < log_q){
+                // console.log(k)
+                return k
+            }
+            k++
+        }
     }
 }
 
