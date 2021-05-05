@@ -505,7 +505,7 @@ class CPM extends GridBasedModel {
 	makeNewCellID ( kind ){
 		const newid = ++ this.last_cell_id
 		if (this.hasOwnProperty("cells")){
-			this.cells[newid] =new this.cellclasses[kind](this.conf, kind, newid, this.mt )
+			this.cells[newid] =new this.cellclasses[kind](this.conf, kind, newid, this )
 		}
 		this.cellvolume[newid] = 0
 		this.setCellKind( newid, kind )
@@ -516,8 +516,8 @@ class CPM extends GridBasedModel {
 	 * the other daughter (as parent) on to the Cell.
 	   @param {CellId} childId - id of the newly created Cell object
 	   @param {CellId} parentId - id of the other daughter (that kept the parent id)*/
-	birth (childId, parentId){
-		this.cells[childId].birth(this.cells[parentId] )
+	birth (childId, parentId, partition){
+		this.cells[childId].birth(this.cells[parentId], partition )
 	}
 }
  

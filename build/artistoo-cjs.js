@@ -2795,14 +2795,14 @@ class Cell {
 	 * relevant parameters. Note: this should include all constraint parameters.
 	 * @param {CellKind} kind - the cellkind of this cell, the parameters of kind are used 
 	 * when parameters are not explicitly overwritten
-	 * @param {object} mt - the Mersenne Twister object of the CPM, to draw random 
+	 * @param {object} C - the Mersenne Twister object of the CPM, to draw random 
 	 * numbers within the seeding of the entire simulation 
 	 * @param {CellId} id - the CellId of this cell (its key in the CPM.cells), unique identifier
 	 * */
-	constructor (conf, kind, id, mt){
+	constructor (conf, kind, id, C){
 		this.conf = conf;
 		this.kind = kind;
-		this.mt = mt; 
+		this.C = C; 
 		this.id = id;
 
 		/** The id of the parent cell, all seeded cells have parent -1, to overwrite this
@@ -3323,7 +3323,7 @@ class CPM extends GridBasedModel {
 	makeNewCellID ( kind ){
 		const newid = ++ this.last_cell_id;
 		if (this.hasOwnProperty("cells")){
-			this.cells[newid] =new this.cellclasses[kind](this.conf, kind, newid, this.mt );
+			this.cells[newid] =new this.cellclasses[kind](this.conf, kind, newid, this );
 		}
 		this.cellvolume[newid] = 0;
 		this.setCellKind( newid, kind );
@@ -3334,8 +3334,8 @@ class CPM extends GridBasedModel {
 	 * the other daughter (as parent) on to the Cell.
 	   @param {CellId} childId - id of the newly created Cell object
 	   @param {CellId} parentId - id of the other daughter (that kept the parent id)*/
-	birth (childId, parentId){
-		this.cells[childId].birth(this.cells[parentId] );
+	birth (childId, parentId, partition){
+		this.cells[childId].birth(this.cells[parentId], partition );
 	}
 }
 
@@ -4552,8 +4552,8 @@ class CA extends GridBasedModel {
 
 class StochasticCorrector extends Cell {
 
-	constructor (conf, kind, id, mt) {
-		super(conf, kind, id, mt);
+	constructor (conf, kind, id, C) {
+		super(conf, kind, id, C);
 		this.X = conf["INIT_X"][kind];
 		this.Y = conf["INIT_Y"][kind];
 		this.V = conf["INIT_V"][kind];	
@@ -4573,8 +4573,8 @@ class StochasticCorrector extends Cell {
 	divideXY(parent){
 		let prevX = parent.X;
 		let prevY = parent.Y;
-		let fluctX = this.conf["NOISE"][this.kind] * (2  *this.mt.random() - 1);
-		let fluctY = this.conf["NOISE"][this.kind] * (2  *this.mt.random() - 1);
+		let fluctX = this.conf["NOISE"][this.kind] * (2  *this.C.random() - 1);
+		let fluctY = this.conf["NOISE"][this.kind] * (2  *this.C.random() - 1);
 
 		if ((prevX / 2 - fluctX) < 0)
 			fluctX = prevX/2;
@@ -4591,8 +4591,8 @@ class StochasticCorrector extends Cell {
 
 class SuperCell extends Cell {
 
-	constructor (conf, kind, id, mt) {
-		super(conf, kind, id, mt);
+	constructor (conf, kind, id, C) {
+		super(conf, kind, id, C);
 		this.host = this.id;
 	}
 }
@@ -4601,8 +4601,8 @@ class SubCell extends Cell {
 
 	// first host should be set during seeding!
 
-	constructor (conf, kind, id, mt) {
-		super(conf, kind, id, mt);
+	constructor (conf, kind, id, C) {
+		super(conf, kind, id, C);
 		this.host = -1;
 	}
 
@@ -4615,18 +4615,20 @@ class SubCell extends Cell {
 class DNA {
 
 	/* eslint-disable */ 
-	constructor (conf, mt ,parent) {
-        this.mt = mt;
+	constructor (conf, C ,parent) {
+        this.C = C;
         this.conf = conf;
 
         this.replicateFlag = false;
         this.translateFlag = false;
-        // console.log("also in seed", this.translate_quality)
+        // console.log("also in seed")
         if (parent instanceof DNA){
+            // console.log("records parentage!")
             this.quality = [...parent.quality];
-            if (this.mt.random() < conf["MTDNA_MUT_RATE"] ){
+            if (this.C.random() < conf["MTDNA_MUT_RATE"] ){
                 this.mutate();
             }
+            // console.log(this.quality)
         } else {
             this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
             for (let i = 0 ; i < this.quality.length; i++){
@@ -4637,19 +4639,9 @@ class DNA {
     }
 
     mutate(){ 
-        // find ones - mutation is always loss
-        let randomtrue = Math.floor(this.mt.random() * this.sumQuality());
-       
-        this.quality[this.trues[Math.floor(this.mt.random() * this.trues.length)]] = 0;
-        // for (const [ix,gene] of this.quality.entries()){
-        //     if(gene === 1){
-        //         i++
-        //     }
-        //     if (i == randomtrue){
-        //         this.quality[ix] = 0
-        //         break
-        //     }
-        // }
+        // console.log(this.quality, this.trues)
+        this.quality[this.trues[Math.floor(this.C.random() * this.trues.length)]] = 0;
+        // console.log(this.quality, this.trues)
     }
 
     notBusy(){
@@ -4683,10 +4675,10 @@ class DNA {
 class Mitochondrion extends SubCell {
 
 	/* eslint-disable */ 
-    constructor (conf, kind, id, mt) {
-		super(conf, kind, id, mt);
+    constructor (conf, kind, id, C) {
+		super(conf, kind, id, C);
         
-		this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.mt));
+		this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.C));
 
         // this.oxphos = this.conf["INIT_OXPHOS"]
         this.V = this.conf["INIT_OXPHOS"];
@@ -4715,7 +4707,7 @@ class Mitochondrion extends SubCell {
 	   
 		let new_parent = [];
         for (let dna of parent.DNA){
-            if (this.mt.random() < partition){
+            if (this.C.random() < partition){
 				this.DNA.push(dna);
             } else {
                 new_parent.push(dna);
@@ -4729,18 +4721,24 @@ class Mitochondrion extends SubCell {
 
     /* eslint-disable*/
     update(current_volume){
-        // console.log(this.oxphos, this.oxphos_products, current_volume) 
+        // console.log(this.oxphos, this.oxphos_products, current_volume, this.id) 
+        // if (this.id === 157){
+        //     console.log(this.oxphos, this.oxphos_products, current_volume, this.id) 
+        //     console.log(this.DNA, this.V) 
+        // }
+        // this.vol = current_volume
         let dV = 0;
         if (this.V - current_volume < 10){
             dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"];
         }
-        if (this.oxphos < 20) {
+        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
             dV -= this.conf["MITOPHAGY_SHRINK"];
-            // console.log("IN MITOPHAGY",this.conf["MITOPHAGY_SHRINK"] , this.V)
+            
         }
         dV-=this.conf["MITO_SHRINK"];
         dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV);
         this.V += dV;
+        // if (this.C.random() < 0.1){console.log("", this.V, dV, this.C, this.vol, this.DNA.length, this.oxphos)}
         // this.V = Math.max(0, this.V)
         // console.log(this.products)
         this.repAndTranslate();
@@ -4751,7 +4749,7 @@ class Mitochondrion extends SubCell {
     divideProducts(parent_arr, child_arr, partition){
         for (const [ix, product] of parent_arr.entries()){
             for (let i = 0; i < product; i ++){
-                if (this.mt.random() < partition){
+                if (this.C.random() < partition){
                     parent_arr[ix]--;
                     child_arr[ix]++;
                 }
@@ -4763,15 +4761,8 @@ class Mitochondrion extends SubCell {
         for (const [ix, product] of this.products.entries()){
             this.products[ix] -= this.binomial(product, this.conf['deprecation_rate']);
         }
-        // for (const [ix, product] of this.products.entries()){
-        //     for (let i = 0; i < product; i ++){
-        //         if (this.mt.random() < this.conf['deprecation_rate']){
-        //             this.products[ix]--
-        //         }
-        //     }
-        // }
         for (let i = 0; i < this.DNA.length; i++){
-            if (this.mt.random() < this.conf["dna_deprecation_rate"]){
+            if (this.C.random() < this.conf["dna_deprecation_rate"]){
                 this.DNA.splice(i, 1);
             }
         }
@@ -4782,21 +4773,36 @@ class Mitochondrion extends SubCell {
             return num + partner.products[idx];
         });
         this.DNA = [...this.DNA, ...partner.DNA];
+        this.V += partner.V;
     }
 
     heteroplasmy(){
         // compute heteroplasmy
         if (this.DNA.length == 0){
-            return 0
+            return NaN
         }
-        let all_proteins = new DNA(this.conf, this.mt).sumQuality();
+        let all_proteins = new DNA(this.conf, this.C).sumQuality();
         let heteroplasmy = 0;
         for (let dna of this.DNA){
-            heteroplasmy += (dna.sumQuality() < all_proteins);
+            heteroplasmy += (all_proteins - dna.sumQuality() );
+            // console.log(all_proteins - dna.sumQuality() )
         }
-        return heteroplasmy/this.DNA.length
+        return 1 - (heteroplasmy/this.DNA.length)
     }
 
+    tryIncrement(){
+        // console.log(this.sum, this.vol, this.vol/this.sum)
+        return (this.C.random() < (this.vol/this.sum))
+    }
+
+    // should be refactored away
+    get sum(){
+        return this.products.reduce((t, e) => t + e)
+    }
+
+    get vol(){
+        return this.C.getVolume(this.id)
+    }
 
     repAndTranslate() {
         if (this.DNA.length == 0 ){ return }
@@ -4806,8 +4812,8 @@ class Mitochondrion extends SubCell {
         // replication and translation machinery try to find DNA to execute on
 
         while ((replicate_attempts + translate_attempts) > 0){
-            let ix = Math.floor(this.mt.random() * this.DNA.length);
-            if (this.mt.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
+            let ix = Math.floor(this.C.random() * this.DNA.length);
+            if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
                 if (this.DNA[ix].notBusy()){ this.DNA[ix].replicateFlag = true;}
                 replicate_attempts--;
             } else {
@@ -4818,15 +4824,21 @@ class Mitochondrion extends SubCell {
 
         for (let dna of this.DNA){
             if (dna.translateFlag){
-                if (this.mt.random() < this.conf['translation_rate']){
-                    this.products = this.products.map(function (num, idx) {
-                        return num + dna.quality[idx];
-                    });
+                if (this.C.random() < this.conf['translation_rate']){
+                    for (const [ix, val] of dna.quality.entries()){
+                        if (val &&  this.tryIncrement()){
+                           this.products[ix] += val;
+                        }
+                    }
+                    // this.products = this.products.map(function (num, idx) {
+                    //     return num + dna.quality[idx];
+                    // })
                 }
                 dna.translateFlag = false;
             } else if (dna.replicateFlag) { 
-                if (this.mt.random() < this.conf['replication_rate']){
-                    this.DNA.push(new DNA(this.conf, this.mt, dna));
+                // if (this.C.random() < this.conf['replication_rate'] && this.tryIncrement()){
+                if (this.C.random() < this.conf['replication_rate']){
+                    this.DNA.push(new DNA(this.conf, this.C, dna));
                 }
                 dna.replicateFlag = false;
             }
@@ -4853,9 +4865,8 @@ class Mitochondrion extends SubCell {
     binomial(n, p){
         let log_q = Math.log(1.0-p), k = 0, sum = 0;
         for (;;){
-            sum += Math.log(this.mt.random())/(n-k);
+            sum += Math.log(this.C.random())/(n-k);
             if (sum < log_q){
-                // console.log(k)
                 return k
             }
             k++;
@@ -4866,11 +4877,11 @@ class Mitochondrion extends SubCell {
 class nDNA extends DNA {
 
 	/* eslint-disable */ 
-	constructor (conf, mt ,parent) {
-        super(conf,mt, parent);
+	constructor (conf, C ,parent) {
+        super(conf,C, parent);
         if (parent instanceof DNA){
             this.quality = [...parent.quality];
-            if (this.mt.random() < conf["NDNA_MUT_RATE"] ){
+            if (this.C.random() < conf["NDNA_MUT_RATE"] ){
                 this.mutate();
             }
         } else {
@@ -4883,7 +4894,7 @@ class nDNA extends DNA {
     }
 
     mutate(){ 
-        let ix = Math.floor(this.mt.random() * this.quality.length);
+        let ix = Math.floor(this.C.random() * this.quality.length);
         this.quality[ix] = !this.quality[ix];
     }
 
@@ -4893,12 +4904,12 @@ class nDNA extends DNA {
 class HostCell extends SuperCell {
 
 	/* eslint-disable */ 
-	constructor (conf, kind, id, mt) {
-		super(conf, kind, id, mt);
+	constructor (conf, kind, id, C) {
+		super(conf, kind, id, C);
 		this.selfishness = 0.5;
 		this.V = conf["INIT_HOST_V"];
 		this.total_oxphos = 0;
-		this.DNA = new nDNA(conf, mt);
+		this.DNA = new nDNA(conf, C);
 	}
 
 	birth(parent){
@@ -4906,34 +4917,53 @@ class HostCell extends SuperCell {
 		this.mutate_selfishness(parent);
 		this.V = parent.V/2;
 		parent.V /= 2;
-		this.DNA = new nDNA(this.conf, this.mt, parent.DNA);
+		this.DNA = new nDNA(this.conf, this.C, parent.DNA);
 	}
 
 	mutate_selfishness(parent){
-		this.selfishness = parent.selfishness + (this.mt.random() - 0.5)*0.1*2;
+		this.selfishness = parent.selfishness + (this.C.random() - 0.5)*0.1*2;
 		this.selfishness = Math.min(1, this.selfishness);
 		this.selfishness = Math.max(0, this.selfishness);
 	}
 
 	update(C, mitochondria = []){
 		// update mitochondria
+		
+		// let prevtime = performance.now()
+		// console.log("mito's")
 		this.total_oxphos = 0;
 		let volcumsum = [0];
 		for (let mito of mitochondria){
+			// if (this.id === 3){
+			// 	console.log(mito.id)}
 			volcumsum.push(C.getVolume(mito.id) + volcumsum.slice(-1));
+			// try{
 			mito.update(C.getVolume(mito.id));
+			// } catch (error){
+			// 	console.log("HELLO????")
+			// 	throw("BROKEN IN", mito)
+			// }
+			
+			//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
 			this.total_oxphos += mito.oxphos;
 		}
 		volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)});
-
+		// console.log("mito's took ", performance.now() - prevtime)
+		// prevtime = performance.now()
 
 		let trues = this.DNA.trues;
 		for (let i = 0; i < this.total_oxphos*(1-this.selfishness); i++){
-			let ix = trues[Math.floor(this.mt.random() * trues.length)];
-			let ran = this.mt.random(); 
+			let ix = trues[Math.floor(this.C.random() * trues.length)];
+			let ran = this.C.random(); 
 			let mito = volcumsum.findIndex(element => ran < element );
-			mitochondria[mito-1].products[ix]++; //volcumsum counts from 1 as the 
+			if (mitochondria[mito-1].tryIncrement()){
+				mitochondria[mito-1].products[ix]++; //volcumsum counts from 1 as the 
+			}
+			// mitochondria[mito-1].products[ix]++ //volcumsum counts from 1 as the 
 		}
+		
+		// console.log("replicationss took ", performance.now() - prevtime)
+		// prevtime = performance.now()
 		let dV = 0;
 		if (this.V - C.getVolume(this.id) < 10){
 			dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"];
@@ -4943,6 +4973,8 @@ class HostCell extends SuperCell {
 		dV -= this.conf["HOST_SHRINK"];
 		dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV);
 		this.V += dV;
+		// console.log("update me took ", performance.now() - prevtime)
+		// prevtime = performance.now()
 		// this.V = Math.max(0, this.V)
 	}
 
@@ -5985,11 +6017,10 @@ class GridManipulator {
 		// console.log( id )
 		// create a new ID for the second cell
 		let nid = C.makeNewCellID( C.cellKind( id ) );
-		if (C.hasOwnProperty("cells")){
-			C.birth(nid, id);
-		}
+		
 
 		if (partition === 0.5){
+			
 			for( let j = 0 ; j < cp.length ; j ++ ){
 				//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
 				if( x1*pixdist[j][1]-pixdist[j][0]*y1 > 0 ){
@@ -6013,6 +6044,11 @@ class GridManipulator {
 				}
 			}
 		}
+		if (C.hasOwnProperty("cells")){
+			C.birth(nid, id, partition);
+		}
+		// console.log()
+		
 		
 		C.stat_values = {}; // remove cached stats or this will crash!!!
 		return nid

@@ -6,14 +6,14 @@ class Cell {
 	 * relevant parameters. Note: this should include all constraint parameters.
 	 * @param {CellKind} kind - the cellkind of this cell, the parameters of kind are used 
 	 * when parameters are not explicitly overwritten
-	 * @param {object} mt - the Mersenne Twister object of the CPM, to draw random 
+	 * @param {object} C - the Mersenne Twister object of the CPM, to draw random 
 	 * numbers within the seeding of the entire simulation 
 	 * @param {CellId} id - the CellId of this cell (its key in the CPM.cells), unique identifier
 	 * */
-	constructor (conf, kind, id, mt){
+	constructor (conf, kind, id, C){
 		this.conf = conf
 		this.kind = kind
-		this.mt = mt 
+		this.C = C 
 		this.id = id
 
 		/** The id of the parent cell, all seeded cells have parent -1, to overwrite this

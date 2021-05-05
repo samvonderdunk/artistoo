@@ -500,11 +500,10 @@ class GridManipulator {
 		// console.log( id )
 		// create a new ID for the second cell
 		let nid = C.makeNewCellID( C.cellKind( id ) )
-		if (C.hasOwnProperty("cells")){
-			C.birth(nid, id)
-		}
+		
 
 		if (partition === 0.5){
+			
 			for( let j = 0 ; j < cp.length ; j ++ ){
 				//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
 				if( x1*pixdist[j][1]-pixdist[j][0]*y1 > 0 ){
@@ -528,6 +527,11 @@ class GridManipulator {
 				}
 			}
 		}
+		if (C.hasOwnProperty("cells")){
+			C.birth(nid, id, partition)
+		}
+		// console.log()
+		
 		
 		C.stat_values = {} // remove cached stats or this will crash!!!
 		return nid

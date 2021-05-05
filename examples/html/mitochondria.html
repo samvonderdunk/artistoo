@@ -36,23 +36,18 @@ let config = {
 	conf : {
 		// Basic CPM parameters
 		torus : [true,true],				// Should the grid have linked borders?
-		seed : 5,							// Seed for random number generation.
+		seed : 3,							// Seed for random number generation.
 		T : 20,								// CPM temperature
         
     
-		CELLS : ["empty", CPM.HostCell, CPM.Mitochondrion],
-	
- 
-        J: [ [0,0,0], 
-			[0,0,0], 
-            [0,0,0] ],
+		CELLS : ["empty", CPM.HostCell, CPM.Mitochondrion], 
         
         J_INT:  [ 
 			[15,15], 
             [15,1500] ],
 
         J_EXT:  [ [15,15,1500], 
-			[150,15,1500], 
+			[50,15,1500], 
             [1500, 1500,15000] ],
 
         // LAMBDA_SUB: [0, 0, 500] ,
@@ -61,8 +56,8 @@ let config = {
         N_OXPHOS : 5, 
         N_TRANSLATE : 10,
         N_REPLICATE : 100,
-        INIT_OXPHOS : 100,
-        N_INIT_DNA : 100,
+        INIT_OXPHOS : 40,
+        N_INIT_DNA : 10,
 		MTDNA_MUT_RATE : 0.1,
 		INIT_HOST_V : 500,
 
@@ -74,26 +69,27 @@ let config = {
         
 		// division_volume : [0, 200],
 		minimal_division_volume : 150,
-		fission_rate : 0.05,
-		fusion_rate : 0.05,
-		deprecation_rate : 0.03,
-		dna_deprecation_rate :0.06,
+		fission_rate : 0.03,
+		fusion_rate : 0.005,
+		deprecation_rate : 0.01,
+		dna_deprecation_rate :0.005,
 		replication_rate : 1,
 		translation_rate: 1, 
-		host_selfishness : 0.1, 
-		MITO_SHRINK : 2,
-		MITOPHAGY_SHRINK : 20,
-		HOST_SHRINK : 20,
-		EMPTY_HOST_SHRINK: 70,
-		MITO_GROWTH_MAX : 10,
-		HOST_GROWTH_MAX : 10,
-		MITO_V_PER_OXPHOS : 0.2,
-		HOST_V_PER_OXPHOS : 0.8,
+		host_selfishness : 0.6, 
+		MITO_SHRINK : 0,
+		MITOPHAGY_THRESHOLD: 5,
+		MITOPHAGY_SHRINK : 12,
+		HOST_SHRINK : 3,
+		EMPTY_HOST_SHRINK: 10,
+		MITO_GROWTH_MAX : 5,
+		HOST_GROWTH_MAX : 5,
+		MITO_V_PER_OXPHOS : 0.4,
+		HOST_V_PER_OXPHOS : 0.2,
 
-		MITO_PARTITION : 0.2,
+		MITO_PARTITION : 0.3,
 
 		// VolumeConstraint parameters
-		LAMBDA_V : [0, 10, 10],				// VolumeConstraint importance per cellkind
+		LAMBDA_V : [0, 100, 100],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
 		division_volume: [100, 800, 100]
 	},
@@ -193,7 +189,7 @@ function postMCSListener(){
 	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
 
 	let neighs = sim.C.getStat( CPM.CellNeighborList )
-
+	
 	let all_sub = {} //sorted by host
 	let all_super = {} //cells by host
 	for (let cid of this.C.cellIDs()){
@@ -214,12 +210,17 @@ function postMCSListener(){
 
 	for( let cid of this.C.cellIDs() ){
 		if (this.C.cells[cid] instanceof CPM.SubCell){
-			if (this.C.random() < 0.02){
+			if (this.C.random() < 0.002){
 				let cell = this.C.cells[cid]
-				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "heteroplasmy: ", cell.heteroplasmy(), cell.products)
+				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "heteroplasmy: ", cell.heteroplasmy(), "DNA:" ,cell.DNA)
 			}
 			if (this.C.random() < this.C.conf['fission_rate'] && this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
+				// let cell = this.C.cells[cid]
+				// console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "heteroplasmy: ", cell.heteroplasmy(), cell.products)
+				// cell = this.C.cells[nid]
+				// console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "heteroplasmy: ", cell.heteroplasmy(), cell.products)
+				// console.log("---------")
 			} else {
 				// console.log(neighs, cid)
 				for (let neigh of Object.keys(neighs[cid])){
@@ -342,8 +343,12 @@ function getColor (cell, conf) {
 				c = String(conf["CELLCOLOR"][cell.kind-1]) //very ugly!
 		}
 	}
-	// console.log(c, cmap[c], cmap)
+	// console.log(c)
+	
 	if (!no_cmap){ 
+		if (Number.isNaN(c)){
+		return "A9A9A9"
+		}
 		c = Math.min(cmap.length-1, c)
 		c = Math.max(1, c)
 		
@@ -368,10 +373,10 @@ function changeColorBy(){
 <body onload="initialize()">
 <h1>Mitochondria</h1>
 
-<input type="radio" name="Visualization" value="Cell_type" checked>Cell Type (fastest)<br>
+<input type="radio" name="Visualization" value="Cell_type" >Cell Type (fastest)<br>
 <input type="radio" name="Visualization" value="n_DNA" >Number of DNA copies<br>
 <input type="radio" name="Visualization" value="oxphos" >Oxphos<br>
-<input type="radio" name="Visualization" value="heteroplasmy">Heteroplasmy<br>
+<input type="radio" name="Visualization" value="heteroplasmy"checked>Heteroplasmy<br>
 <input type="radio" name="Visualization" value="host">Host<br>
 <input type="radio" name="Visualization" value="kill">Kill<br>
 <div>

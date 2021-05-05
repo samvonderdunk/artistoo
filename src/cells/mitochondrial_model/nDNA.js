@@ -3,11 +3,11 @@ import DNA from "./DNA.js"
 class nDNA extends DNA {
 
 	/* eslint-disable */ 
-	constructor (conf, mt ,parent) {
-        super(conf,mt, parent)
+	constructor (conf, C ,parent) {
+        super(conf,C, parent)
         if (parent instanceof DNA){
             this.quality = [...parent.quality]
-            if (this.mt.random() < conf["NDNA_MUT_RATE"] ){
+            if (this.C.random() < conf["NDNA_MUT_RATE"] ){
                 this.mutate()
             }
         } else {
@@ -20,7 +20,7 @@ class nDNA extends DNA {
     }
 
     mutate(){ 
-        let ix = Math.floor(this.mt.random() * this.quality.length)
+        let ix = Math.floor(this.C.random() * this.quality.length)
         this.quality[ix] = !this.quality[ix]
     }
 

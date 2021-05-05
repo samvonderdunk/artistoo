@@ -3,18 +3,20 @@
 class DNA {
 
 	/* eslint-disable */ 
-	constructor (conf, mt ,parent) {
-        this.mt = mt
+	constructor (conf, C ,parent) {
+        this.C = C
         this.conf = conf
 
         this.replicateFlag = false
         this.translateFlag = false
-        // console.log("also in seed", this.translate_quality)
+        // console.log("also in seed")
         if (parent instanceof DNA){
+            // console.log("records parentage!")
             this.quality = [...parent.quality]
-            if (this.mt.random() < conf["MTDNA_MUT_RATE"] ){
+            if (this.C.random() < conf["MTDNA_MUT_RATE"] ){
                 this.mutate()
             }
+            // console.log(this.quality)
         } else {
             this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
             for (let i = 0 ; i < this.quality.length; i++){
@@ -25,19 +27,9 @@ class DNA {
     }
 
     mutate(){ 
-        // find ones - mutation is always loss
-        let randomtrue = Math.floor(this.mt.random() * this.sumQuality()), i = 0
-       
-        this.quality[this.trues[Math.floor(this.mt.random() * this.trues.length)]] = 0
-        // for (const [ix,gene] of this.quality.entries()){
-        //     if(gene === 1){
-        //         i++
-        //     }
-        //     if (i == randomtrue){
-        //         this.quality[ix] = 0
-        //         break
-        //     }
-        // }
+        // console.log(this.quality, this.trues)
+        this.quality[this.trues[Math.floor(this.C.random() * this.trues.length)]] = 0
+        // console.log(this.quality, this.trues)
     }
 
     notBusy(){
