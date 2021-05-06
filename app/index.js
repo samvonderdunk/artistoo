@@ -6,6 +6,7 @@ import Canvas from "../src/Canvas.js"
  
 import CA from "../src/models/CA.js" 
 import CPM from "../src/models/CPM.js" 
+import CPMEvol from "../src/models/CPMEvol.js" 
 import GridBasedModel from "../src/models/GridBasedModel.js" 
  
 import Cell from "../src/cells/Cell.js" 
@@ -61,10 +62,13 @@ import ArtistooWriter from "../src/converter/ArtistooWriter.js"
 import MorpheusWriter from "../src/converter/MorpheusWriter.js" 
 import ArtistooImport from "../src/converter/ArtistooImport.js" 
  
+import ColorMap from "../src/accessories/colormap.js" 
+ 
 export {
 	Canvas,
 	CA,
 	CPM,
+	CPMEvol,
 	GridBasedModel,
 	Cell,
 	StochasticCorrector,
@@ -111,5 +115,6 @@ export {
 	MorpheusImport,
 	ArtistooWriter,
 	MorpheusWriter,
-	ArtistooImport
+	ArtistooImport,
+	ColorMap
 }

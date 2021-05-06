@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>CellDivision</title>
+<title>Stochastic Correction</title>
 <style type="text/css">
 body{
 		font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue",
 		 Helvetica, Arial, "Lucida Grande", sans-serif;
 	 padding : 15px;
-}
+} 
 td {
 	 padding: 10px;
 	 vertical-align: top;
@@ -16,7 +16,6 @@ td {
 
 <script src="./artistoo.js"></script>
 <script src="./fpsmeter.min.js"></script>
-<script src="./colormap.js"></script>
 
 <script>
 "use strict"
@@ -38,15 +37,17 @@ let config = {
 		torus : [false,false],				// Should the grid have linked borders?
 		seed : 5,							// Seed for random number generation.
 		T : 2,								// CPM temperature
+		
+		//This declaration of CELLS instantiates the CPMEvol model instead of the CPM model
+		CELLS : ["empty", CPM.StochasticCorrector, CPM.StochasticCorrector], //The cell internal classes
         
-        // used internally
+        // used internally by StochasticCorrector subclass
         INIT_X : [0, 40, 40],
         INIT_Y: [0, 40, 40],
 		INIT_V : [0, 150, 150],
-		CELLS : ["empty", CPM.StochasticCorrector, CPM.StochasticCorrector],
 		NOISE : [0,0,10],
 
-        // only used in postMCSListener
+		// only used in postMCSListener
         rX : [0, 1, 1],
         rY : [0, 0.8, 0.8], 
         d : [0, 0.05, 0.05],
@@ -98,8 +99,8 @@ let config = {
 		SAVEIMG : true,						// Should a png image of the grid be saved
 		// during the simulation?
 		IMGFRAMERATE : 1,					// If so, do this every <IMGFRAMERATE> MCS.
-		SAVEPATH : "output/img/CellDivision",	// ... And save the image in this folder.
-		EXPNAME : "CellDivision",					// Used for the filename of output images.
+		SAVEPATH : "output/img/StochasticCorrection",	// ... And save the image in this folder.
+		EXPNAME : "StochasticCorrection",					// Used for the filename of output images.
 		
 		// Output stats etc
 		STATSOUT : { browser: false, node: true }, // Should stats be computed?
@@ -108,7 +109,7 @@ let config = {
 	}
 }
 /*	---------------------------------- */
-let sim, meter, showYcolors, cellColors
+let sim, meter, showYcolors
 
 function initialize(){
 	 /* 	The following functions are defined below and will be added to
@@ -136,29 +137,25 @@ function step(){
 	}
 }
 
-
-
 /* The following custom methods will be added to the simulation object*/
 function postMCSListener(){
 	
 	// add the initializer if not already there
 	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
 	
-	var C = this.C
-	this.C.cells.forEach(function (item) {
-		updateCell(C, item)
-	});
 	for( let i of this.C.cellIDs() ){
+		updateCell(this.C, this.C.cells[i])
 		if( this.C.getVolume(i) > this.C.conf.division_volume[this.C.cellKind(i)] ){
 			this.gm.divideCell(i)
 		}
 	}
 }
 
+// Models internal concentrations of RNA replicators, with a master sequence  (X) creating mutants (Y) with lower growth rate,
+//  Y population is necessary for vesicle to survive.
 function updateCell(C, cell){
 	if (cell.id < 0){return}
     let vol = C.getVolume(cell.id)
-    // console.log(cell.X, " ",cell.Y, " ", cell.V)
     let V = cell.V
     if ((cell.V - vol) < 10 && cell.X > 0){
         V += C.conf.y_growth_contribution[cell.kind]*(cell.Y/vol)/((cell.Y/vol)+0.1)
@@ -166,13 +163,11 @@ function updateCell(C, cell){
     }
     V -= C.conf.shrink_rate[cell.kind]
     cell.V = V
-    
+	
     let dy = C.conf.rY[cell.kind]*cell.Y*(vol-cell.X-cell.Y)/vol*C.conf.speed_internal_dynamics[cell.kind]
     let X = cell.X + (1-C.conf.Q[cell.kind])*dy+( C.conf.rX[cell.kind]*cell.X*(vol-cell.X-cell.Y)/vol - C.conf.d[cell.kind]*cell.X )*C.conf.speed_internal_dynamics[cell.kind]
     let Y = cell.Y + C.conf.Q[cell.kind]*dy - C.conf.d[cell.kind]*cell.Y*C.conf.speed_internal_dynamics[cell.kind]
-	cell.setXY(X,Y)
-	
-
+	cell.setXY(X,Y)	
 }
 
 function initializeGrid(){
@@ -200,84 +195,35 @@ function initializeGrid(){
 
 // Custom drawing function to draw the preferred directions.
 function drawCanvas(){
-	
-	/* This part is the normal drawing function */
-	
 	// Add the canvas if required
-
 	if( !this.helpClasses["canvas"] ){ this.addCanvas() }
 
 	// Clear canvas
 	this.Cim.clear( this.conf["CANVASCOLOR"] || "FFFFFF" )
-
-
-		
-	// Draw each cellkind appropriately
-	if (showYcolors){
-		// Function to color cells as function of their cellID number.
-		// we need a trick because otherwise 'this' (the simulation object)
-		// is not available from the colFun() function.
-		let s = this
-		let colFun = function( cid ){
-
-			// First time function is called, attach an empty object 'cellColors' to
-			// simulation object; this tracks the color for each cellID on the grid.
-			if( !s.hasOwnProperty( cellColors ) ){
-				s.cellColors = {}
-			}
-			// Check if the current cellID already has a color, otherwise put a random
-			// color in the cellColors object
-			if( !s.cellColors.hasOwnProperty(cid) ){
-			// this cell gets a random color
-				s.cellColors[cid] = getColor(s.C.cells[cid])
-			}
-
-			// now return the color assigned to this cellID.
-			return s.cellColors[cid]
-		}
-		
-		// var Cim = this.Cim
-		// this.C.cells.forEach(function (item) {
-		// 	colorByY(Cim, item)
-		// });
-		let nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
-		for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
-			this.Cim.drawCells( cellkind+1, colFun)
-
-			// Draw borders if required
-			if(  cellborders[ cellkind  ]  ){
-				this.Cim.drawCellBorders( cellkind+1, "000000" )
-			}
-		}
-	} else {
-			// Draw each cellkind appropriately
-		let cellcolor=this.conf["CELLCOLOR"], 
-		nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
-		for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
-		
-		// draw the cells of each kind in the right color
-		if( cellcolor[ cellkind ] != -1 ){
-			this.Cim.drawCells( cellkind+1, cellcolor[cellkind] )
-		}
-			
+	let nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
+	
+	let colfun = getColor.bind(this)
+	for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
+		this.Cim.drawCells( cellkind+1, colfun)
 		// Draw borders if required
 		if(  cellborders[ cellkind  ]  ){
 			this.Cim.drawCellBorders( cellkind+1, "000000" )
 		}
 	}
 }
-}
-const cmap = new ColorMap({
+
+const cmap = new CPM.ColorMap({
 		colormap: 'viridis',
 		nshades: 100,
-		format: 'hex',
+		format: 'hex', 
 		alpha: 1
 })
 
-function getColor (cell) {
-	if (cell.id < 0){
-		return
+function getColor (cid) {
+	if (!showYcolors){
+		return this.conf["CELLCOLOR"][this.C.cellKind(cid)-1]
 	}
+	let cell = this.C.cells[cid]
 	let c = Math.floor(cell.Y *3) 
 	if (c >= cmap.length){
 		c = cmap.length - 1
@@ -304,7 +250,7 @@ function changeColorBy(){
 	
 	</label>
 <p>
- Replicator and mutant RNA compete in vesicles
+ Replicator and mutant RNA compete in vesicles, showing how noise on division can create selection on the vesicle level. Orange has noise in the allocation of internal products upon division, red does not.
 </p>
 </body>
 </html>

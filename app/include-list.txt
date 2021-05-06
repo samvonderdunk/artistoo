@@ -15,6 +15,7 @@ module	no-export	src/DiceSet.js
 # models
 module	CA	src/models/CA.js
 module	CPM	src/models/CPM.js
+module	CPMEvol	src/models/CPMEvol.js
 module	GridBasedModel	src/models/GridBasedModel.js
 
 # cells 
@@ -79,5 +80,8 @@ module	MorpheusImport	src/converter/MorpheusImport.js
 module	ArtistooWriter	src/converter/ArtistooWriter.js
 module	MorpheusWriter	src/converter/MorpheusWriter.js
 module	ArtistooImport	src/converter/ArtistooImport.js
+
+# accesories
+module ColorMap src/accessories/colormap.js
 
 # cat app/include-list.txt | awk -F '\t' '!($1 ~ /^#/) && !($1 ~ /^no-export/) && (NF > 0){print "import", $1 , "from", $2}; (NF==0){print " "}; !($1 ~ /^#/) && !($1 ~ /^no-export/){printf "%s, ", $1}' 
