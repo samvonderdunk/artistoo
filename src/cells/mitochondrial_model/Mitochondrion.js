@@ -51,7 +51,7 @@ class Mitochondrion extends SubCell {
     }
 
     /* eslint-disable*/
-    update(current_volume){
+    update(){
         // console.log(this.oxphos, this.oxphos_products, current_volume, this.id) 
         // if (this.id === 157){
         //     console.log(this.oxphos, this.oxphos_products, current_volume, this.id) 
@@ -59,7 +59,7 @@ class Mitochondrion extends SubCell {
         // }
         // this.vol = current_volume
         let dV = 0
-        if (this.V - current_volume < 10){
+        if (this.V - this.vol < 10){
             dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"]
         }
         if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {

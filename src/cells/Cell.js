@@ -29,8 +29,12 @@ class Cell {
 		this.parentId = parent.id 
 	}
 
-	/* eslint-disable */
-	fuse(partner){}
+	/**
+	 * redefine this in subclasses. This is called upon death events. 
+	 */
+	death () {
+	}
+
 }
 
 export default Cell

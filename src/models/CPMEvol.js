@@ -53,6 +53,7 @@ class CPMEvol extends CPM {
 	/* eslint-disable no-unused-vars*/
 	cellDeath( i, t_old, t_new){
 		if (this.cellvolume[t_old] === undefined && t_old !== 0){
+			this.cells[t_old].death()
 			delete this.cells[t_old]
 		} 
 	}
@@ -79,7 +80,7 @@ class CPMEvol extends CPM {
 	 * the other daughter (as parent) on to the Cell.
 	   @param {CellId} childId - id of the newly created Cell object
 	   @param {CellId} parentId - id of the other daughter (that kept the parent id)*/
-	   birth (childId, parentId, partition = 0.5){
+	birth (childId, parentId, partition = 0.5){
 		this.cells[childId].birth(this.cells[parentId], partition )
 	}
 }

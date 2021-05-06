@@ -7,12 +7,28 @@ class SubCell extends Cell {
 
 	constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
-		this.host = -1
 	}
 
 	birth(parent){
 		super.birth(parent) // sets ParentId
 		this.host = parent.host
+	}
+
+
+	death(){
+		this.C.cells[this.host].removeSubCell(this)
+	}
+
+	set host(newHost){
+		if (this.hostId !== undefined){
+			this.C.cells[this.hostId].removeSubCell(this)
+		}
+		this.hostId = newHost
+		this.C.cells[newHost].addSubCell(this)
+	}
+
+	get host(){
+		return this.hostId
 	}
 }
 

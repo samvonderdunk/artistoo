@@ -8,7 +8,7 @@ class nDNA extends DNA {
         if (parent instanceof DNA){
             this.quality = [...parent.quality]
             if (this.C.random() < conf["NDNA_MUT_RATE"] ){
-                this.mutate()
+                // this.mutate()
             }
         } else {
             this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(1)
