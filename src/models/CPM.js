@@ -467,13 +467,6 @@ class CPM extends GridBasedModel {
 		return newid
 	}
 
-	/** Calls a birth event in a new daughter Cell object, and hands 
-	 * the other daughter (as parent) on to the Cell.
-	   @param {CellId} childId - id of the newly created Cell object
-	   @param {CellId} parentId - id of the other daughter (that kept the parent id)*/
-	birth (childId, parentId, partition){
-		this.cells[childId].birth(this.cells[parentId], partition )
-	}
 }
 
 export default CPM
