@@ -79,8 +79,8 @@ class CPMEvol extends CPM {
 	 * the other daughter (as parent) on to the Cell.
 	   @param {CellId} childId - id of the newly created Cell object
 	   @param {CellId} parentId - id of the other daughter (that kept the parent id)*/
-	birth (childId, parentId){
-		this.cells[childId].birth(this.cells[parentId] )
+	   birth (childId, parentId, partition = 0.5){
+		this.cells[childId].birth(this.cells[parentId], partition )
 	}
 }
  
