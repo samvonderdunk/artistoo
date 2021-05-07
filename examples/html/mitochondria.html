@@ -76,7 +76,7 @@ let config = {
 		translation_rate: 1, 
 		host_selfishness : 0.6, 
 		MITO_SHRINK : 0,
-		MITOPHAGY_THRESHOLD: 5,
+		MITOPHAGY_THRESHOLD: 15,
 		MITOPHAGY_SHRINK : 12,
 		HOST_SHRINK : 3,
 		EMPTY_HOST_SHRINK: 10,
@@ -213,7 +213,7 @@ function postMCSListener(){
 		if (this.C.cells[cid] instanceof CPM.SubCell){
 			if (this.C.random() < 0.002){
 				let cell = this.C.cells[cid]
-				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "heteroplasmy: ", cell.heteroplasmy(), "DNA:" ,cell.DNA)
+				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "heteroplasmy: ", cell.heteroplasmy(), "V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA,)
 			}
 			if (this.C.random() < this.C.conf['fission_rate'] && this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
@@ -226,7 +226,7 @@ function postMCSListener(){
 				// console.log(neighs, cid)
 				for (let neigh of Object.keys(neighs[cid])){
 					// console.log(neigh)
-					if (this.C.cells[neigh] instanceof CPM.Mitochondrion && this.C.random() < this.C.conf['fusion_rate']){
+					if (this.C.cells[neigh] instanceof CPM.Mitochondrion && this.C.random() < this.C.conf['fusion_rate'] && this.C.cells[neigh].host == this.C.cells[cid].host){
 						this.gm.fuseCells(cid, neigh)
 					}
 				}
@@ -270,7 +270,7 @@ function transferSubCells (parent, child){
 		if (cell instanceof CPM.SubCell && cell.host === parent){ 
 			let parentlength = (neighborlst[cid][parent] || 0)
 			let childlength = (neighborlst[cid][child] || 0)
-			console.log(parentlength, childlength)
+			// console.log(parentlength, childlength)
 			if (childlength > parentlength){
 				cell.host = child
 			} 
@@ -317,7 +317,7 @@ function getColor (cid) {
 	if (cell instanceof CPM.SuperCell){
 		switch (colorby){
 			case "host":
-				c = Math.floor(cell.host)
+				c = Math.floor(cell.host/10)
 				break
 			default:
 				no_cmap= true
@@ -327,7 +327,7 @@ function getColor (cid) {
 		switch (colorby){
 			case "host":
 				if (this.C.cells[cell.host].subcells.includes(cell)){
-					c = Math.floor(cell.host)
+					c = Math.floor(cell.host/10)
 				} else {
 					c = NaN
 				}
@@ -341,9 +341,9 @@ function getColor (cid) {
 			case 'oxphos':
 				c = Math.floor(cell.oxphos)
 				break
-			case 'host':
-				c = Math.floor(cell.host/10)
-				break
+			// case 'host':
+			// 	c = Math.floor(cell.host/100)
+			// 	break
 			case 'kill':
 				exit()
 			default:
