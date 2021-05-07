@@ -66,6 +66,13 @@ class HostCell extends SuperCell {
 		// this.V = Math.max(0, this.V)
 	}
 
+	death(){
+		/* eslint-disable */
+		super.death()
+		for (let mito of this.subcells){
+			mito.V = -500
+		}
+	}
 }
 
 export default HostCell

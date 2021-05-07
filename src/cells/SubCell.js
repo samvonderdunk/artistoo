@@ -14,15 +14,20 @@ class SubCell extends Cell {
 		this.host = parent.host
 	}
 
+	
 
 	death(){
-		this.C.cells[this.host].removeSubCell(this)
+		this.removeFromHost()
+	}
+
+	removeFromHost(){
+		if (this.C.cells.hasOwnProperty(this.hostId)){
+			this.C.cells[this.hostId].removeSubCell(this)
+		}
 	}
 
 	set host(newHost){
-		if (this.hostId !== undefined){
-			this.C.cells[this.hostId].removeSubCell(this)
-		}
+		this.removeFromHost()
 		this.hostId = newHost
 		this.C.cells[newHost].addSubCell(this)
 	}

@@ -12,7 +12,7 @@ class SuperCell extends Cell {
 	death(){
 		/* eslint-disable */
 		if (this.subcells.length > 0){
-			console.log("Supercell: ". this.id, " died with extant subcells:", this.subcells)
+			console.log("Supercell: ", this.id, " died with extant subcells:", this.subcells)
 		}
 	}
 

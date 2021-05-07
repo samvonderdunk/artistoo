@@ -4679,7 +4679,7 @@ class SuperCell extends Cell {
 	death(){
 		/* eslint-disable */
 		if (this.subcells.length > 0){
-			console.log("Supercell: ". this.id, " died with extant subcells:", this.subcells);
+			console.log("Supercell: ", this.id, " died with extant subcells:", this.subcells);
 		}
 	}
 
@@ -4712,15 +4712,20 @@ class SubCell extends Cell {
 		this.host = parent.host;
 	}
 
+	
 
 	death(){
-		this.C.cells[this.host].removeSubCell(this);
+		this.removeFromHost();
+	}
+
+	removeFromHost(){
+		if (this.C.cells.hasOwnProperty(this.hostId)){
+			this.C.cells[this.hostId].removeSubCell(this);
+		}
 	}
 
 	set host(newHost){
-		if (this.hostId !== undefined){
-			this.C.cells[this.hostId].removeSubCell(this);
-		}
+		this.removeFromHost();
 		this.hostId = newHost;
 		this.C.cells[newHost].addSubCell(this);
 	}
@@ -4999,9 +5004,7 @@ class nDNA extends DNA {
         super(conf,C, parent);
         if (parent instanceof DNA){
             this.quality = [...parent.quality];
-            if (this.C.random() < conf["NDNA_MUT_RATE"] ){
-                this.mutate();
-            }
+            if (this.C.random() < conf["NDNA_MUT_RATE"] );
         } else {
             this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(1);
             for (let i = 0 ; i < this.quality.length; i++){
@@ -5032,7 +5035,7 @@ class HostCell extends SuperCell {
 
 	birth(parent){
 		super.birth(parent);
-		this.mutate_selfishness(parent);
+		// this.mutate_selfishness(parent)
 		this.V = parent.V/2;
 		parent.V /= 2;
 		this.DNA = new nDNA(this.conf, this.C, parent.DNA);
@@ -5064,7 +5067,6 @@ class HostCell extends SuperCell {
 			if (this.subcells[mito-1].tryIncrement()){
 				this.subcells[mito-1].products[ix]++; //volcumsum counts from 1 as the 
 			}
-			// mitochondria[mito-1].products[ix]++ //volcumsum counts from 1 as the 
 		}
 		
 		// console.log("replicationss took ", performance.now() - prevtime)
@@ -5083,6 +5085,13 @@ class HostCell extends SuperCell {
 		// this.V = Math.max(0, this.V)
 	}
 
+	death(){
+		/* eslint-disable */
+		super.death();
+		for (let mito of this.subcells){
+			mito.V = -5000;
+		}
+	}
 }
 
 /**	This Stat creates a {@link CellArrayObject} with the border cellpixels of each cell on the grid. 
