@@ -1,4 +1,5 @@
-
+// Optional: get all DNA and product redundancy away through proper inheritance;
+// this is for now too much work.
 
 class DNA {
 
