@@ -12,6 +12,8 @@ class HostCell extends SuperCell {
 		this.V = conf["INIT_HOST_V"]
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C)
+		this.cytosol = 
+		// make volume dependent cytosol carrying capcaity
 	}
 
 	birth(parent){
