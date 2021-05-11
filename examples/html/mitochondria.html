@@ -40,14 +40,35 @@ let config = {
         
     
 		CELLS : ["empty", CPM.HostCell, CPM.Mitochondrion], 
-        
+		
+		        
         J_INT:  [ 
 			[15,15], 
             [15,1500] ],
 
-        J_EXT:  [ [15,15,1500], 
-			[1000,15,1500], 
+        J_EXT:  [ [150,15,1500], 
+			[10,150,1500], 
             [1500, 1500,15000] ],
+
+			        
+        // J_INT:  [ 
+		// 	[15,15], 
+        //     [15,2000] ],
+
+        // J_EXT:  [ [150,15,15000], 
+		// 	[10,150,1500], 
+        //     [1500, 1500,15000] ],
+
+
+        
+        // J_INT:  [ 
+		// 	[15,15], 
+        //     [15,150] ],
+
+        // J_EXT:  [ [15,15,1500], 
+		// 	[10,750,1500], 
+        //     [1500, 15000,15000] ],
+
 
         // LAMBDA_SUB: [0, 0, 500] ,
 	
@@ -55,10 +76,14 @@ let config = {
         N_OXPHOS : 5, 
         N_TRANSLATE : 10,
         N_REPLICATE : 100,
-        INIT_OXPHOS : 40,
-        N_INIT_DNA : 10,
-		MTDNA_MUT_RATE : 0.1,
+        INIT_MITO_V : 40,
+        N_INIT_DNA : 3,
+		MTDNA_MUT_RATE : 0.2,
 		INIT_HOST_V : 500,
+		INIT_OXPHOS : 80,
+		INIT_TRANSLATE : 5,
+		INIT_REPLICATE : 5,
+		HOST_DEPRECATION: 0.005,
 
 
 		// Constraint parameters. 
@@ -68,24 +93,24 @@ let config = {
         
 		// division_volume : [0, 200],
 		minimal_division_volume : 150,
-		fission_rate : 0.03,
+		fission_rate : 0.04,
 		fusion_rate : 0.005,
 		deprecation_rate : 0.03,
-		dna_deprecation_rate :0.005,
+		dna_deprecation_rate :0.01,
 		replication_rate : 1,
 		translation_rate: 1, 
-		host_selfishness : 0.6, 
+		host_selfishness : 0.7, 
 		MITO_SHRINK : 0,
-		MITOPHAGY_THRESHOLD: 15,
+		MITOPHAGY_THRESHOLD: 10,
 		MITOPHAGY_SHRINK : 12,
 		HOST_SHRINK : 3,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 5,
 		HOST_GROWTH_MAX : 5,
-		MITO_V_PER_OXPHOS : 0.4,
-		HOST_V_PER_OXPHOS : 0.2,
+		MITO_V_PER_OXPHOS : 0.1,
+		HOST_V_PER_OXPHOS : 1.5,
 
-		MITO_PARTITION : 0.3,
+		MITO_PARTITION : 0.5,
 
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 100, 100],				// VolumeConstraint importance per cellkind

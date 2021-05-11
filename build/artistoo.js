@@ -4941,6 +4941,9 @@ var CPM = (function (exports) {
 		}
 	}
 
+	// Optional: get all DNA and product redundancy away through proper inheritance;
+	// this is for now too much work.
+
 	class DNA {
 
 		/* eslint-disable */ 
@@ -4969,7 +4972,12 @@ var CPM = (function (exports) {
 
 	    mutate(){ 
 	        // console.log(this.quality, this.trues)
-	        this.quality[this.trues[Math.floor(this.C.random() * this.trues.length)]] = 0;
+	        for (let ix = 0 ; ix < this.quality.length; ix++){
+	            if (this.C.random() < this.conf["MTDNA_MUT_RATE"]){
+	                this.quality[ix] = 0;
+	            }
+	        }
+	        // this.quality[this.trues[Math.floor(this.C.random() * this.trues.length)]] = 0
 	        // console.log(this.quality, this.trues)
 	    }
 
@@ -5010,16 +5018,16 @@ var CPM = (function (exports) {
 			this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.C));
 
 	        // this.oxphos = this.conf["INIT_OXPHOS"]
-	        this.V = this.conf["INIT_OXPHOS"];
+	        this.V = this.conf["INIT_MITO_V"];
 
 	        this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
 	        for (let i = 0 ; i < this.products.length; i++){
 	            if (i < this.conf["N_OXPHOS"] ){
-	                this.products[i] = 80;
+	                this.products[i] = this.conf["INIT_OXPHOS"];
 	            } else if (i < this.conf["N_TRANSLATE"]){
-	                this.products[i] = 5;
+	                this.products[i] = this.conf["INIT_TRANSLATE"];
 	            } else {
-	                this.products[i] = 5;
+	                this.products[i] = this.conf["INIT_REPLICATE"];
 	            }
 	        }
 		}
@@ -5050,26 +5058,16 @@ var CPM = (function (exports) {
 
 	    /* eslint-disable*/
 	    update(){
-	        // console.log(this.oxphos, this.oxphos_products, current_volume, this.id) 
-	        // if (this.id === 157){
-	        //     console.log(this.oxphos, this.oxphos_products, current_volume, this.id) 
-	        //     console.log(this.DNA, this.V) 
-	        // }
-	        // this.vol = current_volume
 	        let dV = 0;
-	        if (this.V - this.vol < 10){
-	            dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"];
-	        }
+	        dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"];
 	        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
-	            dV -= this.conf["MITOPHAGY_SHRINK"];
-	            
+	            dV -= this.conf["MITOPHAGY_SHRINK"];   
 	        }
 	        dV-=this.conf["MITO_SHRINK"];
 	        dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV);
-	        this.V += dV;
-	        // if (this.C.random() < 0.1){console.log("", this.V, dV, this.C, this.vol, this.DNA.length, this.oxphos)}
-	        // this.V = Math.max(0, this.V)
-	        // console.log(this.products)
+	        if (Math.abs(this.V - this.vol) < 10){
+	            this.V += dV;
+	        }
 	        this.repAndTranslate();
 	        this.deprecateProducts();
 		}
@@ -5113,7 +5111,7 @@ var CPM = (function (exports) {
 	        let all_proteins = new DNA(this.conf, this.C).sumQuality();
 	        let heteroplasmy = 0;
 	        for (let dna of this.DNA){
-	            heteroplasmy += (all_proteins - dna.sumQuality() );
+	            heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
 	            // console.log(all_proteins - dna.sumQuality() )
 	        }
 	        return 1 - (heteroplasmy/this.DNA.length)
@@ -5129,6 +5127,9 @@ var CPM = (function (exports) {
 	        return this.products.reduce((t, e) => t + e)
 	    }
 
+	    /**
+	     * @return {Number}
+	     */
 	    get vol(){
 	        return this.C.getVolume(this.id)
 	    }
@@ -5158,7 +5159,7 @@ var CPM = (function (exports) {
 	                        if (val &&  this.tryIncrement()){
 	                           this.products[ix] += val;
 	                        }
-	                    }
+	                    } 
 	                    // this.products = this.products.map(function (num, idx) {
 	                    //     return num + dna.quality[idx];
 	                    // })
@@ -5237,6 +5238,8 @@ var CPM = (function (exports) {
 			this.V = conf["INIT_HOST_V"];
 			this.total_oxphos = 0;
 			this.DNA = new nDNA(conf, C);
+			this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
+			// make volume dependent cytosol carrying capcaity
 		}
 
 		birth(parent){
@@ -5254,42 +5257,72 @@ var CPM = (function (exports) {
 		}
 
 		update(){
+			if (this.subcells.length === 0 ){
+				console.log(this.V, this.vol);
+				if (Math.abs(this.V - this.vol) < 10){
+					
+					this.V -= this.conf["EMPTY_HOST_SHRINK"];
+				}
+				return
+			}
 			this.total_oxphos = 0;
 			let volcumsum = [0];
-
+			// let print = this.C.random() <0.001
 			for (let mito of this.subcells){
-				volcumsum.push(this.C.getVolume(mito.id) + volcumsum.slice(-1));
-				mito.update(this.C.getVolume(mito.id));
+				volcumsum.push(this.C.getVolume(mito.id) + volcumsum[volcumsum.length-1]);
+				mito.update();
 				//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
 				this.total_oxphos += mito.oxphos;
 			}
 			volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)});
-
 			let trues = this.DNA.trues;
 			for (let i = 0; i < this.total_oxphos*(1-this.selfishness); i++){
 				let ix = trues[Math.floor(this.C.random() * trues.length)];
-				let ran = this.C.random(); 
-				let mito = volcumsum.findIndex(element => ran < element );
-				if (this.subcells[mito-1].tryIncrement()){
-					this.subcells[mito-1].products[ix]++; //volcumsum counts from 1 as the 
+				if (this.tryIncrement()){
+					this.cytosol[ix]++;
 				}
 			}
-			
-			// console.log("replicationss took ", performance.now() - prevtime)
-			// prevtime = performance.now()
+			for (const [ix, product] of this.cytosol.entries()){
+				for (let i = 0 ; i < product;i++){
+					let ran = this.C.random(); 
+					let mito = volcumsum.findIndex(element => ran < element );
+					if (this.subcells[mito-1].tryIncrement() && this.V - this.vol < 10){
+						this.subcells[mito-1].products[ix]++; //volcumsum counts from 1 as the 
+						this.cytosol[ix]--;
+					} 
+				}
+			}
+
+
 			let dV = 0;
 			if (this.V - this.C.getVolume(this.id) < 10){
 				dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"];
-			} if (this.subcells.length === 0){
-				dV -= this.conf["EMPTY_HOST_SHRINK"];
-			}
+			} 
 			dV -= this.conf["HOST_SHRINK"];
 			dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV);
-			this.V += dV;
-			// console.log("update me took ", performance.now() - prevtime)
-			// prevtime = performance.now()
-			// this.V = Math.max(0, this.V)
+			if (Math.abs(this.V - this.vol) < 10){
+	            this.V += dV;
+	        }
 		}
+
+		
+		tryIncrement(){
+	        // console.log(this.sum, this.vol, this.vol/this.sum)
+	        return (this.C.random() < (this.C.getVolume(this.id)/this.sum))
+		}
+		
+		// should be refactored away
+		get sum(){
+			return this.cytosol.reduce((t, e) => t + e)
+		}
+
+	    /**
+	     * @return {Number}
+	     */
+	    get vol(){
+	        return this.C.getVolume(this.id)
+	    }
+
 
 		death(){
 			/* eslint-disable */

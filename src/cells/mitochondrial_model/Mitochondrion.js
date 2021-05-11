@@ -12,16 +12,16 @@ class Mitochondrion extends SubCell {
 		this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.C));
 
         // this.oxphos = this.conf["INIT_OXPHOS"]
-        this.V = this.conf["INIT_OXPHOS"]
+        this.V = this.conf["INIT_MITO_V"]
 
         this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
         for (let i = 0 ; i < this.products.length; i++){
             if (i < this.conf["N_OXPHOS"] ){
-                this.products[i] = 80
+                this.products[i] = this.conf["INIT_OXPHOS"]
             } else if (i < this.conf["N_TRANSLATE"]){
-                this.products[i] = 5
+                this.products[i] = this.conf["INIT_TRANSLATE"]
             } else {
-                this.products[i] = 5
+                this.products[i] = this.conf["INIT_REPLICATE"]
             }
         }
 	}
@@ -52,26 +52,16 @@ class Mitochondrion extends SubCell {
 
     /* eslint-disable*/
     update(){
-        // console.log(this.oxphos, this.oxphos_products, current_volume, this.id) 
-        // if (this.id === 157){
-        //     console.log(this.oxphos, this.oxphos_products, current_volume, this.id) 
-        //     console.log(this.DNA, this.V) 
-        // }
-        // this.vol = current_volume
         let dV = 0
-        if (this.V - this.vol < 10){
-            dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"]
-        }
+        dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"]
         if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
-            dV -= this.conf["MITOPHAGY_SHRINK"]
-            
+            dV -= this.conf["MITOPHAGY_SHRINK"]   
         }
         dV-=this.conf["MITO_SHRINK"]
         dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV)
-        this.V += dV
-        // if (this.C.random() < 0.1){console.log("", this.V, dV, this.C, this.vol, this.DNA.length, this.oxphos)}
-        // this.V = Math.max(0, this.V)
-        // console.log(this.products)
+        if (Math.abs(this.V - this.vol) < 10){
+            this.V += dV
+        }
         this.repAndTranslate()
         this.deprecateProducts()
 	}
@@ -115,7 +105,7 @@ class Mitochondrion extends SubCell {
         let all_proteins = new DNA(this.conf, this.C).sumQuality()
         let heteroplasmy = 0
         for (let dna of this.DNA){
-            heteroplasmy += (all_proteins - dna.sumQuality() )
+            heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
             // console.log(all_proteins - dna.sumQuality() )
         }
         return 1 - (heteroplasmy/this.DNA.length)
@@ -131,6 +121,9 @@ class Mitochondrion extends SubCell {
         return this.products.reduce((t, e) => t + e)
     }
 
+    /**
+     * @return {Number}
+     */
     get vol(){
         return this.C.getVolume(this.id)
     }
@@ -160,7 +153,7 @@ class Mitochondrion extends SubCell {
                         if (val &&  this.tryIncrement()){
                            this.products[ix] += val
                         }
-                    }
+                    } 
                     // this.products = this.products.map(function (num, idx) {
                     //     return num + dna.quality[idx];
                     // })

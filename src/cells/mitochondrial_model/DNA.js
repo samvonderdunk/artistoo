@@ -29,7 +29,12 @@ class DNA {
 
     mutate(){ 
         // console.log(this.quality, this.trues)
-        this.quality[this.trues[Math.floor(this.C.random() * this.trues.length)]] = 0
+        for (let ix = 0 ; ix < this.quality.length; ix++){
+            if (this.C.random() < this.conf["MTDNA_MUT_RATE"]){
+                this.quality[ix] = 0
+            }
+        }
+        // this.quality[this.trues[Math.floor(this.C.random() * this.trues.length)]] = 0
         // console.log(this.quality, this.trues)
     }
 
