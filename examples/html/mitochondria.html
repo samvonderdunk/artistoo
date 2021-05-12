@@ -313,21 +313,25 @@ function euclidean(x0, y0, x1, y1){
 
 function transferSubCells (parent, child){
 	let neighborlst = sim.C.getStat(CPM.CellNeighborList)
+	let subcellids = []
 	for (let mito of sim.C.cells[parent].subcells){
+		subcellids.push(mito.id)
+	}
+	for (let mitoid of subcellids){
 	
-		let parentlength = (neighborlst[mito.id][parent] || 0)
-		let childlength = (neighborlst[mito.id][child] || 0)
+		let parentlength = (neighborlst[mitoid][parent] || 0)
+		let childlength = (neighborlst[mitoid][child] || 0)
 		
 		if (childlength > parentlength){
-			console.log(childlength, parentlength, neighborlst[mito.id],child, parent, "new host")
-			mito.host = child
-		} else {
-			console.log(childlength, parentlength, neighborlst[mito.id],child, parent, "no new host")
-		}
+			// console.log(childlength, parentlength, neighborlst[mitoid],child, parent, "new host")
+			sim.C.cells[mitoid].host = child
+		} 
+		// 	console.log(childlength, parentlength, neighborlst[mitoid],child, parent, "no new host")
+		// }
 		if (childlength == parentlength){
-			console.log(parentlength, childlength)
+			// console.log(parentlength, childlength)
 			if (sim.C.random() < 0.5){
-				mito.host = child
+				sim.C.cells[mitoid].host = child
 			}
 		}
 	}
