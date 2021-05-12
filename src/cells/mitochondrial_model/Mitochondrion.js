@@ -59,7 +59,7 @@ class Mitochondrion extends SubCell {
         }
         dV-=this.conf["MITO_SHRINK"]
         dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV)
-        if (Math.abs(this.V - this.vol) < 10){
+        if (this.closeToV()){
             this.V += dV
         }
         this.repAndTranslate()
@@ -184,7 +184,21 @@ class Mitochondrion extends SubCell {
     get oxphos(){
         return Math.min.apply(Math, this.oxphos_products)
     }
+    get translate(){
+        return Math.min.apply(Math, this.translate
+            
+            _products)
+    }
+    get replicate(){
+        return Math.min.apply(Math, this.replication_products)
+    }
+
     
+	closeToV(){
+		return Math.abs(this.V-this.vol) < this.conf["VOLCHANGE_THRESHOLD"]
+	}
+
+
     /* eslint-disable */
     binomial(n, p){
         let log_q = Math.log(1.0-p), k = 0, sum = 0

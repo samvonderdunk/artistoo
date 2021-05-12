@@ -4995,6 +4995,7 @@ var CPM = (function (exports) {
 	            []
 	          )
 	    }
+	    
 
 	    get oxphos_quality() {
 	        return this.quality.slice(0, this.conf["N_OXPHOS"])
@@ -5065,7 +5066,7 @@ var CPM = (function (exports) {
 	        }
 	        dV-=this.conf["MITO_SHRINK"];
 	        dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV);
-	        if (Math.abs(this.V - this.vol) < 10){
+	        if (this.closeToV()){
 	            this.V += dV;
 	        }
 	        this.repAndTranslate();
@@ -5190,7 +5191,19 @@ var CPM = (function (exports) {
 	    get oxphos(){
 	        return Math.min.apply(Math, this.oxphos_products)
 	    }
+	    get translate(){
+	        return Math.min.apply(Math, this.translate_products)
+	    }
+	    get replicate(){
+	        return Math.min.apply(Math, this.replication_products)
+	    }
+
 	    
+		closeToV(){
+			return Math.abs(this.V-this.vol) < this.conf["VOLCHANGE_THRESHOLD"]
+		}
+
+
 	    /* eslint-disable */
 	    binomial(n, p){
 	        let log_q = Math.log(1.0-p), k = 0, sum = 0;
@@ -5258,8 +5271,8 @@ var CPM = (function (exports) {
 
 		update(){
 			if (this.subcells.length === 0 ){
-				console.log(this.V, this.vol);
-				if (Math.abs(this.V - this.vol) < 10){
+				// console.log(this.V, this.vol)
+				if (this.closeToV()){
 					
 					this.V -= this.conf["EMPTY_HOST_SHRINK"];
 				}
@@ -5295,14 +5308,25 @@ var CPM = (function (exports) {
 
 
 			let dV = 0;
-			if (this.V - this.C.getVolume(this.id) < 10){
-				dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"];
-			} 
+
+			dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"];
 			dV -= this.conf["HOST_SHRINK"];
 			dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV);
-			if (Math.abs(this.V - this.vol) < 10){
-	            this.V += dV;
+			if (this.closeToV()){
+				this.V += dV;
+				// for (let mito of this.subcells){
+				// 	if (mito.closeToV())
+				// 		if (dV > 0){
+				// 			mito.V += dV * this.conf["MITO_V_PER_OXPHOS"]
+				// 		} else {
+				// 			mito.V += dV
+				// 		}
+				// }
 	        }
+		}
+
+		closeToV(){
+			return Math.abs(this.V-this.vol) < this.conf["VOLCHANGE_THRESHOLD"]
 		}
 
 		
