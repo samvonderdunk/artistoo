@@ -108,11 +108,11 @@ let config = {
 		MITO_GROWTH_MAX : 5,
 		HOST_GROWTH_MAX : 5,
 		MITO_V_PER_OXPHOS : 0.8,
-		HOST_V_PER_OXPHOS : 1.5,
+		HOST_V_PER_OXPHOS : 2,
 		
 		VOLCHANGE_THRESHOLD : 20,
 
-		BORDER_SHRINK: 4,
+		BORDER_SHRINK: 0.0,
 
 		MITO_PARTITION : 0.5,
 
@@ -246,7 +246,7 @@ function postMCSListener(){
 				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate ,"heteroplasmy: ", cell.heteroplasmy(), "V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA,)
 			}
 			if (isBorder(this.C, cid, neighs) && this.C.cells[cid].closeToV()){
-				this.C.cells[cid].V -= this.C.conf["BORDER_SHRINK"]
+				this.C.cells[cid].V -= this.C.conf["BORDER_SHRINK"] * isBorder(this.C, cid, neighs)
 			}
 			// console.log((neighs[cid].length > 1 ))
 			
@@ -274,20 +274,23 @@ function postMCSListener(){
 }
 
 function isBorder(C, cid, neighs){
+	let sum = 0
 	if (Object.keys(neighs[cid]).length > 1 ){
 		for (let neigh in neighs[cid]){
 			// console.log(neigh,  (C.cells[neigh] || {}).host,  C.cells[neigh].host)
 			if (neigh == 0 || (C.cells[neigh] || {}).host != C.cells[cid].host){
+				sum += neighs[cid][neigh]
 				// for (let neigh2 in neighs[cid]){
 				// 	console.log(neigh2, C.cells[neigh2].host, C.cells[cid].host)
 				// }
 				// console.log('broken on ', neigh, neighs[cid][neigh])
-				if (neighs[cid][neigh] > 3){
-					return true
-				}
+				// if (neighs[cid][neigh] > 3){
+					
+				// }
 			}
 		}
 	}
+	return sum
 }
 
 function initializeGrid(){
