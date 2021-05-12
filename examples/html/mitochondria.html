@@ -75,7 +75,7 @@ let config = {
         // NOISE : 5,
         N_OXPHOS : 5, 
         N_TRANSLATE : 10,
-        N_REPLICATE : 100,
+        N_REPLICATE : 70,
         INIT_MITO_V : 300,
         N_INIT_DNA : 3,
 		MTDNA_MUT_RATE : 0.2,
@@ -93,8 +93,8 @@ let config = {
         
 		// division_volume : [0, 200],
 		minimal_division_volume : 150,
-		fission_rate : 0.00001,
-		fusion_rate : 0.0005,
+		fission_rate : 0.0001,
+		fusion_rate : 0.005,
 		deprecation_rate : 0.03,
 		dna_deprecation_rate :0.01,
 		replication_rate : 1,
@@ -264,7 +264,8 @@ function postMCSListener(){
 			}
 		}
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
-			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)] && this.C.random() < 0.8){
+			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
+				console.log("dividing host")
 				let nid = this.gm.divideCell(cid)
 				transferSubCells(cid, nid) 
 			}
@@ -312,23 +313,22 @@ function euclidean(x0, y0, x1, y1){
 
 function transferSubCells (parent, child){
 	let neighborlst = sim.C.getStat(CPM.CellNeighborList)
-	// let centroids = sim.C.getStat( CPM.CentroidsWithTorusCorrection ) //maybe rewrite to neighborlist again
-	for (let cid of sim.C.cellIDs()) {
-		let cell = sim.C.cells[cid]
-		if (cell instanceof CPM.SubCell && cell.host === parent){ 
-			let parentlength = (neighborlst[cid][parent] || 0)
-			let childlength = (neighborlst[cid][child] || 0)
-			// console.log(parentlength, childlength)
-			if (childlength > parentlength){
-				cell.host = child
-			} 
-			// // TODO rewrite this to neigborlength
-			// console.log(neighborlst)
-			// if (neighborlst[cid])
-			// if (euclidean(centroids[cid][0], centroids[cid][1], centroids[child][0], centroids[child][1])
-			// 		< euclidean(centroids[cid][0], centroids[cid][1], centroids[parent][0], centroids[parent][1])){
-			// 			cell.host = child
-			// 	}
+	for (let mito of sim.C.cells[parent].subcells){
+	
+		let parentlength = (neighborlst[mito.id][parent] || 0)
+		let childlength = (neighborlst[mito.id][child] || 0)
+		
+		if (childlength > parentlength){
+			console.log(childlength, parentlength, neighborlst[mito.id],child, parent, "new host")
+			mito.host = child
+		} else {
+			console.log(childlength, parentlength, neighborlst[mito.id],child, parent, "no new host")
+		}
+		if (childlength == parentlength){
+			console.log(parentlength, childlength)
+			if (sim.C.random() < 0.5){
+				mito.host = child
+			}
 		}
 	}
 }
@@ -393,7 +393,7 @@ function getColor (cid) {
 				c = Math.floor(cell.oxphos)
 				break
 			case 'replicate':
-				c = Math.floor(cell.replicate)*3
+				c = Math.floor(cell.replicate)*10
 				break
 			// case 'host':
 			// 	c = Math.floor(cell.host/100)
