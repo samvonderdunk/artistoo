@@ -8,7 +8,7 @@ class DNA {
         this.C = C
         this.conf = conf
 
-        this.replicateFlag = false
+        this.replicating = 0
         this.translateFlag = false
         // console.log("also in seed")
         if (parent instanceof DNA){
@@ -39,7 +39,10 @@ class DNA {
     }
 
     notBusy(){
-        return (this.replicateFlag == false && this.translateFlag == false)
+        return (this.replicating === 0 && this.translateFlag === false)
+    }
+    busy(){
+        return !this.notBusy()
     }
     
     sumQuality(){

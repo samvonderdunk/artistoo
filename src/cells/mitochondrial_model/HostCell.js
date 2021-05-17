@@ -34,7 +34,6 @@ class HostCell extends SuperCell {
 		if (this.subcells.length === 0 ){
 			// console.log(this.V, this.vol)
 			if (this.closeToV()){
-				
 				this.V -= this.conf["EMPTY_HOST_SHRINK"]
 			}
 			return
@@ -73,8 +72,14 @@ class HostCell extends SuperCell {
 		dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"]
 		dV -= this.conf["HOST_SHRINK"]
 		dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV)
-		if (this.closeToV()){
-			this.V += dV
+		if (dV > 0 && this.canGrow()){
+            this.V += dV
+        }
+        if (dV < 0 && this.canShrink()){
+            this.V += dV
+        }
+		// if (this.closeToV()){
+			// this.V += dV
 			// for (let mito of this.subcells){
 			// 	if (mito.closeToV())
 			// 		if (dV > 0){
@@ -83,12 +88,19 @@ class HostCell extends SuperCell {
 			// 			mito.V += dV
 			// 		}
 			// }
-        }
+        // }
 	}
 
 	closeToV(){
 		return Math.abs(this.V-this.vol) < this.conf["VOLCHANGE_THRESHOLD"]
 	}
+
+	canGrow(){
+        return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
+    }
+    canShrink(){
+        return this.vol-this.V < this.conf["VOLCHANGE_THRESHOLD"]
+    }
 
 	
 	tryIncrement(){

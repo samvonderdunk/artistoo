@@ -9,7 +9,9 @@ class Mitochondrion extends SubCell {
     constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
         
-		this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.C));
+        this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.C));
+        
+        // this.n_replisomes = 0
 
         // this.oxphos = this.conf["INIT_OXPHOS"]
         this.V = this.conf["INIT_MITO_V"]
@@ -44,7 +46,9 @@ class Mitochondrion extends SubCell {
                 new_parent.push(dna)
             }   
 		}
-		parent.DNA = new_parent
+        parent.DNA = new_parent
+        // this.find_n_replisomes()
+        // parent.find_n_replisomes()
 		
 		this.V = parent.V * partition
         parent.V *= 1-partition
@@ -59,11 +63,15 @@ class Mitochondrion extends SubCell {
         }
         dV-=this.conf["MITO_SHRINK"]
         dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV)
-        if (this.closeToV()){
+        if (dV > 0 && this.canGrow()){
+            this.V += dV
+        }
+        if (dV < 0 && this.canShrink()){
             this.V += dV
         }
         this.repAndTranslate()
         this.deprecateProducts()
+        
 	}
 
    
@@ -87,6 +95,7 @@ class Mitochondrion extends SubCell {
                 this.DNA.splice(i, 1)
             }
         }
+        // this.find_n_replisomes()
     }
 
     fuse(partner) {
@@ -95,6 +104,7 @@ class Mitochondrion extends SubCell {
         })
         this.DNA = [...this.DNA, ...partner.DNA]
         this.V += partner.V
+        // this.find_n_replisomes()
     }
 
     heteroplasmy(){
@@ -118,9 +128,21 @@ class Mitochondrion extends SubCell {
 
     // should be refactored away
     get sum(){
-        return this.products.reduce((t, e) => t + e)
+        return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
     }
 
+    get n_replisomes(){ //should not be getter!!
+        return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
+    }
+    // find_n_replisomes(){ //should not be getter!!
+    //     let sum = 0 
+    //     for (let dna of this.DNA){
+    //         if (dna.replicating > 0){
+    //             sum++
+    //         }
+    //     }
+    //     this.n_replisomes = sum
+    // }
     /**
      * @return {Number}
      */
@@ -130,41 +152,60 @@ class Mitochondrion extends SubCell {
 
     repAndTranslate() {
         if (this.DNA.length == 0 ){ return }
-       
-        // takes bottleneck as rate
-        let replicate_attempts = Math.min.apply(Math, this.replication_products), translate_attempts = Math.min.apply(Math, this.translate_products)
+        let replicate_attempts = this.replicate, translate_attempts = this.translate
         // replication and translation machinery try to find DNA to execute on
+        this.shuffle(this.DNA)
+        for (let dna of this.DNA){
+            if (replicate_attempts + translate_attempts < 0){
+                break
+            } 
+            if (dna.busy()){
+                continue
+            }
 
-        while ((replicate_attempts + translate_attempts) > 0){
-            let ix = Math.floor(this.C.random() * this.DNA.length)
             if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
-                if (this.DNA[ix].notBusy()){ this.DNA[ix].replicateFlag = true}
+                dna.replicating = this.conf["REPLICATE_TIME"] + 1
+                for (let i = 0 ; i < this.conf["N_REPLICATE"]; i++){
+                    this.products[i + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] --
+                }
                 replicate_attempts--
             } else {
-                if (this.DNA[ix].notBusy()){this.DNA[ix].translateFlag = true}
+                dna.translateFlag = true
+                for (const [i, val] of dna.quality.entries()){
+                    if (val  &&  this.tryIncrement()){
+                        this.products[i] += val
+                    }
+                } 
                 translate_attempts-- 
             }
         }
+        // while ((replicate_attempts + translate_attempts) > 0){
+        //     let dna = this.DNA[Math.floor(this.C.random() * this.DNA.length)]
+        //     if (dna.busy()){
+        //         continue
+        //     }
+        //     if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts) && ){
+                
+        //     } else {
+
+                
+        //     }
+        // }
 
         for (let dna of this.DNA){
-            if (dna.translateFlag){
-                if (this.C.random() < this.conf['translation_rate']){
-                    for (const [ix, val] of dna.quality.entries()){
-                        if (val &&  this.tryIncrement()){
-                           this.products[ix] += val
-                        }
-                    } 
-                    // this.products = this.products.map(function (num, idx) {
-                    //     return num + dna.quality[idx];
-                    // })
-                }
+            if (dna.translateFlag){ 
                 dna.translateFlag = false
-            } else if (dna.replicateFlag) { 
+             } else if (dna.replicating > 0) { 
                 // if (this.C.random() < this.conf['replication_rate'] && this.tryIncrement()){
-                if (this.C.random() < this.conf['replication_rate']){
+                dna.replicating--
+                if (dna.replicating == 0){
                     this.DNA.push(new DNA(this.conf, this.C, dna))
+                    // this.n_replisomes--
+                    // console.log("FULLY replicated mtDNA")
+                    for (let i = 0 ; i < this.replication_products.length; i++){
+                        this.products[i + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] ++
+                    }
                 }
-                dna.replicateFlag = false
             }
         }
     }
@@ -185,19 +226,28 @@ class Mitochondrion extends SubCell {
         return Math.min.apply(Math, this.oxphos_products)
     }
     get translate(){
-        return Math.min.apply(Math, this.translate
-            
-            _products)
+        return Math.min.apply(Math, this.translate_products)
     }
     get replicate(){
-        return Math.min.apply(Math, this.replication_products)
+        return Math.min.apply(Math, this.replication_products) 
     }
 
-    
 	closeToV(){
 		return Math.abs(this.V-this.vol) < this.conf["VOLCHANGE_THRESHOLD"]
-	}
+    }
+    canGrow(){
+        return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
+    }
+    canShrink(){
+        return this.vol-this.V < this.conf["VOLCHANGE_THRESHOLD"]
+    }
 
+    shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(this.C.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
 
     /* eslint-disable */
     binomial(n, p){

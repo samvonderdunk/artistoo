@@ -36,7 +36,7 @@ let config = {
 		// Basic CPM parameters
 		torus : [true,true],				// Should the grid have linked borders?
 		seed : 3,							// Seed for random number generation.
-		T : 20,								// CPM temperature
+		T : 2,								// CPM temperature
         
     
 		CELLS : ["empty", CPM.HostCell, CPM.Mitochondrion], 
@@ -44,10 +44,10 @@ let config = {
 		        
         J_INT:  [ 
 			[15,15], 
-            [15,1500] ],
+            [15,150] ],
 
-        J_EXT:  [ [150,15,1500], 
-			[10,150,1500], 
+        J_EXT:  [ [15,50,1500], 
+			[50,750,1500], 
             [1500, 1500,15000] ],
 
 			        
@@ -77,12 +77,12 @@ let config = {
         N_TRANSLATE : 10,
         N_REPLICATE : 70,
         INIT_MITO_V : 300,
-        N_INIT_DNA : 3,
+        N_INIT_DNA : 6,
 		MTDNA_MUT_RATE : 0.2,
 		INIT_HOST_V : 500,
 		INIT_OXPHOS : 80,
-		INIT_TRANSLATE : 5,
-		INIT_REPLICATE : 5,
+		INIT_TRANSLATE : 10,
+		INIT_REPLICATE : 1,
 		HOST_DEPRECATION: 0.005,
 
 
@@ -92,27 +92,28 @@ let config = {
         // First value is always cellkind 0 (the background) and is often not used.
         
 		// division_volume : [0, 200],
-		minimal_division_volume : 150,
-		fission_rate : 0.0001,
+		// minimal_division_volume : 150,
+		REPLICATE_TIME: 100,
+		fission_rate : 0.00005,
 		fusion_rate : 0.005,
-		deprecation_rate : 0.03,
-		dna_deprecation_rate :0.01,
-		replication_rate : 1,
-		translation_rate: 1, 
-		host_selfishness : 0.7, 
+		deprecation_rate : 0.0005,
+		dna_deprecation_rate :0.00,
+		// replication_rate : 1,
+		// translation_rate: 1, 
+		host_selfishness : 0.99, 
 		MITO_SHRINK : 0,
 		MITOPHAGY_THRESHOLD: 10,
-		MITOPHAGY_SHRINK : 12,
+		MITOPHAGY_SHRINK : 6,
 		HOST_SHRINK : 3,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 5,
 		HOST_GROWTH_MAX : 5,
 		MITO_V_PER_OXPHOS : 0.8,
 		HOST_V_PER_OXPHOS : 2,
-		
-		VOLCHANGE_THRESHOLD : 20,
+	
+		VOLCHANGE_THRESHOLD : 10,
 
-		BORDER_SHRINK: 0.0,
+		// BORDER_SHRINK: 0.0,
 
 		MITO_PARTITION : 0.5,
 
@@ -243,11 +244,11 @@ function postMCSListener(){
 		if (this.C.cells[cid] instanceof CPM.SubCell){
 			if (this.C.random() < 0.002){ 
 				let cell = this.C.cells[cid]
-				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate ,"heteroplasmy: ", cell.heteroplasmy(), "V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA,)
+				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA,)
 			}
-			if (isBorder(this.C, cid, neighs) && this.C.cells[cid].closeToV()){
-				this.C.cells[cid].V -= this.C.conf["BORDER_SHRINK"] * isBorder(this.C, cid, neighs)
-			}
+			// if (isBorder(this.C, cid, neighs) && this.C.cells[cid].closeToV()){
+			// 	this.C.cells[cid].V -= this.C.conf["BORDER_SHRINK"] * isBorder(this.C, cid, neighs)
+			// }
 			// console.log((neighs[cid].length > 1 ))
 			
 			if (this.C.random() < this.C.conf['fission_rate'] * this.C.getVolume(cid) ){
@@ -264,6 +265,10 @@ function postMCSListener(){
 			}
 		}
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
+			if (this.C.random() < 0.01){ 
+				let cell = this.C.cells[cid]
+				console.log("n mito: ", cell.subcells.length, "V:", cell.V , "vol:", cell.vol,  "cytosol total: ", cell.sum)
+			}
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				console.log("dividing host")
 				let nid = this.gm.divideCell(cid)
@@ -273,25 +278,25 @@ function postMCSListener(){
 	}
 }
 
-function isBorder(C, cid, neighs){
-	let sum = 0
-	if (Object.keys(neighs[cid]).length > 1 ){
-		for (let neigh in neighs[cid]){
-			// console.log(neigh,  (C.cells[neigh] || {}).host,  C.cells[neigh].host)
-			if (neigh == 0 || (C.cells[neigh] || {}).host != C.cells[cid].host){
-				sum += neighs[cid][neigh]
-				// for (let neigh2 in neighs[cid]){
-				// 	console.log(neigh2, C.cells[neigh2].host, C.cells[cid].host)
-				// }
-				// console.log('broken on ', neigh, neighs[cid][neigh])
-				// if (neighs[cid][neigh] > 3){
+// function isBorder(C, cid, neighs){
+// 	let sum = 0
+// 	if (Object.keys(neighs[cid]).length > 1 ){
+// 		for (let neigh in neighs[cid]){
+// 			// console.log(neigh,  (C.cells[neigh] || {}).host,  C.cells[neigh].host)
+// 			if (neigh == 0 || (C.cells[neigh] || {}).host != C.cells[cid].host){
+// 				sum += neighs[cid][neigh]
+// 				// for (let neigh2 in neighs[cid]){
+// 				// 	console.log(neigh2, C.cells[neigh2].host, C.cells[cid].host)
+// 				// }
+// 				// console.log('broken on ', neigh, neighs[cid][neigh])
+// 				// if (neighs[cid][neigh] > 3){
 					
-				// }
-			}
-		}
-	}
-	return sum
-}
+// 				// }
+// 			}
+// 		}
+// 	}
+// 	return sum
+// }
 
 function initializeGrid(){
 	
@@ -402,6 +407,21 @@ function getColor (cid) {
 			case 'replicate':
 				c = Math.floor(cell.replicate)*10
 				break
+			case 'replisomes':
+				c = Math.floor(cell.n_replisomes)*5
+				let check = 0
+				for (let dna of cell.DNA){
+					if (dna.replicating > 0){
+						check++
+					}
+				}
+				if (check !== cell.n_replisomes){
+					c = NaN
+					if(this.C.random() < 0.1){
+						console.log("cell n replisomes: ", cell.n_replisomes, "counted: ", check)
+					}
+				}
+				break
 			// case 'host':
 			// 	c = Math.floor(cell.host/100)
 			// 	break
@@ -453,6 +473,7 @@ function changeColorBy(){
 <input type="radio" name="Visualization" value="translate" >Translate rate<br>
 <input type="radio" name="Visualization" value="replicate" >Replicate rate<br>
 <input type="radio" name="Visualization" value="heteroplasmy"checked>Heteroplasmy<br>
+<input type="radio" name="Visualization" value="replisomes"unchecked>Replisomes<br>
 <input type="radio" name="Visualization" value="host" unchecked>Host<br>
 <input type="radio" name="Visualization" value="kill">Kill<br>
 <div>
