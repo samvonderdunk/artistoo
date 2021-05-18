@@ -1,31 +1,8 @@
-<!DOCTYPE html>
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>Mitochondria</title>
-<style type="text/css">
-body{
-		font-family: "MS Comic Sans", "Helvetica Neue Light", "Helvetica Neue",
-		 Helvetica, Arial, "Lucida Grande", sans-serif;
-	 padding : 15px;
-}
-td {
-	 padding: 10px;
-	 vertical-align: top;
-}
-</style>
+let CPM = require("../../build/artistoo-cjs.js")
+let ColorMap = require("./colormap-cjs.js")
 
-
-<script src="./artistoo.js"></script>
-<script src="./fpsmeter.min.js"></script>
-<script src="./colormap.js"></script>
-
-<script>
 "use strict"
 
-
-/*	----------------------------------
-	CONFIGURATION SETTINGS
-	----------------------------------
-*/
 let config = {
 
 	// Grid settings
@@ -134,7 +111,7 @@ let config = {
 		// non-background cellkinds. 
 		// Runtime etc
 		BURNIN : 0,
-		RUNTIME : 1000,
+		RUNTIME : 100000,
 		RUNTIME_BROWSER : "Inf",
 		
 		// Visualization
@@ -148,8 +125,8 @@ let config = {
 		SAVEIMG : true,						// Should a png image of the grid be saved
 		// during the simulation?
 		IMGFRAMERATE : 1,					// If so, do this every <IMGFRAMERATE> MCS.
-		SAVEPATH : "output/img/CellDivision",	// ... And save the image in this folder.
-		EXPNAME : "CellDivision",					// Used for the filename of output images.
+		SAVEPATH : "output/img/Mitochondria",	// ... And save the image in this folder.
+		EXPNAME : "Mitochondria",					// Used for the filename of output images.
 		
 		// Output stats etc
 		STATSOUT : { browser: false, node: true }, // Should stats be computed?
@@ -158,39 +135,24 @@ let config = {
 	}
 }
 /*	---------------------------------- */
-let sim, meter, colorby, cellColors
-
-function initialize(){
-	 /* 	The following functions are defined below and will be added to
-	 	the simulation object. If Custom-methods above is set to false,
-	 	this object is ignored and not used in the html/node files. */
-	 let custommethods = {
-	 	postMCSListener : postMCSListener,
-		initializeGrid : initializeGrid,
-		drawCanvas : drawCanvas
-	 }
-	sim = new CPM.Simulation( config, custommethods )
-
-    sim.C.add( new CPM.SubCellConstraint( config["conf"] ) )
+let sim, colorby
 
 
-	changeColorBy()
-
-	meter = new FPSMeter({left:"auto", right:"5px"})
-	step()
-}
-
-
-function step(){
-    sim.step()
-    meter.tick()
-    if (sim.time == 100){
-        seedSubCells()
-        
+let custommethods = {
+    postMCSListener : postMCSListener,
+    initializeGrid : initializeGrid,
+    drawCanvas : drawCanvas,
+    logStats : logStats
     }
-	if( sim.conf["RUNTIME_BROWSER"] == "Inf" | sim.time+1 < sim.conf["RUNTIME_BROWSER"] ){
-		requestAnimationFrame( step )
-	}
+sim = new CPM.Simulation( config, custommethods )
+
+sim.C.add( new CPM.SubCellConstraint( config["conf"] ) )
+
+colorby = "heteroplasmy"
+// changeColorBy()
+
+function logStats(){
+    return
 }
 
 function seedSubCells(){
@@ -214,6 +176,9 @@ function seedSubCells(){
 
 /* The following custom methods will be added to the simulation object*/
 function postMCSListener(){
+    if (sim.time == 100){
+        seedSubCells()
+    }
 	if (sim.time < 200){
 		return
 	}
@@ -243,10 +208,10 @@ function postMCSListener(){
 
 	for( let cid of this.C.cellIDs() ){
 		if (this.C.cells[cid] instanceof CPM.SubCell){
-			if (this.C.random() < 0.002){ 
-				let cell = this.C.cells[cid]
-				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, cell.products)
-			}
+			// if (this.C.random() < 0.002){ 
+				// let cell = this.C.cells[cid]
+				// console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, cell.products)
+			// }
 			// if (isBorder(this.C, cid, neighs) && this.C.cells[cid].closeToV()){
 			// 	this.C.cells[cid].V -= this.C.conf["BORDER_SHRINK"] * isBorder(this.C, cid, neighs)
 			// }
@@ -266,10 +231,10 @@ function postMCSListener(){
 			}
 		}
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
-			if (this.C.random() < 0.01){ 
-				let cell = this.C.cells[cid]
-				console.log("n mito: ", cell.subcells.length, "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
-			}
+			// if (this.C.random() < 0.01){ 
+			// 	let cell = this.C.cells[cid]
+			// 	// console.log("n mito: ", cell.subcells.length, "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
+			// }
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				// console.log("dividing host")
 				let nid = this.gm.divideCell(cid)
@@ -444,46 +409,8 @@ function getColor (cid) {
 		
 		c = cmap[c].substring(1)
 	}
-	// let neighs = sim.C.getStat( CPM.CellNeighborList )
-	
-	// if (isBorder(this.C, cid, neighs) && cell instanceof CPM.Mitochondrion){
-	// 	c = "FF0000"
-	// }
+
 	return c
 }
 
-function changeColorBy(){
-	var radios = document.getElementsByName('Visualization');
-	for (var i = 0, length = radios.length; i < length; i++) {
-		if (radios[i].checked) {
-			colorby = radios[i].value
-			break;
-		}
-	}
-}
-
-
-</script>
-</head>
-<body onload="initialize()">
-<h1>Mitochondria</h1>
-
-<input type="radio" name="Visualization" value="Cell_type" >Cell Type (fastest)<br>
-<input type="radio" name="Visualization" value="n_DNA" >Number of DNA copies<br>
-<input type="radio" name="Visualization" value="oxphos" >Oxphos<br>
-<input type="radio" name="Visualization" value="translate" >Translate rate<br>
-<input type="radio" name="Visualization" value="replicate" >Replicate rate<br>
-<input type="radio" name="Visualization" value="heteroplasmy"checked>Heteroplasmy<br>
-<input type="radio" name="Visualization" value="replisomes"unchecked>Replisomes<br>
-<input type="radio" name="Visualization" value="host" unchecked>Host<br>
-<input type="radio" name="Visualization" value="kill">Kill<br>
-<div>
-    <button type="submit" onclick="changeColorBy()">Submit</button>
-  </div>
-
-
-<p>
- Cells in other cells.
-</p>
-</body>
-</html>
+sim.run()
