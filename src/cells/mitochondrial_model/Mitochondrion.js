@@ -13,11 +13,13 @@ class Mitochondrion extends SubCell {
         
         this.V = this.conf["INIT_MITO_V"]
 
+        this.makebuffer = [], this.importbuffer = []
+
         this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
         for (let i = 0 ; i < this.products.length; i++){
             if (i < this.conf["N_OXPHOS"] ){
                 this.products[i] = this.conf["INIT_OXPHOS"]
-            } else if (i < this.conf["N_TRANSLATE"]){
+            } else if (i <  (this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"])){
                 this.products[i] = this.conf["INIT_TRANSLATE"]
             } else {
                 this.products[i] = this.conf["INIT_REPLICATE"]
@@ -46,7 +48,7 @@ class Mitochondrion extends SubCell {
         parent.DNA = new_parent
 
 		this.V = parent.V * partition
-        parent.V *= 1-partition
+        parent.V *= (1-partition)
     }
 
     /* eslint-disable*/
@@ -129,15 +131,7 @@ class Mitochondrion extends SubCell {
     get n_replisomes(){ //should not be getter!!
         return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
     }
-    // find_n_replisomes(){ //should not be getter!!
-    //     let sum = 0 
-    //     for (let dna of this.DNA){
-    //         if (dna.replicating > 0){
-    //             sum++
-    //         }
-    //     }
-    //     this.n_replisomes = sum
-    // }
+   
     /**
      * @return {Number}
      */
@@ -145,47 +139,53 @@ class Mitochondrion extends SubCell {
         return this.C.getVolume(this.id)
     }
 
+    importAndProduce(){
+        for (let i = 0 ; i < (this.makebuffer.length + this.importbuffer.length); i++){
+            if (this.C.random() < this.makebuffer.length/(this.makebuffer.length + this.importbuffer.length)){
+                let p = this.makebuffer.pop()
+                if (this.tryIncrement()){
+                    this.products[p]++
+                }
+            } else {
+                let p = this.importbuffer.pop()
+                if (this.tryIncrement()){
+                    this.products[p]++
+                } else {
+                    this.C.getCell(this.host).cytosol[p]++
+                }
+            }
+        }
+    }
+
     repAndTranslate() {
         if (this.DNA.length == 0 ){ return }
         let replicate_attempts = this.replicate, translate_attempts = this.translate
         // replication and translation machinery try to find DNA to execute on
         this.shuffle(this.DNA)
-        for (let dna of this.DNA){
-            if (replicate_attempts + translate_attempts < 0){
-                break
-            } 
-            if (dna.busy()){
-                continue
-            }
-
-            if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
+        for (let i = 0; i < this.DNA.length ; i++){
+            if (replicate_attempts + translate_attempts <= 0){break}
+            let dna = this.DNA[i]
+            if (dna.replicating > 0){
+                // tick replisome
+                dna.replicating--
+                if (dna.replicating == 0){
+                    this.DNA.unshift(new DNA(this.conf, this.C, dna)) // add to beginning so it does not evaluate again
+                    i++ // array is longer at beginning
+                    for (let ix = 0 ; ix < this.replication_products.length; ix++){
+                        this.products[ix + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] ++
+                    }
+                }
+            } else if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
+                // make replisome
                 dna.replicating = this.conf["REPLICATE_TIME"] + 1
-                for (let i = 0 ; i < this.conf["N_REPLICATE"]; i++){
-                    this.products[i + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] --
+                for (let ix = 0 ; ix < this.conf["N_REPLICATE"]; ix++){
+                    this.products[ix + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] --
                 }
                 replicate_attempts--
             } else {
-                dna.translateFlag = true
-                for (const [i, val] of dna.quality.entries()){
-                    if (val  &&  this.tryIncrement()){
-                        this.products[i] += val
-                    }
-                } 
+                // translate
+                this.makebuffer.push(...dna.trues)
                 translate_attempts-- 
-            }
-        }
-
-        for (let dna of this.DNA){
-            if (dna.translateFlag){ 
-                dna.translateFlag = false
-             } else if (dna.replicating > 0) { 
-                dna.replicating--
-                if (dna.replicating == 0){
-                    this.DNA.push(new DNA(this.conf, this.C, dna))
-                    for (let i = 0 ; i < this.replication_products.length; i++){
-                        this.products[i + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] ++
-                    }
-                }
             }
         }
     }

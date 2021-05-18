@@ -45,7 +45,7 @@ let config = {
 		        
         J_INT:  [ 
 			[15,15], 
-            [15,150] ],
+            [15,30] ],
 
         J_EXT:  [ [15,50,1500], 
 			[50,750,1500], 
@@ -78,11 +78,11 @@ let config = {
         N_TRANSLATE : 10,
         N_REPLICATE : 70,
         INIT_MITO_V : 300,
-        N_INIT_DNA : 6,
+        N_INIT_DNA : 3,
 		MTDNA_MUT_RATE : 0.2,
 		INIT_HOST_V : 500,
 		INIT_OXPHOS : 80,
-		INIT_TRANSLATE : 10,
+		INIT_TRANSLATE : 40,
 		INIT_REPLICATE : 1,
 		HOST_DEPRECATION: 0.005,
 
@@ -97,11 +97,11 @@ let config = {
 		REPLICATE_TIME: 100,
 		fission_rate : 0.00005,
 		fusion_rate : 0.005,
-		deprecation_rate : 0.0005,
-		dna_deprecation_rate :0.00,
+		deprecation_rate : 0.05,
+		dna_deprecation_rate :0.00001,
 		// replication_rate : 1,
 		// translation_rate: 1, 
-		host_selfishness : 0.99, 
+		host_selfishness : 0.2, 
 		MITO_SHRINK : 0,
 		MITOPHAGY_THRESHOLD: 10,
 		MITOPHAGY_SHRINK : 6,
@@ -109,8 +109,8 @@ let config = {
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 5,
 		HOST_GROWTH_MAX : 5,
-		MITO_V_PER_OXPHOS : 0.8,
-		HOST_V_PER_OXPHOS : 2,
+		MITO_V_PER_OXPHOS : 1,
+		HOST_V_PER_OXPHOS : 1,
 	
 		VOLCHANGE_THRESHOLD : 10,
 
@@ -120,9 +120,9 @@ let config = {
 
 
 		// VolumeConstraint parameters
-		LAMBDA_V : [0, 10, 10],				// VolumeConstraint importance per cellkind
+		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
-		division_volume: [100, 800, 100]
+		division_volume: [100, 800, 200]
 	},
 	
 	// Simulation setup and configuration: this controls stuff like grid initialization,
@@ -245,14 +245,14 @@ function postMCSListener(){
 		if (this.C.cells[cid] instanceof CPM.SubCell){
 			if (this.C.random() < 0.002){ 
 				let cell = this.C.cells[cid]
-				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA,)
+				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, cell.products)
 			}
 			// if (isBorder(this.C, cid, neighs) && this.C.cells[cid].closeToV()){
 			// 	this.C.cells[cid].V -= this.C.conf["BORDER_SHRINK"] * isBorder(this.C, cid, neighs)
 			// }
 			// console.log((neighs[cid].length > 1 ))
 			
-			if (this.C.random() < this.C.conf['fission_rate'] * this.C.getVolume(cid) ){
+			if (this.C.random() < this.C.conf['fission_rate'] * this.C.getVolume(cid)  && this.C.getVolume(cid) > this.C.conf["division_volume"][2]){
 				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
 				
 			} else {
@@ -268,10 +268,10 @@ function postMCSListener(){
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
 			if (this.C.random() < 0.01){ 
 				let cell = this.C.cells[cid]
-				console.log("n mito: ", cell.subcells.length, "V:", cell.V , "vol:", cell.vol,  "cytosol total: ", cell.sum)
+				console.log("n mito: ", cell.subcells.length, "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
 			}
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
-				console.log("dividing host")
+				// console.log("dividing host")
 				let nid = this.gm.divideCell(cid)
 				transferSubCells(cid, nid) 
 			}
@@ -400,7 +400,7 @@ function getColor (cid) {
 				c = Math.floor(cell.heteroplasmy() *100)
 				break
 			case 'translate':
-				c = Math.floor(cell.translate)
+				c = Math.floor(cell.translate)*5
 				break
 			case 'oxphos':
 				c = Math.floor(cell.oxphos)

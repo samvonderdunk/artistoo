@@ -51,7 +51,8 @@ class HostCell extends SuperCell {
 		let trues = this.DNA.trues
 		for (let i = 0; i < this.total_oxphos*(1-this.selfishness); i++){
 			let ix = trues[Math.floor(this.C.random() * trues.length)]
-			if (this.tryIncrement()){
+			if (this.tryIncrement() ){
+				// optional make this canGrow dependent
 				this.cytosol[ix]++
 			}
 		}
@@ -59,10 +60,8 @@ class HostCell extends SuperCell {
 			for (let i = 0 ; i < product;i++){
 				let ran = this.C.random() 
 				let mito = volcumsum.findIndex(element => ran < element )
-				if (this.subcells[mito-1].tryIncrement() && this.V - this.vol < 10){
-					this.subcells[mito-1].products[ix]++ //volcumsum counts from 1 as the 
-					this.cytosol[ix]--
-				} 
+				this.subcells[mito-1].importbuffer.push(ix)
+				this.cytosol[ix]--
 			}
 		}
 
@@ -77,18 +76,11 @@ class HostCell extends SuperCell {
         }
         if (dV < 0 && this.canShrink()){
             this.V += dV
-        }
-		// if (this.closeToV()){
-			// this.V += dV
-			// for (let mito of this.subcells){
-			// 	if (mito.closeToV())
-			// 		if (dV > 0){
-			// 			mito.V += dV * this.conf["MITO_V_PER_OXPHOS"]
-			// 		} else {
-			// 			mito.V += dV
-			// 		}
-			// }
-        // }
+		}
+		
+		for (let mito of this.subcells){
+			mito.importAndProduce()
+		}
 	}
 
 	closeToV(){
