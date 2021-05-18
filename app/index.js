@@ -10,13 +10,13 @@ import CPMEvol from "../src/models/CPMEvol.js"
 import GridBasedModel from "../src/models/GridBasedModel.js" 
  
 import Cell from "../src/cells/Cell.js" 
-import StochasticCorrector from "../src/cells/StochasticCorrector.js" 
 import SuperCell from "../src/cells/SuperCell.js" 
 import SubCell from "../src/cells/SubCell.js" 
 import Mitochondrion from "../src/cells/mitochondrial_model/Mitochondrion.js" 
 import HostCell from "../src/cells/mitochondrial_model/HostCell.js" 
 import DNA from "../src/cells/mitochondrial_model/DNA.js" 
 import nDNA from "../src/cells/mitochondrial_model/nDNA.js" 
+import Divider from "../src/cells/Divider.js" 
  
 import Stat from "../src/stats/Stat.js" 
 import PixelsByCell from "../src/stats/PixelsByCell.js" 
@@ -62,7 +62,6 @@ import ArtistooWriter from "../src/converter/ArtistooWriter.js"
 import MorpheusWriter from "../src/converter/MorpheusWriter.js" 
 import ArtistooImport from "../src/converter/ArtistooImport.js" 
  
-import ColorMap from "../src/accessories/colormap.js" 
  
 export {
 	Canvas,
@@ -71,13 +70,13 @@ export {
 	CPMEvol,
 	GridBasedModel,
 	Cell,
-	StochasticCorrector,
 	SuperCell,
 	SubCell,
 	Mitochondrion,
 	HostCell,
 	DNA,
 	nDNA,
+	Divider,
 	Stat,
 	PixelsByCell,
 	BorderPixelsByCell,
@@ -115,6 +114,5 @@ export {
 	MorpheusImport,
 	ArtistooWriter,
 	MorpheusWriter,
-	ArtistooImport,
-	ColorMap
+	ArtistooImport
 }
