@@ -11,9 +11,6 @@ class Mitochondrion extends SubCell {
         
         this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.C));
         
-        // this.n_replisomes = 0
-
-        // this.oxphos = this.conf["INIT_OXPHOS"]
         this.V = this.conf["INIT_MITO_V"]
 
         this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
@@ -47,9 +44,7 @@ class Mitochondrion extends SubCell {
             }   
 		}
         parent.DNA = new_parent
-        // this.find_n_replisomes()
-        // parent.find_n_replisomes()
-		
+
 		this.V = parent.V * partition
         parent.V *= 1-partition
     }
@@ -179,29 +174,14 @@ class Mitochondrion extends SubCell {
                 translate_attempts-- 
             }
         }
-        // while ((replicate_attempts + translate_attempts) > 0){
-        //     let dna = this.DNA[Math.floor(this.C.random() * this.DNA.length)]
-        //     if (dna.busy()){
-        //         continue
-        //     }
-        //     if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts) && ){
-                
-        //     } else {
-
-                
-        //     }
-        // }
 
         for (let dna of this.DNA){
             if (dna.translateFlag){ 
                 dna.translateFlag = false
              } else if (dna.replicating > 0) { 
-                // if (this.C.random() < this.conf['replication_rate'] && this.tryIncrement()){
                 dna.replicating--
                 if (dna.replicating == 0){
                     this.DNA.push(new DNA(this.conf, this.C, dna))
-                    // this.n_replisomes--
-                    // console.log("FULLY replicated mtDNA")
                     for (let i = 0 ; i < this.replication_products.length; i++){
                         this.products[i + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] ++
                     }
