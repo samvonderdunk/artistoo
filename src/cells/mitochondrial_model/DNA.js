@@ -14,9 +14,7 @@ class DNA {
         if (parent instanceof DNA){
             // console.log("records parentage!")
             this.quality = [...parent.quality]
-            if (this.C.random() < conf["MTDNA_MUT_RATE"] ){
-                this.mutate()
-            }
+            this.mutate(this.conf['MTDNA_MUT_REP'])
             // console.log(this.quality)
         } else {
             this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
@@ -27,10 +25,10 @@ class DNA {
         }
     }
 
-    mutate(){ 
+    mutate(rate){ 
         // console.log(this.quality, this.trues)
         for (let ix = 0 ; ix < this.quality.length; ix++){
-            if (this.C.random() < this.conf["MTDNA_MUT_RATE"]){
+            if (this.C.random() < rate){
                 this.quality[ix] = 0
             }
         }

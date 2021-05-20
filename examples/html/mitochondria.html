@@ -43,13 +43,12 @@ let config = {
 		CELLS : ["empty", CPM.HostCell, CPM.Mitochondrion], 
 		
 		        
-        J_INT:  [ 
-			[15,15], 
-            [15,30] ],
+        J_INT:  [ [15,15], 
+        				 [15,30] ],
 
         J_EXT:  [ [15,50,1500], 
-			[50,750,1500], 
-            [1500, 1500,15000] ],
+						[50,750,1500], 
+            			[1500, 1500,15000] ],
 
 			        
         // J_INT:  [ 
@@ -76,15 +75,16 @@ let config = {
         // NOISE : 5,
         N_OXPHOS : 5, 
         N_TRANSLATE : 10,
-        N_REPLICATE : 70,
+        N_REPLICATE : 50,
         INIT_MITO_V : 300,
-        N_INIT_DNA : 3,
-		MTDNA_MUT_RATE : 0.2,
+        N_INIT_DNA : 4,
+		MTDNA_MUT_REP : 0.0001,
+        MTDNA_MUT_LIFETIME : 0.00001,
 		INIT_HOST_V : 500,
-		INIT_OXPHOS : 80,
-		INIT_TRANSLATE : 40,
+		INIT_OXPHOS : 10,
+		INIT_TRANSLATE : 10,
 		INIT_REPLICATE : 1,
-		HOST_DEPRECATION: 0.005,
+		HOST_DEPRECATION: 0.00,
 
 
 		// Constraint parameters. 
@@ -94,23 +94,24 @@ let config = {
         
 		// division_volume : [0, 200],
 		// minimal_division_volume : 150,
-		REPLICATE_TIME: 100,
-		fission_rate : 0.00003,
-		fusion_rate : 0.005,
-		deprecation_rate : 0.05,
-		dna_deprecation_rate :0.00001,
+		REPLICATE_TIME: 50,
+		fission_rate : 0.00005,
+		fusion_rate : 0.0008,
+		deprecation_rate : 0.08,
+		// dna_deprecation_rate :0.001,
 		// replication_rate : 1,
 		// translation_rate: 1, 
-		host_selfishness : 0.2, 
+		host_selfishness : 0.1, 
+		mut_selfishness: 0.0,
 		MITO_SHRINK : 0,
-		MITOPHAGY_THRESHOLD: 5,
+		MITOPHAGY_THRESHOLD: 1,
 		MITOPHAGY_SHRINK : 6,
 		HOST_SHRINK : 3,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 5,
 		HOST_GROWTH_MAX : 5,
-		MITO_V_PER_OXPHOS : 1.2,
-		HOST_V_PER_OXPHOS : 1,
+		MITO_V_PER_OXPHOS : 1,
+		HOST_V_PER_OXPHOS : 4,
 	
 		VOLCHANGE_THRESHOLD : 10,
 
@@ -268,7 +269,7 @@ function postMCSListener(){
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
 			if (this.C.random() < 0.01){ 
 				let cell = this.C.cells[cid]
-				console.log("n mito: ", cell.subcells.length, "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
+				console.log("n mito: ", cell.subcells.length, "selfishness:" , cell.selfishness,  "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
 			}
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				// console.log("dividing host")
@@ -399,6 +400,12 @@ function getColor (cid) {
 			case 'heteroplasmy':
 				c = Math.floor(cell.heteroplasmy() *100)
 				break
+			case 'free heteroplasmy':
+				c = Math.floor(cell.heteroplasmy("translatable") *100)
+				break
+			case 'replicating heteroplasmy':
+				c = Math.floor(cell.heteroplasmy("replicating") *100)
+				break	
 			case 'translate':
 				c = Math.floor(cell.translate)*5
 				break
@@ -474,6 +481,8 @@ function changeColorBy(){
 <input type="radio" name="Visualization" value="translate" >Translate rate<br>
 <input type="radio" name="Visualization" value="replicate" >Replicate rate<br>
 <input type="radio" name="Visualization" value="heteroplasmy"checked>Heteroplasmy<br>
+<input type="radio" name="Visualization" value="free heteroplasmy"unchecked>Translatable heteroplasmy<br>
+<input type="radio" name="Visualization" value="replicating heteroplasmy"unchecked>Replicating heteroplasmy<br>
 <input type="radio" name="Visualization" value="replisomes"unchecked>Replisomes<br>
 <input type="radio" name="Visualization" value="host" unchecked>Host<br>
 <input type="radio" name="Visualization" value="kill">Kill<br>

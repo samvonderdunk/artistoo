@@ -68,6 +68,7 @@ class Mitochondrion extends SubCell {
         }
         this.repAndTranslate()
         this.deprecateProducts()
+        // importandcreate() - called by host
         
 	}
 
@@ -87,12 +88,9 @@ class Mitochondrion extends SubCell {
         for (const [ix, product] of this.products.entries()){
             this.products[ix] -= this.binomial(product, this.conf['deprecation_rate'])
         }
-        for (let i = 0; i < this.DNA.length; i++){
-            if (this.C.random() < this.conf["dna_deprecation_rate"]){
-                this.DNA.splice(i, 1)
-            }
+        for (let dna of this.DNA){
+            dna.mutate(this.conf['MTDNA_MUT_LIFETIME'])
         }
-        // this.find_n_replisomes()
     }
 
     fuse(partner) {
@@ -104,18 +102,46 @@ class Mitochondrion extends SubCell {
         // this.find_n_replisomes()
     }
 
-    heteroplasmy(){
-        // compute heteroplasmy
+    heteroplasmy(opt = "all"){
+        // compute heteroplasmy, TODO rewrite this
         if (this.DNA.length == 0){
             return NaN
         }
         let all_proteins = new DNA(this.conf, this.C).sumQuality()
         let heteroplasmy = 0
-        for (let dna of this.DNA){
-            heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
-            // console.log(all_proteins - dna.sumQuality() )
+        if (opt == "all"){
+            for (let dna of this.DNA){
+                heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
+            }
+            heteroplasmy = 1 - (heteroplasmy/this.DNA.length)
+        } else if (opt == "translatable"){
+            let len = 0
+            for (let dna of this.DNA){
+                if (dna.replicating == 0){
+                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
+                    len++
+                }
+            }
+            if (len == 0){
+                return NaN
+            } else {
+                heteroplasmy = 1 - (heteroplasmy/len)
+            }
+        }else if (opt == "replicating"){
+            let len = 0
+            for (let dna of this.DNA){
+                if (dna.replicating > 0){
+                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
+                    len++
+                }
+            }
+            if (len == 0){
+                return NaN
+            } else {
+                heteroplasmy = 1 - (heteroplasmy/len)
+            }
         }
-        return 1 - (heteroplasmy/this.DNA.length)
+        return heteroplasmy
     }
 
     tryIncrement(){
@@ -123,12 +149,12 @@ class Mitochondrion extends SubCell {
         return (this.C.random() < (this.vol/this.sum))
     }
 
-    // should be refactored away
+    // should this and n_replisomes be refactored away? Is much more functional programming than OOP and slow. However, is much more clearly defined.
     get sum(){
         return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
     }
 
-    get n_replisomes(){ //should not be getter!!
+    get n_replisomes(){ 
         return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
     }
    
@@ -140,6 +166,7 @@ class Mitochondrion extends SubCell {
     }
 
     importAndProduce(){
+        this.shuffle(this.makebuffer)
         for (let i = 0 ; i < (this.makebuffer.length + this.importbuffer.length); i++){
             if (this.C.random() < this.makebuffer.length/(this.makebuffer.length + this.importbuffer.length)){
                 let p = this.makebuffer.pop()
@@ -177,7 +204,7 @@ class Mitochondrion extends SubCell {
                 }
             } else if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
                 // make replisome
-                dna.replicating = this.conf["REPLICATE_TIME"] + 1
+                dna.replicating = this.conf["REPLICATE_TIME"] 
                 for (let ix = 0 ; ix < this.conf["N_REPLICATE"]; ix++){
                     this.products[ix + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] --
                 }

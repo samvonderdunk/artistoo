@@ -20,74 +20,47 @@ let config = {
 		CELLS : ["empty", CPM.HostCell, CPM.Mitochondrion], 
 		
 		        
-        J_INT:  [ 
-			[15,15], 
-            [15,30] ],
+        J_INT:  [ [15,15], 
+            			[15,30] ],
 
         J_EXT:  [ [15,50,1500], 
-			[50,750,1500], 
-            [1500, 1500,15000] ],
+						[50,750,1500], 
+           				[1500, 1500,15000] ],
 
-			        
-        // J_INT:  [ 
-		// 	[15,15], 
-        //     [15,2000] ],
-
-        // J_EXT:  [ [150,15,15000], 
-		// 	[10,150,1500], 
-        //     [1500, 1500,15000] ],
-
-
-        
-        // J_INT:  [ 
-		// 	[15,15], 
-        //     [15,150] ],
-
-        // J_EXT:  [ [15,15,1500], 
-		// 	[10,750,1500], 
-        //     [1500, 15000,15000] ],
-
-
-        // LAMBDA_SUB: [0, 0, 500] ,
-	
-        // NOISE : 5,
+			    
         N_OXPHOS : 5, 
         N_TRANSLATE : 10,
-        N_REPLICATE : 70,
+        N_REPLICATE : 50,
         INIT_MITO_V : 300,
-        N_INIT_DNA : 3,
-		MTDNA_MUT_RATE : 0.2,
+        N_INIT_DNA : 4,
+        MTDNA_MUT_REP :0.0001,
+        MTDNA_MUT_LIFETIME : 0.00001,
 		INIT_HOST_V : 500,
-		INIT_OXPHOS : 80,
-		INIT_TRANSLATE : 40,
+		INIT_OXPHOS : 10,
+		INIT_TRANSLATE : 10,
 		INIT_REPLICATE : 1,
 		HOST_DEPRECATION: 0.005,
 
 
-		// Constraint parameters. 
-		// Mostly these have the format of an array in which each element specifies the
-		// parameter value for one of the cellkinds on the grid.
-        // First value is always cellkind 0 (the background) and is often not used.
-        
-		// division_volume : [0, 200],
-		// minimal_division_volume : 150,
-		REPLICATE_TIME: 100,
-		fission_rate : 0.00003,
-		fusion_rate : 0.005,
-		deprecation_rate : 0.05,
-		dna_deprecation_rate :0.00001,
+	
+		REPLICATE_TIME: 50,
+		fission_rate : 0.00005,
+		fusion_rate : 0.0008,
+		deprecation_rate : 0.08,
+		// dna_deprecation_rate :0.001,
 		// replication_rate : 1,
 		// translation_rate: 1, 
-		host_selfishness : 0.2, 
+		host_selfishness : 0.1, 
+		mut_selfishness: 0.0,
 		MITO_SHRINK : 0,
-		MITOPHAGY_THRESHOLD: 5,
+		MITOPHAGY_THRESHOLD: 1,
 		MITOPHAGY_SHRINK : 6,
 		HOST_SHRINK : 3,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 5,
 		HOST_GROWTH_MAX : 5,
-		MITO_V_PER_OXPHOS : 1.2,
-		HOST_V_PER_OXPHOS : 1,
+		MITO_V_PER_OXPHOS : 1,
+		HOST_V_PER_OXPHOS : 4,
 	
 		VOLCHANGE_THRESHOLD : 10,
 
@@ -150,15 +123,54 @@ sim.C.add( new CPM.SubCellConstraint( config["conf"] ) )
 
 colorby = "heteroplasmy"
 // changeColorBy()
-
+const util = require('util')
 function logStats(){
-    return
+	console.log(  "%------------------------------ " ,this.time, " ------------------------------")
+	jsonobj = {}
+    for( let cell of this.C.cells ){
+		if (cell instanceof CPM.HostCell){
+			jsonobj[cell.id] = {}
+			let host = jsonobj[cell.id]
+			host["n mito"] = cell.subcells.length
+			host["selfishness"] = cell.selfishness
+			host["V"] = cell.V
+			host["vol"] = cell.vol
+			host["total_oxphos"] = cell.total_oxphos
+			host["cytosol"] = cell.cytosol
+			host["parent"] = cell.parentId
+			host["subcells"] = {}
+			for (let subcell of cell.subcells){
+				host["subcells"][subcell.id] = {}
+				let mito = host["subcells"][subcell.id]
+				mito["V"] = subcell.V
+				mito["vol"] = subcell.vol
+				// // could be post computed!
+				mito["n DNA"] = subcell.DNA.length
+				mito["oxphos"] = subcell.oxphos
+				mito["translate"] = subcell.translate
+				mito["replicate"] = subcell.replicate
+				mito["replisomes"] = subcell.n_replisomes
+				mito["heteroplasmy"] = subcell.heteroplasmy()
+				mito["translatable heteroplasmy"] = subcell.heteroplasmy("translatable")
+				mito["replicating heteroplasmy"] = subcell.heteroplasmy("replicating")
+				// from this
+				mito["products"] = subcell.products
+				mito["DNA"] = {}
+				for (let [ix, dnaobj] of subcell.DNA.entries()){
+					mito["DNA"][ix] = {}
+					let dna = mito["DNA"][ix]
+					dna["quality"] = dnaobj.quality
+					dna["replicating"] = dnaobj.replicating
+				}
+			}
+		}
+	}
+	// this.fs.write()
+	// console.log(util.inspect(jsonobj, {showHidden: false, depth: null}))
+	console.log(JSON.stringify(jsonobj))
 }
 
 function seedSubCells(){
-    let nrcells = sim.conf["NRCELLS"][1], i
-    // Only seed Supercells in initialize
-    // let cellkind = 0
     if (!sim.gm){
         sim.addGridManipulator()
     } 
@@ -186,20 +198,6 @@ function postMCSListener(){
 
 	let neighs = sim.C.getStat( CPM.CellNeighborList )
 	
-	// let all_sub = {} //sorted by host
-	// let all_super = {} //cells by host
-	// for (let cid of this.C.cellIDs()){
-	// 	let cell = this.C.cells[cid]
-	// 	if (cell instanceof CPM.SubCell){
-	// 		if (!all_sub.hasOwnProperty(cell.host)){
-	// 			all_sub[cell.host] = []
-	// 		}
-	// 		all_sub[cell.host].push(cell) 
-	// 	} else if (cell instanceof CPM.SuperCell){
-	// 		all_super[cid] = cell
-	// 	}
-	// }
-	
 	for (let cid of this.C.cellIDs()){
 		if (this.C.cells[cid] instanceof CPM.HostCell){
 			this.C.cells[cid].update()
@@ -208,18 +206,8 @@ function postMCSListener(){
 
 	for( let cid of this.C.cellIDs() ){
 		if (this.C.cells[cid] instanceof CPM.SubCell){
-			// if (this.C.random() < 0.002){ 
-				// let cell = this.C.cells[cid]
-				// console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, cell.products)
-			// }
-			// if (isBorder(this.C, cid, neighs) && this.C.cells[cid].closeToV()){
-			// 	this.C.cells[cid].V -= this.C.conf["BORDER_SHRINK"] * isBorder(this.C, cid, neighs)
-			// }
-			// console.log((neighs[cid].length > 1 ))
-			
 			if (this.C.random() < this.C.conf['fission_rate'] * this.C.getVolume(cid)  && this.C.getVolume(cid) > this.C.conf["division_volume"][2]){
 				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
-				
 			} else {
 				// console.log(neighs, cid)
 				for (let neigh of Object.keys(neighs[cid])){
@@ -231,12 +219,7 @@ function postMCSListener(){
 			}
 		}
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
-			// if (this.C.random() < 0.01){ 
-			// 	let cell = this.C.cells[cid]
-			// 	// console.log("n mito: ", cell.subcells.length, "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
-			// }
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
-				// console.log("dividing host")
 				let nid = this.gm.divideCell(cid)
 				transferSubCells(cid, nid) 
 			}
@@ -244,45 +227,21 @@ function postMCSListener(){
 	}
 }
 
-// function isBorder(C, cid, neighs){
-// 	let sum = 0
-// 	if (Object.keys(neighs[cid]).length > 1 ){
-// 		for (let neigh in neighs[cid]){
-// 			// console.log(neigh,  (C.cells[neigh] || {}).host,  C.cells[neigh].host)
-// 			if (neigh == 0 || (C.cells[neigh] || {}).host != C.cells[cid].host){
-// 				sum += neighs[cid][neigh]
-// 				// for (let neigh2 in neighs[cid]){
-// 				// 	console.log(neigh2, C.cells[neigh2].host, C.cells[cid].host)
-// 				// }
-// 				// console.log('broken on ', neigh, neighs[cid][neigh])
-// 				// if (neighs[cid][neigh] > 3){
-					
-// 				// }
-// 			}
-// 		}
-// 	}
-// 	return sum
-// }
 
 function initializeGrid(){
-	
+
 	// add the initializer if not already there
 	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
 
     let nrcells = this.conf["NRCELLS"][0], i
-    // Only seed Supercells in initialize
-    // let cellkind = 0
-    for( i = 0; i < nrcells; i++ ){			
+    
+    for( i = 0; i < nrcells; i++ ){			// Only seed Supercells in initialize
         if( i == 0 ){
             this.gm.seedCellAt( 1, [this.C.midpoint[0]/2, this.C.midpoint[1] ] )
         } else {
             this.gm.seedCell(1)
         }
     }
-}
-
-function euclidean(x0, y0, x1, y1){
-	return Math.sqrt(Math.pow(x0-x1, 2)+Math.pow(y0-y1,2))
 }
 
 function transferSubCells (parent, child){
@@ -295,15 +254,10 @@ function transferSubCells (parent, child){
 	
 		let parentlength = (neighborlst[mitoid][parent] || 0)
 		let childlength = (neighborlst[mitoid][child] || 0)
-		
 		if (childlength > parentlength){
-			// console.log(childlength, parentlength, neighborlst[mitoid],child, parent, "new host")
 			sim.C.cells[mitoid].host = child
 		} 
-		// 	console.log(childlength, parentlength, neighborlst[mitoid],child, parent, "no new host")
-		// }
 		if (childlength == parentlength){
-			// console.log(parentlength, childlength)
 			if (sim.C.random() < 0.5){
 				sim.C.cells[mitoid].host = child
 			}

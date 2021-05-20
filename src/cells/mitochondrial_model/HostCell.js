@@ -8,7 +8,7 @@ class HostCell extends SuperCell {
 	/* eslint-disable */ 
 	constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
-		this.selfishness = 0.5
+		this.selfishness = conf['host_selfishness']
 		this.V = conf["INIT_HOST_V"]
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C)
@@ -18,14 +18,19 @@ class HostCell extends SuperCell {
 
 	birth(parent){
 		super.birth(parent)
-		// this.mutate_selfishness(parent)
+		this.mutate_selfishness(parent)
 		this.V = parent.V/2
 		parent.V /= 2
 		this.DNA = new nDNA(this.conf, this.C, parent.DNA)
 	}
 
 	mutate_selfishness(parent){
-		this.selfishness = parent.selfishness + (this.C.random() - 0.5)*0.1*2
+		if (this.C.random() < 0.5){
+			this.selfishness += this.conf["mut_selfishness"]
+		} else {
+			this.selfishness -= this.conf["mut_selfishness"]
+		}
+		// this.selfishness = parent.selfishness + (this.C.random() - 0.5)*0.1*2
 		this.selfishness = Math.min(1, this.selfishness)
 		this.selfishness = Math.max(0, this.selfishness)
 	}

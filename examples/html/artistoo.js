@@ -4897,9 +4897,7 @@ var CPM = (function (exports) {
 	        if (parent instanceof DNA){
 	            // console.log("records parentage!")
 	            this.quality = [...parent.quality];
-	            if (this.C.random() < conf["MTDNA_MUT_RATE"] ){
-	                this.mutate();
-	            }
+	            this.mutate(this.conf['MTDNA_MUT_REP']);
 	            // console.log(this.quality)
 	        } else {
 	            this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
@@ -4910,10 +4908,10 @@ var CPM = (function (exports) {
 	        }
 	    }
 
-	    mutate(){ 
+	    mutate(rate){ 
 	        // console.log(this.quality, this.trues)
 	        for (let ix = 0 ; ix < this.quality.length; ix++){
-	            if (this.C.random() < this.conf["MTDNA_MUT_RATE"]){
+	            if (this.C.random() < rate){
 	                this.quality[ix] = 0;
 	            }
 	        }
@@ -5018,6 +5016,7 @@ var CPM = (function (exports) {
 	        }
 	        this.repAndTranslate();
 	        this.deprecateProducts();
+	        // importandcreate() - called by host
 	        
 		}
 
@@ -5037,12 +5036,9 @@ var CPM = (function (exports) {
 	        for (const [ix, product] of this.products.entries()){
 	            this.products[ix] -= this.binomial(product, this.conf['deprecation_rate']);
 	        }
-	        for (let i = 0; i < this.DNA.length; i++){
-	            if (this.C.random() < this.conf["dna_deprecation_rate"]){
-	                this.DNA.splice(i, 1);
-	            }
+	        for (let dna of this.DNA){
+	            dna.mutate(this.conf['MTDNA_MUT_LIFETIME']);
 	        }
-	        // this.find_n_replisomes()
 	    }
 
 	    fuse(partner) {
@@ -5054,18 +5050,46 @@ var CPM = (function (exports) {
 	        // this.find_n_replisomes()
 	    }
 
-	    heteroplasmy(){
-	        // compute heteroplasmy
+	    heteroplasmy(opt = "all"){
+	        // compute heteroplasmy, TODO rewrite this
 	        if (this.DNA.length == 0){
 	            return NaN
 	        }
 	        let all_proteins = new DNA(this.conf, this.C).sumQuality();
 	        let heteroplasmy = 0;
-	        for (let dna of this.DNA){
-	            heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
-	            // console.log(all_proteins - dna.sumQuality() )
+	        if (opt == "all"){
+	            for (let dna of this.DNA){
+	                heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
+	            }
+	            heteroplasmy = 1 - (heteroplasmy/this.DNA.length);
+	        } else if (opt == "translatable"){
+	            let len = 0;
+	            for (let dna of this.DNA){
+	                if (dna.replicating == 0){
+	                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
+	                    len++;
+	                }
+	            }
+	            if (len == 0){
+	                return NaN
+	            } else {
+	                heteroplasmy = 1 - (heteroplasmy/len);
+	            }
+	        }else if (opt == "replicating"){
+	            let len = 0;
+	            for (let dna of this.DNA){
+	                if (dna.replicating > 0){
+	                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
+	                    len++;
+	                }
+	            }
+	            if (len == 0){
+	                return NaN
+	            } else {
+	                heteroplasmy = 1 - (heteroplasmy/len);
+	            }
 	        }
-	        return 1 - (heteroplasmy/this.DNA.length)
+	        return heteroplasmy
 	    }
 
 	    tryIncrement(){
@@ -5073,12 +5097,12 @@ var CPM = (function (exports) {
 	        return (this.C.random() < (this.vol/this.sum))
 	    }
 
-	    // should be refactored away
+	    // should this and n_replisomes be refactored away? Is much more functional programming than OOP and slow. However, is much more clearly defined.
 	    get sum(){
 	        return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
 	    }
 
-	    get n_replisomes(){ //should not be getter!!
+	    get n_replisomes(){ 
 	        return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
 	    }
 	   
@@ -5090,6 +5114,7 @@ var CPM = (function (exports) {
 	    }
 
 	    importAndProduce(){
+	        this.shuffle(this.makebuffer);
 	        for (let i = 0 ; i < (this.makebuffer.length + this.importbuffer.length); i++){
 	            if (this.C.random() < this.makebuffer.length/(this.makebuffer.length + this.importbuffer.length)){
 	                let p = this.makebuffer.pop();
@@ -5127,7 +5152,7 @@ var CPM = (function (exports) {
 	                }
 	            } else if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
 	                // make replisome
-	                dna.replicating = this.conf["REPLICATE_TIME"] + 1;
+	                dna.replicating = this.conf["REPLICATE_TIME"]; 
 	                for (let ix = 0 ; ix < this.conf["N_REPLICATE"]; ix++){
 	                    this.products[ix + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] --;
 	                }
@@ -5222,7 +5247,7 @@ var CPM = (function (exports) {
 		/* eslint-disable */ 
 		constructor (conf, kind, id, C) {
 			super(conf, kind, id, C);
-			this.selfishness = 0.5;
+			this.selfishness = conf['host_selfishness'];
 			this.V = conf["INIT_HOST_V"];
 			this.total_oxphos = 0;
 			this.DNA = new nDNA(conf, C);
@@ -5232,14 +5257,19 @@ var CPM = (function (exports) {
 
 		birth(parent){
 			super.birth(parent);
-			// this.mutate_selfishness(parent)
+			this.mutate_selfishness(parent);
 			this.V = parent.V/2;
 			parent.V /= 2;
 			this.DNA = new nDNA(this.conf, this.C, parent.DNA);
 		}
 
 		mutate_selfishness(parent){
-			this.selfishness = parent.selfishness + (this.C.random() - 0.5)*0.1*2;
+			if (this.C.random() < 0.5){
+				this.selfishness += this.conf["mut_selfishness"];
+			} else {
+				this.selfishness -= this.conf["mut_selfishness"];
+			}
+			// this.selfishness = parent.selfishness + (this.C.random() - 0.5)*0.1*2
 			this.selfishness = Math.min(1, this.selfishness);
 			this.selfishness = Math.max(0, this.selfishness);
 		}
