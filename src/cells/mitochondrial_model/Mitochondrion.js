@@ -9,7 +9,7 @@ class Mitochondrion extends SubCell {
     constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
         
-        this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.C));
+        this.DNA = new Array(this.conf["N_INIT_DNA"]).fill().map(() => ( new DNA(this.conf, this.C)));
         
         this.V = this.conf["INIT_MITO_V"]
 
@@ -157,6 +157,10 @@ class Mitochondrion extends SubCell {
     get n_replisomes(){ 
         return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
     }
+
+    get unmutated(){
+        return this.DNA.reduce((t,e) =>  e.sumQuality() == new DNA(this.conf, this.C).sumQuality() ? t+1 : t, 0)
+    }
    
     /**
      * @return {Number}
@@ -167,7 +171,7 @@ class Mitochondrion extends SubCell {
 
     importAndProduce(){
         this.shuffle(this.makebuffer)
-        for (let i = 0 ; i < (this.makebuffer.length + this.importbuffer.length); i++){
+        while ((this.makebuffer.length + this.importbuffer.length) > 0){
             if (this.C.random() < this.makebuffer.length/(this.makebuffer.length + this.importbuffer.length)){
                 let p = this.makebuffer.pop()
                 if (this.tryIncrement()){

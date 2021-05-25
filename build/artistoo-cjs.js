@@ -4751,7 +4751,7 @@ class Mitochondrion extends SubCell {
     constructor (conf, kind, id, C) {
 		super(conf, kind, id, C);
         
-        this.DNA = new Array(this.conf["N_INIT_DNA"]).fill(new DNA(this.conf, this.C));
+        this.DNA = new Array(this.conf["N_INIT_DNA"]).fill().map(() => ( new DNA(this.conf, this.C)));
         
         this.V = this.conf["INIT_MITO_V"];
 
@@ -4899,6 +4899,10 @@ class Mitochondrion extends SubCell {
     get n_replisomes(){ 
         return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
     }
+
+    get unmutated(){
+        return this.DNA.reduce((t,e) =>  e.sumQuality() == new DNA(this.conf, this.C).sumQuality() ? t+1 : t, 0)
+    }
    
     /**
      * @return {Number}
@@ -4909,7 +4913,7 @@ class Mitochondrion extends SubCell {
 
     importAndProduce(){
         this.shuffle(this.makebuffer);
-        for (let i = 0 ; i < (this.makebuffer.length + this.importbuffer.length); i++){
+        while ((this.makebuffer.length + this.importbuffer.length) > 0){
             if (this.C.random() < this.makebuffer.length/(this.makebuffer.length + this.importbuffer.length)){
                 let p = this.makebuffer.pop();
                 if (this.tryIncrement()){
@@ -5088,7 +5092,7 @@ class HostCell extends SuperCell {
 		}
 		volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)});
 		let trues = this.DNA.trues;
-		for (let i = 0; i < this.total_oxphos*(1-this.selfishness); i++){
+		for (let i = 0; i < this.total_oxphos*(1-this.selfishness)*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
 			let ix = trues[Math.floor(this.C.random() * trues.length)];
 			if (this.tryIncrement() ){
 				// optional make this canGrow dependent
