@@ -55,7 +55,7 @@ class HostCell extends SuperCell {
 		}
 		volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)})
 		let trues = this.DNA.trues
-		for (let i = 0; i < this.total_oxphos*(1-this.selfishness); i++){
+		for (let i = 0; i < this.total_oxphos*(1-this.selfishness)*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
 			let ix = trues[Math.floor(this.C.random() * trues.length)]
 			if (this.tryIncrement() ){
 				// optional make this canGrow dependent
