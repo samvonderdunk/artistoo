@@ -76,11 +76,11 @@ let config = {
         N_OXPHOS : 5, 
         N_TRANSLATE : 5,
         N_REPLICATE : 30,
-        INIT_MITO_V : 300,
-        N_INIT_DNA : 6,
-		MTDNA_MUT_REP : 0.0001,
+        INIT_MITO_V : 500,
+        N_INIT_DNA : 5,
+		MTDNA_MUT_REP : 0.0003,
         MTDNA_MUT_LIFETIME : 0.00002,
-		INIT_HOST_V : 500,
+		INIT_HOST_V : 700,
 		INIT_OXPHOS : 10,
 		INIT_TRANSLATE : 10,
 		INIT_REPLICATE : 2,
@@ -94,28 +94,29 @@ let config = {
         
 		// division_volume : [0, 200],
 		// minimal_division_volume : 150,
-		REPLICATE_TIME: 150,
-		fission_rate : 0.00008,
-		fusion_rate : 0.004,
-		deprecation_rate : 0.08,
-		// dna_deprecation_rate :0.001,
+		REPLICATE_TIME: 50,
+		fission_rate : 0.00004,
+		fusion_rate : 0.01,
+		deprecation_rate : 0.6,
+		dna_deprecation_rate :0.00,
 		// replication_rate : 1,
 		// translation_rate: 1, 
 		host_selfishness : 0.5, 
 		mut_selfishness: 0.0,
 		MITO_SHRINK : 0,
 		MITOPHAGY_THRESHOLD: 1,
-		MITOPHAGY_SHRINK : 3,
+		MITOPHAGY_SHRINK : 1,
 		HOST_SHRINK : 6,
 		EMPTY_HOST_SHRINK: 10,
-		MITO_GROWTH_MAX : 5,
-		HOST_GROWTH_MAX : 5,
-		MITO_V_PER_OXPHOS : 1,
-		HOST_V_PER_OXPHOS : 2,
-		REP_MACHINE_PER_OXPHOS: 1,
-		PREF_FRACTION_MITO_PER_HOST : 0.8,
+		MITO_GROWTH_MAX : 9,
+		HOST_GROWTH_MAX : 9,
+		MITO_V_PER_OXPHOS : 3,
+		HOST_V_PER_OXPHOS : 8,
+		REP_MACHINE_PER_OXPHOS: 8,
+		PREF_FRACTION_MITO_PER_HOST : 0.7,
 	
 		VOLCHANGE_THRESHOLD : 10,
+		SELECTIVE_FUSION: true,
 
 		// BORDER_SHRINK: 0.0,
 
@@ -125,7 +126,7 @@ let config = {
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
-		division_volume: [100, 800, 100]
+		division_volume: [100, 1200, 300]
 	},
 	
 	// Simulation setup and configuration: this controls stuff like grid initialization,
@@ -133,7 +134,7 @@ let config = {
 	simsettings : { 
 	
 		// Cells on the grid
-		NRCELLS : [5, 5],						// Number of cells to seed for all
+		NRCELLS : [8, 5],						// Number of cells to seed for all
 		// non-background cellkinds. 
 		// Runtime etc
 		BURNIN : 0,
@@ -232,9 +233,10 @@ function postMCSListener(){
 
 	for( let cid of this.C.cellIDs() ){
 		if (this.C.cells[cid] instanceof CPM.SubCell){
-			if (this.C.random() < 0.002){ 
-				let cell = this.C.cells[cid]
-				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, cell.products)
+			let cell = this.C.cells[cid]
+			if (this.C.random() < 0.2 && cell.unmutated/cell.DNA.length <0.5){ 
+				// let cell = this.C.cells[cid]
+				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, cell.products)
 			}
 			// if (isBorder(this.C, cid, neighs) && this.C.cells[cid].closeToV()){
 			// 	this.C.cells[cid].V -= this.C.conf["BORDER_SHRINK"] * isBorder(this.C, cid, neighs)
@@ -248,8 +250,18 @@ function postMCSListener(){
 				// console.log(neighs, cid)
 				for (let neigh of Object.keys(neighs[cid])){
 					// console.log(neigh)
-					if (this.C.cells[neigh] instanceof CPM.Mitochondrion && this.C.random() < this.C.conf['fusion_rate'] && this.C.cells[neigh].host == this.C.cells[cid].host){
-						this.gm.fuseCells(cid, neigh)
+					let mito1 =this.C.cells[cid], mito2 = this.C.cells[neigh]
+					if (mito2 instanceof CPM.Mitochondrion 
+						&& this.C.random() < this.C.conf['fusion_rate'] && mito1.host == mito2.host
+						){
+							// console.log(this.con)
+						if (this.C.conf["SELECTIVE_FUSION"]){
+							if ( mito1.oxphos >= this.C.conf["MITOPHAGY_THRESHOLD"] && mito2.oxphos >= this.C.conf["MITOPHAGY_THRESHOLD"]){
+								this.gm.fuseCells(cid, neigh)
+							}
+						} else {
+							this.gm.fuseCells(cid, neigh)
+						}
 					}
 				}
 			}
@@ -420,6 +432,10 @@ function getColor (cid) {
 			case 'replicating heteroplasmy':
 				c = Math.floor(cell.heteroplasmy("replicating") *100)
 				break	
+			case 'fraction unmutated':
+				// console.log(cell.unmutated)
+				c = Math.floor(cell.unmutated/cell.DNA.length *100)
+				break	
 			case 'translate':
 				c = Math.floor(cell.translate)*5
 				break
@@ -494,9 +510,10 @@ function changeColorBy(){
 <input type="radio" name="Visualization" value="oxphos" >Oxphos<br>
 <input type="radio" name="Visualization" value="translate" >Translate rate<br>
 <input type="radio" name="Visualization" value="replicate" >Replicate rate<br>
-<input type="radio" name="Visualization" value="heteroplasmy"checked>Heteroplasmy<br>
-<input type="radio" name="Visualization" value="free heteroplasmy"unchecked>Translatable heteroplasmy<br>
-<input type="radio" name="Visualization" value="replicating heteroplasmy"unchecked>Replicating heteroplasmy<br>
+<input type="radio" name="Visualization" value="fraction unmutated"checked>Fraction unmutated<br>
+<input type="radio" name="Visualization" value="heteroplasmy"unchecked>Deterioration<br>
+<input type="radio" name="Visualization" value="free heteroplasmy"unchecked>Translatable fraction deterioration<br>
+<input type="radio" name="Visualization" value="replicating heteroplasmy"unchecked>Replicating fraction deterioration<br>
 <input type="radio" name="Visualization" value="replisomes"unchecked>Replisomes<br>
 <input type="radio" name="Visualization" value="host" unchecked>Host<br>
 <input type="radio" name="Visualization" value="kill">Kill<br>
