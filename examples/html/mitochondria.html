@@ -74,16 +74,16 @@ let config = {
 	
         // NOISE : 5,
         N_OXPHOS : 5, 
-        N_TRANSLATE : 10,
-        N_REPLICATE : 50,
+        N_TRANSLATE : 5,
+        N_REPLICATE : 30,
         INIT_MITO_V : 300,
-        N_INIT_DNA : 4,
+        N_INIT_DNA : 6,
 		MTDNA_MUT_REP : 0.0001,
-        MTDNA_MUT_LIFETIME : 0.00001,
+        MTDNA_MUT_LIFETIME : 0.00002,
 		INIT_HOST_V : 500,
 		INIT_OXPHOS : 10,
 		INIT_TRANSLATE : 10,
-		INIT_REPLICATE : 1,
+		INIT_REPLICATE : 2,
 		HOST_DEPRECATION: 0.00,
 
 
@@ -94,24 +94,26 @@ let config = {
         
 		// division_volume : [0, 200],
 		// minimal_division_volume : 150,
-		REPLICATE_TIME: 50,
-		fission_rate : 0.00005,
-		fusion_rate : 0.0008,
+		REPLICATE_TIME: 150,
+		fission_rate : 0.00008,
+		fusion_rate : 0.004,
 		deprecation_rate : 0.08,
 		// dna_deprecation_rate :0.001,
 		// replication_rate : 1,
 		// translation_rate: 1, 
-		host_selfishness : 0.1, 
+		host_selfishness : 0.5, 
 		mut_selfishness: 0.0,
 		MITO_SHRINK : 0,
 		MITOPHAGY_THRESHOLD: 1,
-		MITOPHAGY_SHRINK : 6,
-		HOST_SHRINK : 3,
+		MITOPHAGY_SHRINK : 3,
+		HOST_SHRINK : 6,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 5,
 		HOST_GROWTH_MAX : 5,
 		MITO_V_PER_OXPHOS : 1,
-		HOST_V_PER_OXPHOS : 4,
+		HOST_V_PER_OXPHOS : 2,
+		REP_MACHINE_PER_OXPHOS: 1,
+		PREF_FRACTION_MITO_PER_HOST : 0.8,
 	
 		VOLCHANGE_THRESHOLD : 10,
 
@@ -222,20 +224,6 @@ function postMCSListener(){
 
 	let neighs = sim.C.getStat( CPM.CellNeighborList )
 	
-	// let all_sub = {} //sorted by host
-	// let all_super = {} //cells by host
-	// for (let cid of this.C.cellIDs()){
-	// 	let cell = this.C.cells[cid]
-	// 	if (cell instanceof CPM.SubCell){
-	// 		if (!all_sub.hasOwnProperty(cell.host)){
-	// 			all_sub[cell.host] = []
-	// 		}
-	// 		all_sub[cell.host].push(cell) 
-	// 	} else if (cell instanceof CPM.SuperCell){
-	// 		all_super[cid] = cell
-	// 	}
-	// }
-	
 	for (let cid of this.C.cellIDs()){
 		if (this.C.cells[cid] instanceof CPM.HostCell){
 			this.C.cells[cid].update()
@@ -327,21 +315,47 @@ function transferSubCells (parent, child){
 	for (let mito of sim.C.cells[parent].subcells){
 		subcellids.push(mito.id)
 	}
-	for (let mitoid of subcellids){
-	
-		let parentlength = (neighborlst[mitoid][parent] || 0)
-		let childlength = (neighborlst[mitoid][child] || 0)
+	let transfered = []
+	// for (let mitoid of subcellids){
+	// 	let parentlength = (neighborlst[mitoid][parent] || 0)
+	// 	let childlength = (neighborlst[mitoid][child] || 0)
 		
-		if (childlength > parentlength){
-			// console.log(childlength, parentlength, neighborlst[mitoid],child, parent, "new host")
-			sim.C.cells[mitoid].host = child
-		} 
-		// 	console.log(childlength, parentlength, neighborlst[mitoid],child, parent, "no new host")
-		// }
-		if (childlength == parentlength){
-			// console.log(parentlength, childlength)
-			if (sim.C.random() < 0.5){
-				sim.C.cells[mitoid].host = child
+	// 	if (childlength > parentlength){
+	// 		transfered.push(mitoid)
+	// 		sim.C.cells[mitoid].host = child
+	// 	} else {
+	// 		transfered.push(mitoid)
+	// 	}
+	// 	// 	console.log(childlength, parentlength, neighborlst[mitoid],child, parent, "no new host")
+	// 	// }
+	// 	if (childlength == parentlength){
+	// 		// console.log(parentlength, childlength)
+	// 		if (sim.C.random() < 0.5){
+	// 			sim.C.cells[mitoid].host = child
+	// 		}
+	// 	}
+	// }
+	while (transfered.length < subcellids.length){
+		for (let mitoid of subcellids){
+			if (!(mitoid in transfered)){
+				let parentlength = (neighborlst[mitoid][parent] || 0)
+				let childlength = (neighborlst[mitoid][child] || 0)
+				if (childlength == parentlength){
+					for (let transferid of transfered){
+						let border =  (neighborlst[mitoid][transferid] || 0)
+						if (sim.C.cells[transferid].host == child){
+							childlength += border
+						} else {
+							parentlength += border
+						}
+					}
+				}
+				if (childlength > parentlength){
+					transfered.push(mitoid)
+					sim.C.cells[mitoid].host = child
+				} else {
+					transfered.push(mitoid)
+				}
 			}
 		}
 	}

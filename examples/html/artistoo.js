@@ -5252,7 +5252,6 @@ var CPM = (function (exports) {
 			this.total_oxphos = 0;
 			this.DNA = new nDNA(conf, C);
 			this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
-			// make volume dependent cytosol carrying capcaity
 		}
 
 		birth(parent){
@@ -5285,11 +5284,13 @@ var CPM = (function (exports) {
 			this.total_oxphos = 0;
 			let volcumsum = [0];
 			// let print = this.C.random() <0.001
+			let mito_vol = 0;
 			for (let mito of this.subcells){
 				volcumsum.push(this.C.getVolume(mito.id) + volcumsum[volcumsum.length-1]);
 				mito.update();
 				//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
 				this.total_oxphos += mito.oxphos;
+				mito_vol += mito.vol;
 			}
 			volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)});
 			let trues = this.DNA.trues;
@@ -5315,10 +5316,10 @@ var CPM = (function (exports) {
 			dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"];
 			dV -= this.conf["HOST_SHRINK"];
 			dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV);
-			if (dV > 0 && this.canGrow()){
+			if (dV > 0 && this.canGrow() && mito_vol/(this.vol + mito_vol) > this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
 	            this.V += dV;
 	        }
-	        if (dV < 0 && this.canShrink()){
+	        if (dV < 0 && this.canShrink() && mito_vol/(this.vol + mito_vol) < this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
 	            this.V += dV;
 			}
 			
@@ -6406,7 +6407,8 @@ var CPM = (function (exports) {
 			if( C.ndim != 2 ){
 				throw("The divideCell method is only implemented for 2D lattices yet!")
 			}
-			let cp = C.getStat( PixelsByCell )[id], com = C.getStat( CentroidsWithTorusCorrection )[id];
+			let cp = C.getStat( PixelsByCell )[id], centroids = C.getStat( CentroidsWithTorusCorrection );
+			let com = centroids[id];
 			let bxx = 0, bxy = 0, byy=0, T, D, x1, y1, L2;
 
 			// Loop over the pixels belonging to this cell
@@ -6475,6 +6477,15 @@ var CPM = (function (exports) {
 			}
 			if (C.hasOwnProperty("cells")){
 				C.birth(nid, id, partition);
+				// if (C.cells[id].hasOwnProperty("subcells")){
+					// for( let subcell of this.C.cells[id].subcells ){
+					// 	//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
+					// 	let xdist = centroids[subcell.id][0] - com[0], ydist = centroids[subcell.id][1] - com[1]
+					// 	if( x1*xdist-ydist*y1 > 0 ){
+					// 		subcell.host = nid
+					// 	}
+					// }
+				// }
 			}
 			// console.log()
 			

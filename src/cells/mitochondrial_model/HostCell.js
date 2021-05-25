@@ -13,7 +13,6 @@ class HostCell extends SuperCell {
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C)
 		this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
-		// make volume dependent cytosol carrying capcaity
 	}
 
 	birth(parent){
@@ -46,11 +45,13 @@ class HostCell extends SuperCell {
 		this.total_oxphos = 0
 		let volcumsum = [0]
 		// let print = this.C.random() <0.001
+		let mito_vol = 0
 		for (let mito of this.subcells){
 			volcumsum.push(this.C.getVolume(mito.id) + volcumsum[volcumsum.length-1])
 			mito.update()
 			//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
 			this.total_oxphos += mito.oxphos
+			mito_vol += mito.vol
 		}
 		volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)})
 		let trues = this.DNA.trues
@@ -76,10 +77,10 @@ class HostCell extends SuperCell {
 		dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"]
 		dV -= this.conf["HOST_SHRINK"]
 		dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV)
-		if (dV > 0 && this.canGrow()){
+		if (dV > 0 && this.canGrow() && mito_vol/(this.vol + mito_vol) > this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
             this.V += dV
         }
-        if (dV < 0 && this.canShrink()){
+        if (dV < 0 && this.canShrink() && mito_vol/(this.vol + mito_vol) < this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
             this.V += dV
 		}
 		
