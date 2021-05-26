@@ -240,10 +240,6 @@ function postMCSListener(){
 				// let cell = this.C.cells[cid]
 				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, cell.products)
 			}
-			// if (isBorder(this.C, cid, neighs) && this.C.cells[cid].closeToV()){
-			// 	this.C.cells[cid].V -= this.C.conf["BORDER_SHRINK"] * isBorder(this.C, cid, neighs)
-			// }
-			// console.log((neighs[cid].length > 1 ))
 			
 			if (this.C.random() < this.C.conf['fission_rate'] * this.C.getVolume(cid)  && this.C.getVolume(cid) > this.C.conf["division_volume"][2]){
 				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
@@ -275,9 +271,7 @@ function postMCSListener(){
 				console.log("n mito: ", cell.subcells.length, "selfishness:" , cell.selfishness,  "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
 			}
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
-				// console.log("dividing host")
-				let nid = divideHostCell(cid)
-				// transferSubCells(cid, nid) 
+				let nid = this.C.cells[cid].divideHostCell(cid)
 			}
 		}
 	}
@@ -300,162 +294,6 @@ function initializeGrid(){
     }
 }
 
-
-// function transferSubCells (parent, child){
-// 	let neighborlst = sim.C.getStat(CPM.CellNeighborList)
-// 	let subcellids = []
-// 	for (let mito of sim.C.cells[parent].subcells){
-// 		subcellids.push(mito.id)
-// 	}
-// 	let transfered = []
-
-// 	while (transfered.length < subcellids.length){
-// 		for (let mitoid of subcellids){
-// 			if (!(mitoid in transfered)){
-// 				let parentlength = (neighborlst[mitoid][parent] || 0)
-// 				let childlength = (neighborlst[mitoid][child] || 0)
-// 				if (childlength == parentlength){
-// 					for (let transferid of transfered){
-// 						let border =  (neighborlst[mitoid][transferid] || 0)
-// 						if (sim.C.cells[transferid].host == child){
-// 							childlength += border
-// 						} else {
-// 							parentlength += border
-// 						}
-// 					}
-// 				}
-// 				if (childlength > parentlength){
-// 					transfered.push(mitoid)
-// 					sim.C.cells[mitoid].host = child
-// 				} else {
-// 					transfered.push(mitoid)
-// 				}
-// 			}
-// 		}
-// 	}
-// }
-
-function computeHostCentroid(pixels){
-	// copied Torus corrected centroid, but now you can hand all pixels of host+subcells
-	let halfsize = new Array( sim.C.ndim).fill(0)
-	for( let i = 0 ; i < sim.C.ndim ; i ++ ){
-		halfsize[i] = sim.C.extents[i]/2
-	}
-	let cvec = new Array(sim.C.ndim).fill(0)
-	for( let dim = 0 ; dim <sim.C.ndim ; dim ++ ){
-		let mi = 0.
-		const hsi = halfsize[dim], si = sim.C.extents[dim]
-		for( let j = 0 ; j < pixels.length ; j ++ ){
-			let dx = pixels[j][dim] - mi
-			if( sim.C.grid.torus[dim] && j > 0 ){
-				if( dx > hsi ){
-					dx -= si
-				} else if( dx < -hsi ){
-					dx += si
-				}
-			}
-			mi += dx/(j+1)
-		}
-		if( mi < 0 ){
-			mi += si
-		} else if( mi > si ){
-			mi -= si
-		}
-		cvec[dim] = mi
-	}
-	return cvec
-}
-
-function divideHostCell( cid ){
-		let C = sim.C
-		if( C.ndim != 2 ){
-			throw("The divideCell method is only implemented for 2D lattices yet!")
-		}
-		let pix = C.getStat( CPM.PixelsByCell )
-		let ids = [cid], cp = pix[cid]
-		for (let subcell of C.cells[cid].subcells){
-			ids = [...ids, subcell.id]
-			cp = [...cp, ...pix[subcell.id]]
-		}
-		let com = computeHostCentroid(cp)
-		let bxx = 0, bxy = 0, byy=0, cx, cy, x2, y2, side, T, D, x0, y0, x1, y1, L2
-
-		// Loop over the pixels belonging to this cell
-		let si = sim.C.extents, pixdist = {}, c = new Array(2)
-		for (let id of ids){
-			pixdist[id] = {}
-			for( let j = 0 ; j < pix[id].length ; j ++ ){
-				for ( let dim = 0 ; dim < 2 ; dim ++ ){
-					c[dim] = pix[id][j][dim] - com[dim]
-					if( C.conf.torus[dim] && j > 0 ){
-						// If distance is greater than half the grid size, correct the
-						// coordinate.
-						if( c[dim] > si[dim]/2 ){
-							c[dim] -= si[dim]
-						} else if( c[dim] < -si[dim]/2 ){
-							c[dim] += si[dim]
-						}
-					}
-				}
-				pixdist[id][j] = [...c]
-				bxx += c[0]*c[0]
-				bxy += c[0]*c[1]
-				byy += c[1]*c[1]
-			}
-		}
-		
-
-		// This code computes a "dividing line", which is perpendicular to the longest
-		// axis of the cell.
-		if( bxy == 0 ){
-			x0 = 0
-			y0 = 0
-			x1 = 1
-			y1 = 0
-		} else {
-			T = bxx + byy
-			D = bxx*byy - bxy*bxy
-			//L1 = T/2 + Math.sqrt(T*T/4 - D)
-			L2 = T/2 - Math.sqrt(T*T/4 - D)
-			x0 = 0
-			y0 = 0
-			x1 = L2 - byy
-			y1 = bxy
-		}
-		let newhost =  C.makeNewCellID( C.cellKind( cid ) )
-		for (let j = 0; j < pix[cid].length; j++){
-			if( x1*pixdist[cid][j][1]-pixdist[cid][j][0]*y1 > 0 ){
-				C.setpix( pix[cid][j], newhost) 
-			}
-		}
-		C.birth(newhost, cid)
-		
-		for (let id of ids){
-			if (id === cid ){
-				continue
-			}
-			let newpix = []
-			for (let j = 0; j < pix[id].length; j++){
-				if( x1*pixdist[id][j][1]-pixdist[id][j][0]*y1 > 0 ){
-					newpix = [...newpix, pix[id][j]]
-				}
-			}
-			if (newpix.length == pix[id].length){
-				C.cells[id].host = newhost
-			} else if (newpix.length > 0){
-				let nid = C.makeNewCellID( C.cellKind( id ) )
-				for (let pix of newpix){
-					C.setpix(pix, nid)
-				}
-				C.birth(nid, id, newpix.length/pix[id].length)
-				C.cells[nid].host = newhost
-			}
-		}
-
-		
-		C.stat_values = {} // remove cached stats or this will crash!!!
-		return newhost
-	}
 
 
 // Custom drawing function to draw the preferred directions.

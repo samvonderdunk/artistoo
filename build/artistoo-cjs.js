@@ -2818,7 +2818,7 @@ let AutoAdderConfig = {
 
 /** The core CPM class. Can be used for two- or three-dimensional simulations.
 */
-class CPM extends GridBasedModel {
+class CPM$1 extends GridBasedModel {
 
 	/** The constructor of class CA.
 	 * @param {GridSize} field_size - the size of the grid of the model.
@@ -4090,7 +4090,7 @@ class Canvas {
    */
 	drawCellBorders( kind, col ){
 
-		let isCPM = ( this.C instanceof CPM ), C = this.C;
+		let isCPM = ( this.C instanceof CPM$1 ), C = this.C;
 		let getBorderPixels = function*(){
 			for( let p of C.cellBorderPixels() ){
 				yield p;
@@ -4167,7 +4167,7 @@ class Canvas {
 	 * would be the color red. If unspecified, a green-to-red heatmap is used.
 	 * */
 	drawActivityValues( kind, A, col ){
-		if( !( this.C instanceof CPM) ){
+		if( !( this.C instanceof CPM$1) ){
 			throw("You cannot use the drawActivityValues method on a non-CPM model!")
 		}
 		if( !A ){
@@ -4243,7 +4243,7 @@ class Canvas {
 	drawOnCellBorders( kind, col ){
 		col = col || "000000";
 
-		let isCPM = ( this.C instanceof CPM ), C = this.C;
+		let isCPM = ( this.C instanceof CPM$1 ), C = this.C;
 		let getBorderPixels = function*(){
 			for( let p of C.cellBorderPixels() ){
 				yield p;
@@ -4355,7 +4355,7 @@ class Canvas {
 	 * Cim.drawCells( 1, Cim.colFun )
 	 */
 	drawCells( kind, col ){
-		if( !( this.C instanceof CPM ) ){
+		if( !( this.C instanceof CPM$1 ) ){
 			if( typeof col != "string" ){
 				throw("If you use the drawCells method on a CA, you cannot " +
 					"specify the color as function! Please specify a single string.")
@@ -4529,7 +4529,7 @@ class Cell {
 /** Extension of the CPM class that uses Cell objects to track internal state of Cells
  * Cell objects can override conf parameters, and track their lineage. 
 */
-class CPMEvol extends CPM {
+class CPMEvol extends CPM$1 {
 
 	/** The constructor of class CA.
 	 * @param {GridSize} field_size - the size of the grid of the model.
@@ -4637,6 +4637,125 @@ class SuperCell extends Cell {
 			this.subcells.splice(ix, 1);
 		}
 	}
+
+
+	computeHostCentroid(pixels){
+		// copied Torus corrected centroid, but now you can hand all pixels of host+subcells
+		let halfsize = new Array( this.C.ndim).fill(0);
+		for( let i = 0 ; i < this.C.ndim ; i ++ ){
+			halfsize[i] = this.C.extents[i]/2;
+		}
+		let cvec = new Array(this.C.ndim).fill(0);
+		for( let dim = 0 ; dim <this.C.ndim ; dim ++ ){
+			let mi = 0.;
+			const hsi = halfsize[dim], si = this.C.extents[dim];
+			for( let j = 0 ; j < pixels.length ; j ++ ){
+				let dx = pixels[j][dim] - mi;
+				if( this.C.grid.torus[dim] && j > 0 ){
+					if( dx > hsi ){
+						dx -= si;
+					} else if( dx < -hsi ){
+						dx += si;
+					}
+				}
+				mi += dx/(j+1);
+			}
+			if( mi < 0 ){
+				mi += si;
+			} else if( mi > si ){
+				mi -= si;
+			}
+			cvec[dim] = mi;
+		}
+		return cvec
+	}
+
+	divideHostCell( ){
+		let C = this.C;
+		if( C.ndim != 2 ){
+			throw("The divideCell method is only implemented for 2D lattices yet!")
+		}
+		let pix = C.getStat( CPM.PixelsByCell );
+		let ids = [this.id], cp = pix[this.id];
+		for (let subcell of C.cells[this.id].subcells){
+			ids = [...ids, subcell.id];
+			cp = [...cp, ...pix[subcell.id]];
+		}
+		let com = this.computeHostCentroid(cp);
+		let bxx = 0, bxy = 0, byy=0, T, D, x1, y1, L2;
+
+		// Loop over the pixels belonging to this cell
+		let si = this.C.extents, pixdist = {}, c = new Array(2);
+		for (let id of ids){
+			pixdist[id] = {};
+			for( let j = 0 ; j < pix[id].length ; j ++ ){
+				for ( let dim = 0 ; dim < 2 ; dim ++ ){
+					c[dim] = pix[id][j][dim] - com[dim];
+					if( C.conf.torus[dim] && j > 0 ){
+						// If distance is greater than half the grid size, correct the
+						// coordinate.
+						if( c[dim] > si[dim]/2 ){
+							c[dim] -= si[dim];
+						} else if( c[dim] < -si[dim]/2 ){
+							c[dim] += si[dim];
+						}
+					}
+				}
+				pixdist[id][j] = [...c];
+				bxx += c[0]*c[0];
+				bxy += c[0]*c[1];
+				byy += c[1]*c[1];
+			}
+		}
+		
+
+		// This code computes a "dividing line", which is perpendicular to the longest
+		// axis of the cell.
+		if( bxy == 0 ){
+			x1 = 1;
+			y1 = 0;
+		} else {
+			T = bxx + byy;
+			D = bxx*byy - bxy*bxy;
+			//L1 = T/2 + Math.sqrt(T*T/4 - D)
+			L2 = T/2 - Math.sqrt(T*T/4 - D);
+			x1 = L2 - byy;
+			y1 = bxy;
+		}
+		let newhost =  C.makeNewCellID( C.cellKind( this.id ) );
+		for (let j = 0; j < pix[this.id].length; j++){
+			if( x1*pixdist[this.id][j][1]-pixdist[this.id][j][0]*y1 > 0 ){
+				C.setpix( pix[this.id][j], newhost); 
+			}
+		}
+		C.birth(newhost, this.id);
+		
+		for (let id of ids){
+			if (id === this.id ){
+				continue
+			}
+			let newpix = [];
+			for (let j = 0; j < pix[id].length; j++){
+				if( x1*pixdist[id][j][1]-pixdist[id][j][0]*y1 > 0 ){
+					newpix = [...newpix, pix[id][j]];
+				}
+			}
+			if (newpix.length == pix[id].length){
+				C.cells[id].host = newhost;
+			} else if (newpix.length > 0){
+				let nid = C.makeNewCellID( C.cellKind( id ) );
+				for (let pix of newpix){
+					C.setpix(pix, nid);
+				}
+				C.birth(nid, id, newpix.length/pix[id].length);
+				C.cells[nid].host = newhost;
+			}
+		}
+		
+		C.stat_values = {}; // remove cached stats or this will crash!!!
+		return newhost
+	}
+
 }
 
 class SubCell extends Cell {
@@ -5230,7 +5349,7 @@ class BorderPixelsByCell extends Stat {
 	/** The set model function of BorderPixelsByCell requires an object of type CPM.
 	@param {CPM} M The CPM to compute cellborderpixels of.*/
 	set model( M ){
-		if( M instanceof CPM ){
+		if( M instanceof CPM$1 ){
 			/** The CPM to compute borderpixels for.
 			@type {CPM} */
 			this.M = M;
@@ -5543,7 +5662,7 @@ class CellNeighborList extends Stat {
 	/** The set model function of CellNeighborList requires an object of type CPM.
 	@param {CPM} M The CPM to compute bordering cells for.*/
 	set model( M ){
-		if( M instanceof CPM ){
+		if( M instanceof CPM$1 ){
 			/** The CPM to compute borderpixels for.
 			@type {CPM} */
 			this.M = M;
@@ -8104,7 +8223,7 @@ class Simulation {
 		if (((config || {}).conf || {})["CELLS"] !== undefined){
 			this.C = new CPMEvol( config.field_size, config.conf );
 		} else {
-			this.C = new CPM( config.field_size, config.conf );
+			this.C = new CPM$1( config.field_size, config.conf );
 		}
 				
 		/** See if objects of class {@link Canvas} and {@link GridManipulator} already 
@@ -11269,7 +11388,7 @@ exports.BarrierConstraint = BarrierConstraint;
 exports.BorderConstraint = BorderConstraint;
 exports.BorderPixelsByCell = BorderPixelsByCell;
 exports.CA = CA;
-exports.CPM = CPM;
+exports.CPM = CPM$1;
 exports.CPMEvol = CPMEvol;
 exports.Canvas = Canvas;
 exports.Cell = Cell;
