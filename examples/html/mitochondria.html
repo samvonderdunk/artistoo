@@ -30,7 +30,8 @@ let config = {
 
 	// Grid settings
 	ndim : 2,
-	field_size : [150,150],
+	// field_size : [350,200],
+	field_size : [200,150],
 	
 	// CPM parameters and configuration
 	conf : {
@@ -74,7 +75,7 @@ let config = {
 	
         // NOISE : 5,
         N_OXPHOS : 5, 
-        N_TRANSLATE : 5,
+        N_TRANSLATE : 10,
         N_REPLICATE : 30,
         INIT_MITO_V : 500,
         N_INIT_DNA : 5,
@@ -95,9 +96,9 @@ let config = {
 		// division_volume : [0, 200],
 		// minimal_division_volume : 150,
 		REPLICATE_TIME: 50,
-		fission_rate : 0.00004,
-		fusion_rate : 0.01,
-		deprecation_rate : 0.6,
+		fission_rate : 0.00006,
+		fusion_rate : 0.004,
+		deprecation_rate : 0.4,
 		dna_deprecation_rate :0.00,
 		// replication_rate : 1,
 		// translation_rate: 1, 
@@ -105,18 +106,18 @@ let config = {
 		mut_selfishness: 0.0,
 		MITO_SHRINK : 0,
 		MITOPHAGY_THRESHOLD: 1,
-		MITOPHAGY_SHRINK : 1,
+		MITOPHAGY_SHRINK : 6,
 		HOST_SHRINK : 6,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 9,
 		HOST_GROWTH_MAX : 9,
-		MITO_V_PER_OXPHOS : 3,
+		MITO_V_PER_OXPHOS : 5,
 		HOST_V_PER_OXPHOS : 8,
 		REP_MACHINE_PER_OXPHOS: 8,
 		PREF_FRACTION_MITO_PER_HOST : 0.7,
 	
 		VOLCHANGE_THRESHOLD : 10,
-		SELECTIVE_FUSION: true,
+		SELECTIVE_FUSION: false,
 
 		// BORDER_SHRINK: 0.0,
 
@@ -126,7 +127,8 @@ let config = {
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
-		division_volume: [100, 1200, 300]
+		// division_volume: [100, 1200, 400]
+		division_volume: [100, 600, 200]
 	},
 	
 	// Simulation setup and configuration: this controls stuff like grid initialization,
@@ -146,7 +148,7 @@ let config = {
 		CELLCOLOR : ["9E60BE", "FFAAEA"],
 		SHOWBORDERS : [true, true],				// Should cellborders be displayed?
 		BORDERCOL : ["666666", "666666"],				// color of the cell borders
-		zoom : 3,							// zoom in on canvas with this factor.
+		zoom : 4,							// zoom in on canvas with this factor.
 		
 		// Output images
 		SAVEIMG : true,						// Should a png image of the grid be saved
@@ -249,7 +251,8 @@ function postMCSListener(){
 			} else {
 				// console.log(neighs, cid)
 				for (let neigh of Object.keys(neighs[cid])){
-					// console.log(neigh)
+					// console.log(neigh) 
+					// very ugly - rewrite!
 					let mito1 =this.C.cells[cid], mito2 = this.C.cells[neigh]
 					if (mito2 instanceof CPM.Mitochondrion 
 						&& this.C.random() < this.C.conf['fusion_rate'] && mito1.host == mito2.host
@@ -273,32 +276,12 @@ function postMCSListener(){
 			}
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				// console.log("dividing host")
-				let nid = this.gm.divideCell(cid)
-				transferSubCells(cid, nid) 
+				let nid = divideHostCell(cid)
+				// transferSubCells(cid, nid) 
 			}
 		}
 	}
 }
-
-// function isBorder(C, cid, neighs){
-// 	let sum = 0
-// 	if (Object.keys(neighs[cid]).length > 1 ){
-// 		for (let neigh in neighs[cid]){
-// 			// console.log(neigh,  (C.cells[neigh] || {}).host,  C.cells[neigh].host)
-// 			if (neigh == 0 || (C.cells[neigh] || {}).host != C.cells[cid].host){
-// 				sum += neighs[cid][neigh]
-// 				// for (let neigh2 in neighs[cid]){
-// 				// 	console.log(neigh2, C.cells[neigh2].host, C.cells[cid].host)
-// 				// }
-// 				// console.log('broken on ', neigh, neighs[cid][neigh])
-// 				// if (neighs[cid][neigh] > 3){
-					
-// 				// }
-// 			}
-// 		}
-// 	}
-// 	return sum
-// }
 
 function initializeGrid(){
 	
@@ -317,9 +300,6 @@ function initializeGrid(){
     }
 }
 
-function euclidean(x0, y0, x1, y1){
-	return Math.sqrt(Math.pow(x0-x1, 2)+Math.pow(y0-y1,2))
-}
 
 function transferSubCells (parent, child){
 	let neighborlst = sim.C.getStat(CPM.CellNeighborList)
@@ -328,25 +308,7 @@ function transferSubCells (parent, child){
 		subcellids.push(mito.id)
 	}
 	let transfered = []
-	// for (let mitoid of subcellids){
-	// 	let parentlength = (neighborlst[mitoid][parent] || 0)
-	// 	let childlength = (neighborlst[mitoid][child] || 0)
-		
-	// 	if (childlength > parentlength){
-	// 		transfered.push(mitoid)
-	// 		sim.C.cells[mitoid].host = child
-	// 	} else {
-	// 		transfered.push(mitoid)
-	// 	}
-	// 	// 	console.log(childlength, parentlength, neighborlst[mitoid],child, parent, "no new host")
-	// 	// }
-	// 	if (childlength == parentlength){
-	// 		// console.log(parentlength, childlength)
-	// 		if (sim.C.random() < 0.5){
-	// 			sim.C.cells[mitoid].host = child
-	// 		}
-	// 	}
-	// }
+
 	while (transfered.length < subcellids.length){
 		for (let mitoid of subcellids){
 			if (!(mitoid in transfered)){
@@ -372,6 +334,131 @@ function transferSubCells (parent, child){
 		}
 	}
 }
+
+function computeHostCentroid(pixels){
+	// copied Torus corrected centroid, but now you can hand all pixels of host+subcells
+	let halfsize = new Array( sim.C.ndim).fill(0)
+	for( let i = 0 ; i < sim.C.ndim ; i ++ ){
+		halfsize[i] = sim.C.extents[i]/2
+	}
+	let cvec = new Array(sim.C.ndim).fill(0)
+	for( let dim = 0 ; dim <sim.C.ndim ; dim ++ ){
+		let mi = 0.
+		const hsi = halfsize[dim], si = sim.C.extents[dim]
+		for( let j = 0 ; j < pixels.length ; j ++ ){
+			let dx = pixels[j][dim] - mi
+			if( sim.C.grid.torus[dim] && j > 0 ){
+				if( dx > hsi ){
+					dx -= si
+				} else if( dx < -hsi ){
+					dx += si
+				}
+			}
+			mi += dx/(j+1)
+		}
+		if( mi < 0 ){
+			mi += si
+		} else if( mi > si ){
+			mi -= si
+		}
+		cvec[dim] = mi
+	}
+	return cvec
+}
+
+function divideHostCell( cid ){
+		let C = sim.C
+		if( C.ndim != 2 ){
+			throw("The divideCell method is only implemented for 2D lattices yet!")
+		}
+		let pix = C.getStat( CPM.PixelsByCell )
+		let ids = [cid], cp = pix[cid]
+		for (let subcell of C.cells[cid].subcells){
+			ids = [...ids, subcell.id]
+			cp = [...cp, ...pix[subcell.id]]
+		}
+		let com = computeHostCentroid(cp)
+		let bxx = 0, bxy = 0, byy=0, cx, cy, x2, y2, side, T, D, x0, y0, x1, y1, L2
+
+		// Loop over the pixels belonging to this cell
+		let si = sim.C.extents, pixdist = {}, c = new Array(2)
+		for (let id of ids){
+			pixdist[id] = {}
+			for( let j = 0 ; j < pix[id].length ; j ++ ){
+				for ( let dim = 0 ; dim < 2 ; dim ++ ){
+					c[dim] = pix[id][j][dim] - com[dim]
+					if( C.conf.torus[dim] && j > 0 ){
+						// If distance is greater than half the grid size, correct the
+						// coordinate.
+						if( c[dim] > si[dim]/2 ){
+							c[dim] -= si[dim]
+						} else if( c[dim] < -si[dim]/2 ){
+							c[dim] += si[dim]
+						}
+					}
+				}
+				pixdist[id][j] = [...c]
+				bxx += c[0]*c[0]
+				bxy += c[0]*c[1]
+				byy += c[1]*c[1]
+			}
+		}
+		
+
+		// This code computes a "dividing line", which is perpendicular to the longest
+		// axis of the cell.
+		if( bxy == 0 ){
+			x0 = 0
+			y0 = 0
+			x1 = 1
+			y1 = 0
+		} else {
+			T = bxx + byy
+			D = bxx*byy - bxy*bxy
+			//L1 = T/2 + Math.sqrt(T*T/4 - D)
+			L2 = T/2 - Math.sqrt(T*T/4 - D)
+			x0 = 0
+			y0 = 0
+			x1 = L2 - byy
+			y1 = bxy
+		}
+		let newhost =  C.makeNewCellID( C.cellKind( cid ) )
+		for (let j = 0; j < pix[cid].length; j++){
+			if( x1*pixdist[cid][j][1]-pixdist[cid][j][0]*y1 > 0 ){
+				C.setpix( pix[cid][j], newhost) 
+			}
+		}
+		C.birth(newhost, cid)
+		
+		for (let id of ids){
+			if (id === cid ){
+				continue
+			}
+			// console.log(id)
+			
+			let newpix = []
+			for (let j = 0; j < pix[id].length; j++){
+				if( x1*pixdist[id][j][1]-pixdist[id][j][0]*y1 > 0 ){
+					newpix = [...newpix, pix[id][j]]
+				}
+			}
+			if (newpix.length == pix[id].length){
+				C.cells[id].host = newhost
+			} else if (newpix.length > 0){
+				let nid = C.makeNewCellID( C.cellKind( id ) )
+				for (let pix of newpix){
+					C.setpix(pix, nid)
+				}
+				C.birth(nid, id, newpix/pix[id].length)
+				C.cells[nid].host = newhost
+			}
+		}
+
+		
+		C.stat_values = {} // remove cached stats or this will crash!!!
+		return newhost
+	}
+
 
 // Custom drawing function to draw the preferred directions.
 function drawCanvas(){
