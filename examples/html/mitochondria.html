@@ -127,8 +127,8 @@ let config = {
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
-		// division_volume: [100, 1200, 400]
-		division_volume: [100, 600, 200]
+		division_volume: [100, 1200, 400]
+		// division_volume: [100, 600, 200]
 	},
 	
 	// Simulation setup and configuration: this controls stuff like grid initialization,
@@ -301,39 +301,39 @@ function initializeGrid(){
 }
 
 
-function transferSubCells (parent, child){
-	let neighborlst = sim.C.getStat(CPM.CellNeighborList)
-	let subcellids = []
-	for (let mito of sim.C.cells[parent].subcells){
-		subcellids.push(mito.id)
-	}
-	let transfered = []
+// function transferSubCells (parent, child){
+// 	let neighborlst = sim.C.getStat(CPM.CellNeighborList)
+// 	let subcellids = []
+// 	for (let mito of sim.C.cells[parent].subcells){
+// 		subcellids.push(mito.id)
+// 	}
+// 	let transfered = []
 
-	while (transfered.length < subcellids.length){
-		for (let mitoid of subcellids){
-			if (!(mitoid in transfered)){
-				let parentlength = (neighborlst[mitoid][parent] || 0)
-				let childlength = (neighborlst[mitoid][child] || 0)
-				if (childlength == parentlength){
-					for (let transferid of transfered){
-						let border =  (neighborlst[mitoid][transferid] || 0)
-						if (sim.C.cells[transferid].host == child){
-							childlength += border
-						} else {
-							parentlength += border
-						}
-					}
-				}
-				if (childlength > parentlength){
-					transfered.push(mitoid)
-					sim.C.cells[mitoid].host = child
-				} else {
-					transfered.push(mitoid)
-				}
-			}
-		}
-	}
-}
+// 	while (transfered.length < subcellids.length){
+// 		for (let mitoid of subcellids){
+// 			if (!(mitoid in transfered)){
+// 				let parentlength = (neighborlst[mitoid][parent] || 0)
+// 				let childlength = (neighborlst[mitoid][child] || 0)
+// 				if (childlength == parentlength){
+// 					for (let transferid of transfered){
+// 						let border =  (neighborlst[mitoid][transferid] || 0)
+// 						if (sim.C.cells[transferid].host == child){
+// 							childlength += border
+// 						} else {
+// 							parentlength += border
+// 						}
+// 					}
+// 				}
+// 				if (childlength > parentlength){
+// 					transfered.push(mitoid)
+// 					sim.C.cells[mitoid].host = child
+// 				} else {
+// 					transfered.push(mitoid)
+// 				}
+// 			}
+// 		}
+// 	}
+// }
 
 function computeHostCentroid(pixels){
 	// copied Torus corrected centroid, but now you can hand all pixels of host+subcells
@@ -434,8 +434,6 @@ function divideHostCell( cid ){
 			if (id === cid ){
 				continue
 			}
-			// console.log(id)
-			
 			let newpix = []
 			for (let j = 0; j < pix[id].length; j++){
 				if( x1*pixdist[id][j][1]-pixdist[id][j][0]*y1 > 0 ){
@@ -449,7 +447,7 @@ function divideHostCell( cid ){
 				for (let pix of newpix){
 					C.setpix(pix, nid)
 				}
-				C.birth(nid, id, newpix/pix[id].length)
+				C.birth(nid, id, newpix.length/pix[id].length)
 				C.cells[nid].host = newhost
 			}
 		}
