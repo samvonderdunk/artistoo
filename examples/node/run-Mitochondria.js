@@ -7,7 +7,7 @@ let config = {
 
 	// Grid settings
 	ndim : 2,
-	field_size : [150,150],
+	field_size : [200,150],
 	
 	// CPM parameters and configuration
 	conf : {
@@ -18,51 +18,81 @@ let config = {
         
     
 		CELLS : ["empty", CPM.HostCell, CPM.Mitochondrion], 
-		
-		        
+		  
         J_INT:  [ [15,15], 
-            			[15,30] ],
+        				 [15,30] ],
 
         J_EXT:  [ [15,50,1500], 
 						[50,750,1500], 
-           				[1500, 1500,15000] ],
+            			[1500, 1500,15000] ],
 
-			    
+			        
+        // J_INT:  [ 
+		// 	[15,15], 
+        //     [15,2000] ],
+
+        // J_EXT:  [ [150,15,15000], 
+		// 	[10,150,1500], 
+        //     [1500, 1500,15000] ],
+
+
+        
+        // J_INT:  [ 
+		// 	[15,15], 
+        //     [15,150] ],
+
+        // J_EXT:  [ [15,15,1500], 
+		// 	[10,750,1500], 
+        //     [1500, 15000,15000] ],
+
+
+        // LAMBDA_SUB: [0, 0, 500] ,
+	
+        // NOISE : 5,
         N_OXPHOS : 5, 
-        N_TRANSLATE : 10,
-        N_REPLICATE : 50,
-        INIT_MITO_V : 300,
-        N_INIT_DNA : 4,
-        MTDNA_MUT_REP :0.0001,
-        MTDNA_MUT_LIFETIME : 0.00001,
-		INIT_HOST_V : 500,
+        N_TRANSLATE : 5,
+        N_REPLICATE : 30,
+        INIT_MITO_V : 500,
+        N_INIT_DNA : 5,
+		MTDNA_MUT_REP : 0.0003,
+        MTDNA_MUT_LIFETIME : 0.00002,
+		INIT_HOST_V : 700,
 		INIT_OXPHOS : 10,
 		INIT_TRANSLATE : 10,
-		INIT_REPLICATE : 1,
-		HOST_DEPRECATION: 0.005,
+		INIT_REPLICATE : 2,
+		HOST_DEPRECATION: 0.00,
 
 
-	
+		// Constraint parameters. 
+		// Mostly these have the format of an array in which each element specifies the
+		// parameter value for one of the cellkinds on the grid.
+        // First value is always cellkind 0 (the background) and is often not used.
+        
+		// division_volume : [0, 200],
+		// minimal_division_volume : 150,
 		REPLICATE_TIME: 50,
-		fission_rate : 0.00005,
-		fusion_rate : 0.0008,
-		deprecation_rate : 0.08,
-		// dna_deprecation_rate :0.001,
+		fission_rate : 0.00006,
+		fusion_rate : 0.004,
+		deprecation_rate : 0.4,
+		dna_deprecation_rate :0.00,
 		// replication_rate : 1,
 		// translation_rate: 1, 
-		host_selfishness : 0.1, 
+		host_selfishness : 0.5, 
 		mut_selfishness: 0.0,
 		MITO_SHRINK : 0,
-		MITOPHAGY_THRESHOLD: 1,
+		MITOPHAGY_THRESHOLD: 6,
 		MITOPHAGY_SHRINK : 6,
-		HOST_SHRINK : 3,
+		HOST_SHRINK : 6,
 		EMPTY_HOST_SHRINK: 10,
-		MITO_GROWTH_MAX : 5,
-		HOST_GROWTH_MAX : 5,
-		MITO_V_PER_OXPHOS : 1,
-		HOST_V_PER_OXPHOS : 4,
+		MITO_GROWTH_MAX : 9,
+		HOST_GROWTH_MAX : 9,
+		MITO_V_PER_OXPHOS : 5,
+		HOST_V_PER_OXPHOS : 8,
+		REP_MACHINE_PER_OXPHOS: 8,
+		PREF_FRACTION_MITO_PER_HOST : 0.7,
 	
 		VOLCHANGE_THRESHOLD : 10,
+		SELECTIVE_FUSION: false,
 
 		// BORDER_SHRINK: 0.0,
 
@@ -72,7 +102,8 @@ let config = {
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
-		division_volume: [100, 800, 100]
+		division_volume: [100, 1200, 400]
+		// division_volume: [100, 600, 200]
 	},
 	
 	// Simulation setup and configuration: this controls stuff like grid initialization,
@@ -80,11 +111,11 @@ let config = {
 	simsettings : { 
 	
 		// Cells on the grid
-		NRCELLS : [5, 5],						// Number of cells to seed for all
+		NRCELLS : [8, 5],						// Number of cells to seed for all
 		// non-background cellkinds. 
 		// Runtime etc
 		BURNIN : 0,
-		RUNTIME : 100000,
+		RUNTIME : 1000,
 		RUNTIME_BROWSER : "Inf",
 		
 		// Visualization
@@ -97,13 +128,15 @@ let config = {
 		// Output images
 		SAVEIMG : true,						// Should a png image of the grid be saved
 		// during the simulation?
-		IMGFRAMERATE : 1,					// If so, do this every <IMGFRAMERATE> MCS.
+		IMGFRAMERATE : 10,					// If so, do this every <IMGFRAMERATE> MCS.
 		SAVEPATH : "output/img/Mitochondria",	// ... And save the image in this folder.
+		LOGPATH: "output/logs/Mitochondria",
 		EXPNAME : "Mitochondria",					// Used for the filename of output images.
 		
 		// Output stats etc
 		STATSOUT : { browser: false, node: true }, // Should stats be computed?
-		LOGRATE : 10							// Output stats every <LOGRATE> MCS.
+		LOGRATE : 10,							// Output stats every <LOGRATE> MCS.
+		FLUSHRATE : 30
 
 	}
 }
@@ -119,13 +152,21 @@ let custommethods = {
     }
 sim = new CPM.Simulation( config, custommethods )
 
+
+
+// let stream = fs.createWriteStream("./"+config['simsettings']["LOGPATH"]+'/'+config['simsettings']["EXPNAME"]+".txt", {flags:'w+'});
+// stream.cork()
 sim.C.add( new CPM.SubCellConstraint( config["conf"] ) )
 
-colorby = "heteroplasmy"
-// changeColorBy()
-const util = require('util')
+colorby = "fraction unmutated"
+
+let logpath = "./"+config['simsettings']["LOGPATH"]+'/'+config['simsettings']["EXPNAME"]+".txt"
+const fs = require('fs')
+if (fs.existsSync(logpath)){
+	fs.unlinkSync(logpath)
+}
+let stringbuffer = ""
 function logStats(){
-	console.log(  "%------------------------------ " ,this.time, " ------------------------------")
 	jsonobj = {}
     for( let cell of this.C.cells ){
 		if (cell instanceof CPM.HostCell){
@@ -157,17 +198,22 @@ function logStats(){
 				mito["products"] = subcell.products
 				mito["DNA"] = {}
 				for (let [ix, dnaobj] of subcell.DNA.entries()){
-					mito["DNA"][ix] = {}
-					let dna = mito["DNA"][ix]
+					mito["DNA"][dnaobj.id] = {}
+					let dna = mito["DNA"][dnaobj.id]
 					dna["quality"] = dnaobj.quality
 					dna["replicating"] = dnaobj.replicating
 				}
 			}
 		}
 	}
-	// this.fs.write()
-	// console.log(util.inspect(jsonobj, {showHidden: false, depth: null}))
-	console.log(JSON.stringify(jsonobj))
+	let timestr = String(  "\n%------------------------------ " + this.time + " ------------------------------\n")
+	let objstr = JSON.stringify(jsonobj)
+	stringbuffer += timestr+objstr
+	if ((this.time / config['simsettings']['LOGRATE'] ) % config['simsettings']["FLUSHRATE"] == 0 || this.time >=  config['simsettings']["RUNTIME"]- config['simsettings']["LOGRATE"] ){
+		fs.appendFileSync(logpath, stringbuffer)
+		stringbuffer = ""
+		console.log(this.time)
+	}
 }
 
 function seedSubCells(){
@@ -188,9 +234,9 @@ function seedSubCells(){
 
 /* The following custom methods will be added to the simulation object*/
 function postMCSListener(){
-    if (sim.time == 100){
-        seedSubCells()
-    }
+	if (sim.time == 100){
+		seedSubCells()
+	}
 	if (sim.time < 200){
 		return
 	}
@@ -205,28 +251,30 @@ function postMCSListener(){
 	}
 
 	for( let cid of this.C.cellIDs() ){
-		if (this.C.cells[cid] instanceof CPM.SubCell){
-			if (this.C.random() < this.C.conf['fission_rate'] * this.C.getVolume(cid)  && this.C.getVolume(cid) > this.C.conf["division_volume"][2]){
-				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
+		let cell = this.C.cells[cid]
+		if (cell instanceof CPM.SubCell){
+			if (this.C.random() < this.C.conf['fission_rate'] * cell.vol && cell.vol > this.C.conf["division_volume"][2]){
+				this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
 			} else {
-				// console.log(neighs, cid)
 				for (let neigh of Object.keys(neighs[cid])){
-					// console.log(neigh)
-					if (this.C.cells[neigh] instanceof CPM.Mitochondrion && this.C.random() < this.C.conf['fusion_rate'] && this.C.cells[neigh].host == this.C.cells[cid].host){
-						this.gm.fuseCells(cid, neigh)
+					fusable = this.C.cells[neigh]
+					if (fusable instanceof CPM.Mitochondrion && cell.host == fusable.host){
+						if (this.C.random() < this.C.conf['fusion_rate'] ){
+							if (!(this.C.conf["SELECTIVE_FUSION"]) || (cell.oxphos >= this.C.conf["MITOPHAGY_THRESHOLD"] && fusable.oxphos >= this.C.conf["MITOPHAGY_THRESHOLD"])){
+								this.gm.fuseCells(cid, neigh)
+							}
+						}
 					}
 				}
 			}
 		}
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
-				let nid = this.gm.divideCell(cid)
-				transferSubCells(cid, nid) 
+				this.C.cells[cid].divideHostCell(cid)
 			}
 		}
 	}
 }
-
 
 function initializeGrid(){
 
@@ -242,27 +290,6 @@ function initializeGrid(){
             this.gm.seedCell(1)
         }
     }
-}
-
-function transferSubCells (parent, child){
-	let neighborlst = sim.C.getStat(CPM.CellNeighborList)
-	let subcellids = []
-	for (let mito of sim.C.cells[parent].subcells){
-		subcellids.push(mito.id)
-	}
-	for (let mitoid of subcellids){
-	
-		let parentlength = (neighborlst[mitoid][parent] || 0)
-		let childlength = (neighborlst[mitoid][child] || 0)
-		if (childlength > parentlength){
-			sim.C.cells[mitoid].host = child
-		} 
-		if (childlength == parentlength){
-			if (sim.C.random() < 0.5){
-				sim.C.cells[mitoid].host = child
-			}
-		}
-	}
 }
 
 // Custom drawing function to draw the preferred directions.
@@ -324,6 +351,9 @@ function getColor (cid) {
 			case 'oxphos':
 				c = Math.floor(cell.oxphos)
 				break
+			case 'fraction unmutated':
+				c = Math.floor(cell.unmutated/cell.DNA.length *100)
+				break	
 			case 'replicate':
 				c = Math.floor(cell.replicate)*10
 				break
