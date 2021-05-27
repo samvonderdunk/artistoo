@@ -7,14 +7,18 @@ class Mitochondrion extends SubCell {
 
 	/* eslint-disable */ 
     constructor (conf, kind, id, C) {
-		super(conf, kind, id, C)
+        super(conf, kind, id, C)
         
-        this.DNA = new Array(this.conf["N_INIT_DNA"]).fill().map(() => ( new DNA(this.conf, this.C)));
+        this.last_dna_id = 0
+        this.DNA = []
+        for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
+            this.DNA.push(new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id)))
+        }
         
         this.V = this.conf["INIT_MITO_V"]
 
         this.makebuffer = [], this.importbuffer = []
-
+        
         this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
         for (let i = 0 ; i < this.products.length; i++){
             if (i < this.conf["N_OXPHOS"] ){
@@ -36,7 +40,7 @@ class Mitochondrion extends SubCell {
         super.birth(parent)
 		this.clear()
 		this.divideProducts(parent.products, this.products, partition)
-	   
+        
 		let new_parent = []
         for (let dna of parent.DNA){
             if (this.C.random() < partition){
@@ -145,11 +149,9 @@ class Mitochondrion extends SubCell {
     }
 
     tryIncrement(){
-        // console.log(this.sum, this.vol, this.vol/this.sum)
         return (this.C.random() < (this.vol/this.sum))
     }
 
-    // should this and n_replisomes be refactored away? Is much more functional programming than OOP and slow. However, is much more clearly defined.
     get sum(){
         return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
     }
@@ -162,9 +164,6 @@ class Mitochondrion extends SubCell {
         return this.DNA.reduce((t,e) =>  e.sumQuality() == new DNA(this.conf, this.C).sumQuality() ? t+1 : t, 0)
     }
    
-    /**
-     * @return {Number}
-     */
     get vol(){
         return this.C.getVolume(this.id)
     }
@@ -200,7 +199,7 @@ class Mitochondrion extends SubCell {
                 // tick replisome
                 dna.replicating--
                 if (dna.replicating == 0){
-                    this.DNA.unshift(new DNA(this.conf, this.C, dna)) // add to beginning so it does not evaluate again
+                    this.DNA.unshift(new DNA(this.conf, this.C, String(this.id) + "_" + String(++this.last_dna_id), dna)) // add to beginning so it does not evaluate again
                     i++ // array is longer at beginning
                     for (let ix = 0 ; ix < this.replication_products.length; ix++){
                         this.products[ix + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] ++

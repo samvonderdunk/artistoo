@@ -1,5 +1,6 @@
 
 import Cell from "./Cell.js" 
+import PixelsByCell from "../stats/PixelsByCell.js"
 
 class SuperCell extends Cell {
 
@@ -11,9 +12,9 @@ class SuperCell extends Cell {
 
 	death(){
 		/* eslint-disable */
-		if (this.subcells.length > 0){
-			console.log("Supercell: ", this.id, " died with extant subcells:", this.subcells)
-		}
+		// if (this.subcells.length > 0){
+		// 	console.log("Supercell: ", this.id, " died with extant subcells:", this.subcells)
+		// }
 	}
 
 	addSubCell(cell){
@@ -68,7 +69,7 @@ class SuperCell extends Cell {
 		if( C.ndim != 2 ){
 			throw("The divideCell method is only implemented for 2D lattices yet!")
 		}
-		let pix = C.getStat( CPM.PixelsByCell )
+		let pix = C.getStat( PixelsByCell )
 		let ids = [this.id], cp = pix[this.id]
 		for (let subcell of C.cells[this.id].subcells){
 			ids = [...ids, subcell.id]

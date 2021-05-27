@@ -4,10 +4,10 @@
 class DNA {
 
 	/* eslint-disable */ 
-	constructor (conf, C ,parent) {
+	constructor (conf, C , idstr, parent) {
         this.C = C
         this.conf = conf
-
+        this.id = idstr //unique string
         this.replicating = 0
         this.translateFlag = false
         // console.log("also in seed")

@@ -2818,7 +2818,7 @@ let AutoAdderConfig = {
 
 /** The core CPM class. Can be used for two- or three-dimensional simulations.
 */
-class CPM$1 extends GridBasedModel {
+class CPM extends GridBasedModel {
 
 	/** The constructor of class CA.
 	 * @param {GridSize} field_size - the size of the grid of the model.
@@ -4090,7 +4090,7 @@ class Canvas {
    */
 	drawCellBorders( kind, col ){
 
-		let isCPM = ( this.C instanceof CPM$1 ), C = this.C;
+		let isCPM = ( this.C instanceof CPM ), C = this.C;
 		let getBorderPixels = function*(){
 			for( let p of C.cellBorderPixels() ){
 				yield p;
@@ -4167,7 +4167,7 @@ class Canvas {
 	 * would be the color red. If unspecified, a green-to-red heatmap is used.
 	 * */
 	drawActivityValues( kind, A, col ){
-		if( !( this.C instanceof CPM$1) ){
+		if( !( this.C instanceof CPM) ){
 			throw("You cannot use the drawActivityValues method on a non-CPM model!")
 		}
 		if( !A ){
@@ -4243,7 +4243,7 @@ class Canvas {
 	drawOnCellBorders( kind, col ){
 		col = col || "000000";
 
-		let isCPM = ( this.C instanceof CPM$1 ), C = this.C;
+		let isCPM = ( this.C instanceof CPM ), C = this.C;
 		let getBorderPixels = function*(){
 			for( let p of C.cellBorderPixels() ){
 				yield p;
@@ -4355,7 +4355,7 @@ class Canvas {
 	 * Cim.drawCells( 1, Cim.colFun )
 	 */
 	drawCells( kind, col ){
-		if( !( this.C instanceof CPM$1 ) ){
+		if( !( this.C instanceof CPM ) ){
 			if( typeof col != "string" ){
 				throw("If you use the drawCells method on a CA, you cannot " +
 					"specify the color as function! Please specify a single string.")
@@ -4529,7 +4529,7 @@ class Cell {
 /** Extension of the CPM class that uses Cell objects to track internal state of Cells
  * Cell objects can override conf parameters, and track their lineage. 
 */
-class CPMEvol extends CPM$1 {
+class CPMEvol extends CPM {
 
 	/** The constructor of class CA.
 	 * @param {GridSize} field_size - the size of the grid of the model.
@@ -4618,9 +4618,9 @@ class SuperCell extends Cell {
 
 	death(){
 		/* eslint-disable */
-		if (this.subcells.length > 0){
-			console.log("Supercell: ", this.id, " died with extant subcells:", this.subcells);
-		}
+		// if (this.subcells.length > 0){
+		// 	console.log("Supercell: ", this.id, " died with extant subcells:", this.subcells)
+		// }
 	}
 
 	addSubCell(cell){
@@ -4675,7 +4675,7 @@ class SuperCell extends Cell {
 		if( C.ndim != 2 ){
 			throw("The divideCell method is only implemented for 2D lattices yet!")
 		}
-		let pix = C.getStat( CPM.PixelsByCell );
+		let pix = C.getStat( PixelsByCell );
 		let ids = [this.id], cp = pix[this.id];
 		for (let subcell of C.cells[this.id].subcells){
 			ids = [...ids, subcell.id];
@@ -4800,10 +4800,10 @@ class SubCell extends Cell {
 class DNA {
 
 	/* eslint-disable */ 
-	constructor (conf, C ,parent) {
+	constructor (conf, C , idstr, parent) {
         this.C = C;
         this.conf = conf;
-
+        this.id = idstr; //unique string
         this.replicating = 0;
         this.translateFlag = false;
         // console.log("also in seed")
@@ -4868,13 +4868,20 @@ class Mitochondrion extends SubCell {
 
 	/* eslint-disable */ 
     constructor (conf, kind, id, C) {
-		super(conf, kind, id, C);
+        super(conf, kind, id, C);
         
-        this.DNA = new Array(this.conf["N_INIT_DNA"]).fill().map(() => ( new DNA(this.conf, this.C)));
+        this.last_dna_id = 0;
+        this.DNA = [];
+        for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
+            // console.log(new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id)))
+            this.DNA.push(new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id)));
+        }
+        // console.log(this.DNA)
         
         this.V = this.conf["INIT_MITO_V"];
 
         this.makebuffer = [], this.importbuffer = [];
+        
 
         this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
         for (let i = 0 ; i < this.products.length; i++){
@@ -4897,7 +4904,7 @@ class Mitochondrion extends SubCell {
         super.birth(parent);
 		this.clear();
 		this.divideProducts(parent.products, this.products, partition);
-	   
+        
 		let new_parent = [];
         for (let dna of parent.DNA){
             if (this.C.random() < partition){
@@ -5006,11 +5013,9 @@ class Mitochondrion extends SubCell {
     }
 
     tryIncrement(){
-        // console.log(this.sum, this.vol, this.vol/this.sum)
         return (this.C.random() < (this.vol/this.sum))
     }
 
-    // should this and n_replisomes be refactored away? Is much more functional programming than OOP and slow. However, is much more clearly defined.
     get sum(){
         return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
     }
@@ -5023,9 +5028,6 @@ class Mitochondrion extends SubCell {
         return this.DNA.reduce((t,e) =>  e.sumQuality() == new DNA(this.conf, this.C).sumQuality() ? t+1 : t, 0)
     }
    
-    /**
-     * @return {Number}
-     */
     get vol(){
         return this.C.getVolume(this.id)
     }
@@ -5061,7 +5063,7 @@ class Mitochondrion extends SubCell {
                 // tick replisome
                 dna.replicating--;
                 if (dna.replicating == 0){
-                    this.DNA.unshift(new DNA(this.conf, this.C, dna)); // add to beginning so it does not evaluate again
+                    this.DNA.unshift(new DNA(this.conf, this.C, String(this.id) + "_" + String(++this.last_dna_id), dna)); // add to beginning so it does not evaluate again
                     i++; // array is longer at beginning
                     for (let ix = 0 ; ix < this.replication_products.length; ix++){
                         this.products[ix + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] ++;
@@ -5349,7 +5351,7 @@ class BorderPixelsByCell extends Stat {
 	/** The set model function of BorderPixelsByCell requires an object of type CPM.
 	@param {CPM} M The CPM to compute cellborderpixels of.*/
 	set model( M ){
-		if( M instanceof CPM$1 ){
+		if( M instanceof CPM ){
 			/** The CPM to compute borderpixels for.
 			@type {CPM} */
 			this.M = M;
@@ -5662,7 +5664,7 @@ class CellNeighborList extends Stat {
 	/** The set model function of CellNeighborList requires an object of type CPM.
 	@param {CPM} M The CPM to compute bordering cells for.*/
 	set model( M ){
-		if( M instanceof CPM$1 ){
+		if( M instanceof CPM ){
 			/** The CPM to compute borderpixels for.
 			@type {CPM} */
 			this.M = M;
@@ -8223,7 +8225,7 @@ class Simulation {
 		if (((config || {}).conf || {})["CELLS"] !== undefined){
 			this.C = new CPMEvol( config.field_size, config.conf );
 		} else {
-			this.C = new CPM$1( config.field_size, config.conf );
+			this.C = new CPM( config.field_size, config.conf );
 		}
 				
 		/** See if objects of class {@link Canvas} and {@link GridManipulator} already 
@@ -11388,7 +11390,7 @@ exports.BarrierConstraint = BarrierConstraint;
 exports.BorderConstraint = BorderConstraint;
 exports.BorderPixelsByCell = BorderPixelsByCell;
 exports.CA = CA;
-exports.CPM = CPM$1;
+exports.CPM = CPM;
 exports.CPMEvol = CPMEvol;
 exports.Canvas = Canvas;
 exports.Cell = Cell;
