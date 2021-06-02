@@ -1,6 +1,6 @@
-let CPM = require("~/artistoo/build/artistoo-cjs.js")
-let ColorMap = require("~/artistoo/examples/node/colormap-cjs.js")
-
+let CPM = require("../../../build/artistoo-cjs.js")
+let ColorMap = require("../../../examples/node/colormap-cjs.js")
+ 
 "use strict"
 
 let config = {
@@ -13,7 +13,7 @@ let config = {
 	conf : {
 		// Basic CPM parameters
 		torus : [true,true],				// Should the grid have linked borders?
-		seed : <<[3,4]>>,							// Seed for random number generation.
+		seed : <<random.randint(0,10000)>>,							// Seed for random number generation.
 		T : 2,								// CPM temperature
         
     
@@ -52,9 +52,9 @@ let config = {
 		REPLICATE_TIME: 2,
 		// fission_rate : 0.000003,
 		// fusion_rate : 0.003,
-		fission_rate : 0.00004,
-		fusion_rate : 0.02,
-		deprecation_rate : 0.5,
+		fission_rate : <<0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05>>,
+		fusion_rate : <<0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05>>,
+		deprecation_rate : <<0.3,0.4,0.5,0.6>>,
 		dna_deprecation_rate :0.00,
 		// replication_rate : 1,
 		// translation_rate: 1, 
@@ -69,7 +69,7 @@ let config = {
 		HOST_GROWTH_MAX : 9,
 		MITO_V_PER_OXPHOS : 1,
 		HOST_V_PER_OXPHOS : 1,
-		REP_MACHINE_PER_OXPHOS: 10,
+		REP_MACHINE_PER_OXPHOS: <<10, 15>>,
 		PREF_FRACTION_MITO_PER_HOST : 0.7,
 	
 		VOLCHANGE_THRESHOLD : 10,
@@ -93,11 +93,11 @@ let config = {
 	simsettings : { 
 	
 		// Cells on the grid
-		NRCELLS : [8, 5],						// Number of cells to seed for all
+		NRCELLS : [10, 5],						// Number of cells to seed for all
 		// non-background cellkinds. 
 		// Runtime etc
 		BURNIN : 0,
-		RUNTIME : 10000,
+		RUNTIME : 5000,
 		RUNTIME_BROWSER : "Inf",
 		
 		// Visualization
@@ -110,7 +110,7 @@ let config = {
 		// Output images
 		SAVEIMG : true,						// Should a png image of the grid be saved
 		// during the simulation?
-		IMGFRAMERATE : 1,					// If so, do this every <IMGFRAMERATE> MCS.
+		IMGFRAMERATE : 10,					// If so, do this every <IMGFRAMERATE> MCS.
 		SAVEPATH : "./",	// ... And save the image in this folder.
 		LOGPATH: "./",
 		EXPNAME : "Mitochondria",					// Used for the filename of output images.
@@ -133,16 +133,17 @@ let custommethods = {
     logStats : logStats
     }
 sim = new CPM.Simulation( config, custommethods )
-
-let starttime = new Date().getTime()
+const {
+	performance
+  } = require('perf_hooks');
+let starttime = performance.now()
 
 // let stream = fs.createWriteStream("./"+config['simsettings']["LOGPATH"]+'/'+config['simsettings']["EXPNAME"]+".txt", {flags:'w+'});
 // stream.cork()
 sim.C.add( new CPM.SubCellConstraint( config["conf"] ) )
-
 colorby = "fraction unmutated"
 
-let logpath = "./"+config['simsettings']["LOGPATH"]+'/'+config['simsettings']["EXPNAME"]+".txt"
+let logpath = "./"+config['simsettings']["LOGPATH"]+'/'+config['simsettings']["EXPNAME"]+"log.txt"
 const fs = require('fs')
 if (fs.existsSync(logpath)){
 	fs.unlinkSync(logpath)
@@ -173,6 +174,7 @@ function logStats(){
 				mito["translate"] = subcell.translate
 				mito["replicate"] = subcell.replicate
 				mito["replisomes"] = subcell.n_replisomes
+				mito["unmut"] = subcell.unmutated/subcell.DNA.length
 				mito["heteroplasmy"] = subcell.heteroplasmy()
 				mito["translatable heteroplasmy"] = subcell.heteroplasmy("translatable")
 				mito["replicating heteroplasmy"] = subcell.heteroplasmy("replicating")
@@ -182,7 +184,7 @@ function logStats(){
 				for (let [ix, dnaobj] of subcell.DNA.entries()){
 					mito["DNA"][dnaobj.id] = {}
 					let dna = mito["DNA"][dnaobj.id]
-					dna["quality"] = dnaobj.quality
+					dna["quality"] = dnaobj.quality.slice(0,11)
 					dna["replicating"] = dnaobj.replicating
 				}
 			}
@@ -194,7 +196,6 @@ function logStats(){
 	if ((this.time / config['simsettings']['LOGRATE'] ) % config['simsettings']["FLUSHRATE"] == 0 || this.time >=  config['simsettings']["RUNTIME"]- config['simsettings']["LOGRATE"] ){
 		fs.appendFileSync(logpath, stringbuffer)
 		stringbuffer = ""
-		console.log(this.time)
 	}
 }
 
@@ -255,6 +256,12 @@ function postMCSListener(){
 				this.C.cells[cid].divideHostCell(cid)
 			}
 		}
+	}
+	if (Object.keys(this.C.cells).length <= 1){
+		let endtime = performance.now()
+		stringbuffer += "\n##broken; time taken: "  + String((endtime-starttime)/(1000*60)) + " minutes\n"
+		fs.appendFileSync(logpath, stringbuffer)		
+		process.exit(0)
 	}
 }
 
@@ -381,5 +388,7 @@ function getColor (cid) {
 
 sim.run()
 
-let endtime = new Date().getTime()
-console.log("time taken: "  + String((endtime-starttime)/(1000*60)) + " minutes")
+let endtime = performance.now()
+stringbuffer += "\n##ended; time taken: "  + String((endtime-starttime)/(1000*60)) + " minutes\n"
+fs.appendFileSync(logpath, stringbuffer)
+		
