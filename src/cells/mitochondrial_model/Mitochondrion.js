@@ -59,11 +59,11 @@ class Mitochondrion extends SubCell {
     update(){
         let dV = 0
         dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"]
-        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
-            dV -= this.conf["MITOPHAGY_SHRINK"]   
-        }
         dV-=this.conf["MITO_SHRINK"]
         dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV)
+        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
+            dV = -this.conf["MITOPHAGY_SHRINK"]   
+        }
         if (dV > 0 && this.canGrow()){
             this.V += dV
         }
@@ -178,7 +178,7 @@ class Mitochondrion extends SubCell {
                 }
             } else {
                 let p = this.importbuffer.pop()
-                if (this.tryIncrement()){
+                if (this.tryIncrement() && this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]){
                     this.products[p]++
                 } else {
                     this.C.getCell(this.host).cytosol[p]++
