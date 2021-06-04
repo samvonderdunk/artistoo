@@ -229,9 +229,7 @@ class Mitochondrion extends SubCell {
     get replication_products() {
         return this.products.slice(this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"] )
     }
-    get replicate_products(){
-        return this.replication_products()
-    }
+   
     get oxphos(){
         return Math.min.apply(Math, this.oxphos_products)
     }

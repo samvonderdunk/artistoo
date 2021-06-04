@@ -37,7 +37,7 @@ class HostCell extends SuperCell {
 	update(){
 		if (this.subcells.length === 0 ){
 			// console.log(this.V, this.vol)
-			if (this.closeToV()){
+			if (this.canShrink()){
 				this.V -= this.conf["EMPTY_HOST_SHRINK"]
 			}
 			return

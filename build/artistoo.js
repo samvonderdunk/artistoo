@@ -5079,16 +5079,13 @@ var CPM = (function (exports) {
 	        this.last_dna_id = 0;
 	        this.DNA = [];
 	        for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
-	            // console.log(new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id)))
 	            this.DNA.push(new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id)));
 	        }
-	        // console.log(this.DNA)
 	        
 	        this.V = this.conf["INIT_MITO_V"];
 
 	        this.makebuffer = [], this.importbuffer = [];
 	        
-
 	        this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
 	        for (let i = 0 ; i < this.products.length; i++){
 	            if (i < this.conf["N_OXPHOS"] ){
@@ -5129,11 +5126,11 @@ var CPM = (function (exports) {
 	    update(){
 	        let dV = 0;
 	        dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"];
-	        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
-	            dV -= this.conf["MITOPHAGY_SHRINK"];   
-	        }
 	        dV-=this.conf["MITO_SHRINK"];
 	        dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV);
+	        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
+	            dV = -this.conf["MITOPHAGY_SHRINK"];   
+	        }
 	        if (dV > 0 && this.canGrow()){
 	            this.V += dV;
 	        }
@@ -5248,7 +5245,7 @@ var CPM = (function (exports) {
 	                }
 	            } else {
 	                let p = this.importbuffer.pop();
-	                if (this.tryIncrement()){
+	                if (this.tryIncrement() && this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]){
 	                    this.products[p]++;
 	                } else {
 	                    this.C.getCell(this.host).cytosol[p]++;
@@ -5299,9 +5296,7 @@ var CPM = (function (exports) {
 	    get replication_products() {
 	        return this.products.slice(this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"] )
 	    }
-	    get replicate_products(){
-	        return this.replication_products()
-	    }
+	   
 	    get oxphos(){
 	        return Math.min.apply(Math, this.oxphos_products)
 	    }
@@ -5401,7 +5396,7 @@ var CPM = (function (exports) {
 		update(){
 			if (this.subcells.length === 0 ){
 				// console.log(this.V, this.vol)
-				if (this.closeToV()){
+				if (this.canShrink()){
 					this.V -= this.conf["EMPTY_HOST_SHRINK"];
 				}
 				return
