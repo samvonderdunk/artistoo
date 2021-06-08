@@ -35,6 +35,10 @@ class Cell {
 	death () {
 	}
 
+	get vol(){
+    	return this.C.getVolume(this.id)
+    }
+
 }
 
 export default Cell

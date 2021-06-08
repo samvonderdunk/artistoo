@@ -4524,6 +4524,10 @@ class Cell {
 	death () {
 	}
 
+	get vol(){
+    	return this.C.getVolume(this.id)
+    }
+
 }
 
 /** Extension of the CPM class that uses Cell objects to track internal state of Cells
@@ -4616,13 +4620,6 @@ class SuperCell extends Cell {
 		this.subcells = [];
 	}
 
-	death(){
-		/* eslint-disable */
-		// if (this.subcells.length > 0){
-		// 	console.log("Supercell: ", this.id, " died with extant subcells:", this.subcells)
-		// }
-	}
-
 	addSubCell(cell){
 		if (!this.subcells.includes(cell)){
 			this.subcells.push(cell);
@@ -4670,6 +4667,7 @@ class SuperCell extends Cell {
 		return cvec
 	}
 
+	/* eslint-disable */
 	divideHostCell( ){
 		let C = this.C;
 		if( C.ndim != 2 ){
@@ -11411,6 +11409,7 @@ exports.Mitochondrion = Mitochondrion;
 exports.ModelDescription = ModelDescription;
 exports.MorpheusImport = MorpheusImport;
 exports.MorpheusWriter = MorpheusWriter;
+exports.ParameterChecker = ParameterChecker;
 exports.PerimeterConstraint = PerimeterConstraint;
 exports.PersistenceConstraint = PersistenceConstraint;
 exports.PixelsByCell = PixelsByCell;
