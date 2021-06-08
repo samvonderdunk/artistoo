@@ -5173,51 +5173,19 @@ var CPM = (function (exports) {
 	        // this.find_n_replisomes()
 	    }
 
-	    heteroplasmy(opt = "all"){
-	        // compute heteroplasmy, TODO rewrite this
-	        if (this.DNA.length == 0){
-	            return NaN
-	        }
-	        let all_proteins = new DNA(this.conf, this.C).sumQuality();
-	        let heteroplasmy = 0;
-	        if (opt == "all"){
-	            for (let dna of this.DNA){
-	                heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
-	            }
-	            heteroplasmy = 1 - (heteroplasmy/this.DNA.length);
-	        } else if (opt == "translatable"){
-	            let len = 0;
-	            for (let dna of this.DNA){
-	                if (dna.replicating == 0){
-	                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
-	                    len++;
-	                }
-	            }
-	            if (len == 0){
-	                return NaN
-	            } else {
-	                heteroplasmy = 1 - (heteroplasmy/len);
-	            }
-	        }else if (opt == "replicating"){
-	            let len = 0;
-	            for (let dna of this.DNA){
-	                if (dna.replicating > 0){
-	                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
-	                    len++;
-	                }
-	            }
-	            if (len == 0){
-	                return NaN
-	            } else {
-	                heteroplasmy = 1 - (heteroplasmy/len);
-	            }
-	        }
-	        return heteroplasmy
-	    }
-
 	    tryIncrement(){
 	        return (this.C.random() < (this.vol/this.sum))
 	    }
+
+	    // tryIncrement(ix){
+	    //     if (ix < this.conf["N_OXPHOS"] ){
+	    //         return this.C.random() < (this.vol / this.oxphos_products.reduce((t, e) => t + e) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"])
+	    //     } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
+	    //         return this.C.random() < (this.vol / this.translate_products.reduce((t, e) => t + e) * this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"])
+	    //     } else {
+	    //         return this.C.random() < (this.vol / this.replicate_products.reduce((t, e) => t + e) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"])
+	    //     }
+	    // }
 
 	    get sum(){
 	        return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
@@ -5240,12 +5208,12 @@ var CPM = (function (exports) {
 	        while ((this.makebuffer.length + this.importbuffer.length) > 0){
 	            if (this.C.random() < this.makebuffer.length/(this.makebuffer.length + this.importbuffer.length)){
 	                let p = this.makebuffer.pop();
-	                if (this.tryIncrement()){
+	                if (this.tryIncrement(p)){
 	                    this.products[p]++;
 	                }
 	            } else {
 	                let p = this.importbuffer.pop();
-	                if (this.tryIncrement() && this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]){
+	                if (this.tryIncrement(p) && this.oxphos > this.conf["MITOPHAGY_THRESHOLD"]){
 	                    this.products[p]++;
 	                } else {
 	                    this.C.getCell(this.host).cytosol[p]++;
@@ -5334,6 +5302,47 @@ var CPM = (function (exports) {
 	            }
 	            k++;
 	        }
+	    }
+	    heteroplasmy(opt = "all"){
+	        // compute heteroplasmy, TODO rewrite this
+	        if (this.DNA.length == 0){
+	            return NaN
+	        }
+	        let all_proteins = new DNA(this.conf, this.C).sumQuality();
+	        let heteroplasmy = 0;
+	        if (opt == "all"){
+	            for (let dna of this.DNA){
+	                heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
+	            }
+	            heteroplasmy = 1 - (heteroplasmy/this.DNA.length);
+	        } else if (opt == "translatable"){
+	            let len = 0;
+	            for (let dna of this.DNA){
+	                if (dna.replicating == 0){
+	                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
+	                    len++;
+	                }
+	            }
+	            if (len == 0){
+	                return NaN
+	            } else {
+	                heteroplasmy = 1 - (heteroplasmy/len);
+	            }
+	        }else if (opt == "replicating"){
+	            let len = 0;
+	            for (let dna of this.DNA){
+	                if (dna.replicating > 0){
+	                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
+	                    len++;
+	                }
+	            }
+	            if (len == 0){
+	                return NaN
+	            } else {
+	                heteroplasmy = 1 - (heteroplasmy/len);
+	            }
+	        }
+	        return heteroplasmy
 	    }
 	}
 
@@ -6527,8 +6536,7 @@ var CPM = (function (exports) {
 			if( C.ndim != 2 ){
 				throw("The divideCell method is only implemented for 2D lattices yet!")
 			}
-			let cp = C.getStat( PixelsByCell )[id], centroids = C.getStat( CentroidsWithTorusCorrection );
-			let com = centroids[id];
+			let cp = C.getStat( PixelsByCell )[id], com = C.getStat( CentroidsWithTorusCorrection )[id];
 			let bxx = 0, bxy = 0, byy=0, T, D, x1, y1, L2;
 
 			// Loop over the pixels belonging to this cell
@@ -6597,15 +6605,6 @@ var CPM = (function (exports) {
 			}
 			if (C.hasOwnProperty("cells")){
 				C.birth(nid, id, partition);
-				// if (C.cells[id].hasOwnProperty("subcells")){
-					// for( let subcell of this.C.cells[id].subcells ){
-					// 	//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
-					// 	let xdist = centroids[subcell.id][0] - com[0], ydist = centroids[subcell.id][1] - com[1]
-					// 	if( x1*xdist-ydist*y1 > 0 ){
-					// 		subcell.host = nid
-					// 	}
-					// }
-				// }
 			}
 			// console.log()
 			

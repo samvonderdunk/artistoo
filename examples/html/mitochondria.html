@@ -45,7 +45,7 @@ let config = {
 		
 		        
         J_INT:  [ [15,15], 
-        				 [15,30] ],
+        				 [15,15] ],
 
         J_EXT:  [ [15,50,1500], 
 						[50,750,1500], 
@@ -76,7 +76,7 @@ let config = {
         // NOISE : 5,
         N_OXPHOS : 5, 
         N_TRANSLATE : 5,
-        N_REPLICATE : 60,
+        N_REPLICATE : 100,
         INIT_MITO_V : 500,
         N_INIT_DNA : 5,
 		MTDNA_MUT_REP : 0.0003,
@@ -95,29 +95,32 @@ let config = {
         
 		// division_volume : [0, 200],
 		// minimal_division_volume : 150,
-		REPLICATE_TIME: 5,
+		REPLICATE_TIME: 2,
+		// fission_rate : 0.000003,
+		// fusion_rate : 0.003,
 		fission_rate : 0.00004,
-		fusion_rate : 0.004,
-		deprecation_rate : 0.4,
+		fusion_rate : 0.05,
+		deprecation_rate : 0.5,
 		dna_deprecation_rate :0.00,
 		// replication_rate : 1,
 		// translation_rate: 1, 
 		host_selfishness : 0.5, 
 		mut_selfishness: 0.0,
 		MITO_SHRINK : 0,
-		MITOPHAGY_THRESHOLD: 6,
-		MITOPHAGY_SHRINK : 6,
-		HOST_SHRINK : 6,
+		MITOPHAGY_THRESHOLD: 1,
+		MITOPHAGY_SHRINK : 2,
+		HOST_SHRINK : 2,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 9,
 		HOST_GROWTH_MAX : 9,
-		MITO_V_PER_OXPHOS : 5,
-		HOST_V_PER_OXPHOS : 8,
-		REP_MACHINE_PER_OXPHOS: 8,
+		MITO_V_PER_OXPHOS : 2,
+		HOST_V_PER_OXPHOS : 2,
+		REP_MACHINE_PER_OXPHOS: 15,
 		PREF_FRACTION_MITO_PER_HOST : 0.7,
 	
 		VOLCHANGE_THRESHOLD : 10,
-		SELECTIVE_FUSION: false,
+		// SELECTIVE_FUSION: false,
+		SELECTIVE_FUSION: true,
 
 		// BORDER_SHRINK: 0.0,
 
@@ -127,7 +130,7 @@ let config = {
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
-		division_volume: [100, 1200, 400]
+		division_volume: [100, 1600, 600]
 		// division_volume: [100, 600, 200]
 	},
 	
@@ -136,7 +139,7 @@ let config = {
 	simsettings : { 
 	
 		// Cells on the grid
-		NRCELLS : [8, 5],						// Number of cells to seed for all
+		NRCELLS : [5, 8],						// Number of cells to seed for all
 		// non-background cellkinds. 
 		// Runtime etc
 		BURNIN : 0,
@@ -147,7 +150,7 @@ let config = {
 		CANVASCOLOR : "EEEEEE",
 		CELLCOLOR : ["9E60BE", "FFAAEA"],
 		SHOWBORDERS : [true, true],				// Should cellborders be displayed?
-		BORDERCOL : ["666666", "666666"],				// color of the cell borders
+		BORDERCOL : ["666666", "111111"],				// color of the cell borders
 		zoom : 4,							// zoom in on canvas with this factor.
 		
 		// Output images
@@ -236,30 +239,34 @@ function postMCSListener(){
 	for( let cid of this.C.cellIDs() ){
 		let cell = this.C.cells[cid]
 		if (cell instanceof CPM.SubCell){
-			// if (this.C.random() < 0.002 ){ 
-			// 	// let cell = this.C.cells[cid]
-			// 	console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, cell.products)
-			// }
+			if (this.C.random() < 0.002 ){ 
+				// let cell = this.C.cells[cid]
+				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, cell.products)
+			}
 			if (this.C.random() < this.C.conf['fission_rate'] * cell.vol && cell.vol > this.C.conf["division_volume"][2]){
 				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
 			} else {
-				for (let neigh of Object.keys(neighs[cid])){
-					let fusable = this.C.cells[neigh]
-					if (fusable instanceof CPM.Mitochondrion && cell.host == fusable.host){
-						if (this.C.random() < this.C.conf['fusion_rate'] ){
-							if (!(this.C.conf["SELECTIVE_FUSION"]) || (cell.oxphos >= this.C.conf["MITOPHAGY_THRESHOLD"] && fusable.oxphos >= this.C.conf["MITOPHAGY_THRESHOLD"])){
-								this.gm.fuseCells(cid, neigh)
-							}
+				if ( this.C.random() < this.C.conf['fusion_rate'] ){
+					let fusables = []
+					for (let neigh of Object.keys(neighs[cid])){
+						if (this.C.cells[neigh] instanceof CPM.Mitochondrion && cell.host == this.C.cells[neigh].host){
+							fusables.push(neigh)
+						}
+					}
+					if (fusables.length > 0){
+						let fuser = this.C.cells[fusables[Math.floor(this.C.random() * fusables.length)]]
+						if (!(this.C.conf["SELECTIVE_FUSION"]) || (cell.oxphos >= this.C.conf["MITOPHAGY_THRESHOLD"] && fuser.oxphos >= this.C.conf["MITOPHAGY_THRESHOLD"])){
+							this.gm.fuseCells(cid, fuser.id)
 						}
 					}
 				}
 			}
 		}
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
-			// if (this.C.random() < 0.01){ 
-			// 	let cell = this.C.cells[cid]
-			// 	console.log("n mito: ", cell.subcells.length, "selfishness:" , cell.selfishness,  "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
-			// }
+			if (this.C.random() < 0.01){ 
+				let cell = this.C.cells[cid]
+				console.log("n mito: ", cell.subcells.length, "selfishness:" , cell.selfishness,  "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
+			}
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				let nid = this.C.cells[cid].divideHostCell(cid)
 			}
@@ -296,7 +303,7 @@ function drawCanvas(){
 	for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
 		this.Cim.drawCells( cellkind+1, colfun)
 		if(  cellborders[ cellkind  ]  ){
-			this.Cim.drawCellBorders( cellkind+1, "000000" )
+			this.Cim.drawCellBorders( cellkind+1, this.conf["BORDERCOL"][cellkind+1] )
 		}
 	}
 }
@@ -345,6 +352,11 @@ function getColor (cid) {
 			case 'replicating heteroplasmy':
 				c = Math.floor(cell.heteroplasmy("replicating") *100)
 				break	
+			case 'replicate products frac':
+				let totrep = cell.replication_products.reduce((a, b) => a + b, 0)
+				c = Math.floor(totrep/cell.sum * 100)
+				// console.log(totrep, cell.sum, c)
+				break
 			case 'fraction unmutated':
 				// console.log(cell.unmutated)
 				c = Math.floor(cell.unmutated/cell.DNA.length *100)
@@ -358,8 +370,13 @@ function getColor (cid) {
 			case 'replicate':
 				c = Math.floor(cell.replicate)*10
 				break
+			case 'mitophagy':
+				c = cell.oxphos <= this.C.conf["MITOPHAGY_THRESHOLD"] ? Math.floor(cell.unmutated/cell.DNA.length *100) : NaN
+				if (cell.DNA.length == 0 ){return "AA0000"}
+				// console.log(cell.oxphos, this.C.conf["MITOPHAGY_THRESHOLD"] )
+				break
 			case 'replisomes':
-				c = Math.floor(cell.n_replisomes)*5
+				c = Math.floor(cell.n_replisomes)*10
 				let check = 0
 				for (let dna of cell.DNA){
 					if (dna.replicating > 0){
@@ -429,6 +446,8 @@ function changeColorBy(){
 <input type="radio" name="Visualization" value="replicating heteroplasmy"unchecked>Replicating fraction deterioration<br>
 <input type="radio" name="Visualization" value="replisomes"unchecked>Replisomes<br>
 <input type="radio" name="Visualization" value="host" unchecked>Host<br>
+<input type="radio" name="Visualization" value="mitophagy"unchecked>Mitophagy<br>
+<input type="radio" name="Visualization" value="replicate products frac"checked>Replicating fraction of products<br>
 <input type="radio" name="Visualization" value="kill">Kill<br>
 <div>
     <button type="submit" onclick="changeColorBy()">Submit</button>
