@@ -5022,6 +5022,7 @@ var CPM = (function (exports) {
 	                if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"])
 	                    this.quality[i] = 1;
 	            }
+	            
 	        }
 	    }
 
@@ -5077,7 +5078,9 @@ var CPM = (function (exports) {
 	        this.last_dna_id = 0;
 	        this.DNA = [];
 	        for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
-	            this.DNA.push(new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id)));
+	            let dna = new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id));
+	            dna.mutate(this.conf["MTDNA_MUT_REP"]);
+	            this.DNA.push(dna);
 	        }
 	        
 	        this.V = this.conf["INIT_MITO_V"];
@@ -5127,7 +5130,7 @@ var CPM = (function (exports) {
 	        dV-=this.conf["MITO_SHRINK"];
 	        dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV);
 	        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
-	            dV = -this.conf["MITOPHAGY_SHRINK"];   
+	            dV -= this.conf["MITOPHAGY_SHRINK"];   
 	        }
 	        if (dV > 0 && this.canGrow()){
 	            this.V += dV;
@@ -5171,23 +5174,23 @@ var CPM = (function (exports) {
 	        // this.find_n_replisomes()
 	    }
 
-	    tryIncrement(){
-	        return (this.C.random() < (this.vol/this.sum))
-	    }
-
-	    // tryIncrement(ix){
-	    //     if (ix < this.conf["N_OXPHOS"] ){
-	    //         return this.C.random() < (this.vol / this.oxphos_products.reduce((t, e) => t + e) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"])
-	    //     } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
-	    //         return this.C.random() < (this.vol / this.translate_products.reduce((t, e) => t + e) * this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"])
-	    //     } else {
-	    //         return this.C.random() < (this.vol / this.replicate_products.reduce((t, e) => t + e) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"])
-	    //     }
+	    // tryIncrement(){
+	    //     return (this.C.random() < (this.vol/this.sum))
 	    // }
 
-	    get sum(){
-	        return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
+	    tryIncrement(ix){
+	        if (ix < this.conf["N_OXPHOS"] ){
+	            return this.C.random() < (this.vol / this.oxphos_products.reduce((t, e) => t + e) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"] / 100)
+	        } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
+	            return this.C.random() < (this.vol / this.translate_products.reduce((t, e) => t + e) * this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"] / 100)
+	        } else {
+	            return this.C.random() < (this.vol / (this.replication_products.reduce((t, e) => t + e) + + (this.n_replisomes * this.conf["N_REPLICATE"])) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"] / 100)
+	        }
 	    }
+
+	    // get sum(){
+	    //     return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
+	    // }
 
 	    get n_replisomes(){ 
 	        return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
@@ -5195,10 +5198,6 @@ var CPM = (function (exports) {
 
 	    get unmutated(){
 	        return this.DNA.reduce((t,e) =>  e.sumQuality() == new DNA(this.conf, this.C).sumQuality() ? t+1 : t, 0)
-	    }
-	   
-	    get vol(){
-	        return this.C.getVolume(this.id)
 	    }
 
 	    importAndProduce(){
@@ -5374,7 +5373,6 @@ var CPM = (function (exports) {
 		/* eslint-disable */ 
 		constructor (conf, kind, id, C) {
 			super(conf, kind, id, C);
-			this.selfishness = conf['host_selfishness'];
 			this.V = conf["INIT_HOST_V"];
 			this.total_oxphos = 0;
 			this.DNA = new nDNA(conf, C);
@@ -5383,21 +5381,9 @@ var CPM = (function (exports) {
 
 		birth(parent){
 			super.birth(parent);
-			this.mutate_selfishness(parent);
 			this.V = parent.V/2;
 			parent.V /= 2;
 			this.DNA = new nDNA(this.conf, this.C, parent.DNA);
-		}
-
-		mutate_selfishness(parent){
-			if (this.C.random() < 0.5){
-				this.selfishness += this.conf["mut_selfishness"];
-			} else {
-				this.selfishness -= this.conf["mut_selfishness"];
-			}
-			// this.selfishness = parent.selfishness + (this.C.random() - 0.5)*0.1*2
-			this.selfishness = Math.min(1, this.selfishness);
-			this.selfishness = Math.max(0, this.selfishness);
 		}
 
 		update(){
@@ -5413,7 +5399,7 @@ var CPM = (function (exports) {
 			// let print = this.C.random() <0.001
 			let mito_vol = 0;
 			for (let mito of this.subcells){
-				volcumsum.push(this.C.getVolume(mito.id) + volcumsum[volcumsum.length-1]);
+				volcumsum.push(mito.vol + volcumsum[volcumsum.length-1]);
 				mito.update();
 				//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
 				this.total_oxphos += mito.oxphos;
@@ -5421,7 +5407,7 @@ var CPM = (function (exports) {
 			}
 			volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)});
 			let trues = this.DNA.trues;
-			for (let i = 0; i < this.total_oxphos*(1-this.selfishness)*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
+			for (let i = 0; i < this.total_oxphos*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
 				let ix = trues[Math.floor(this.C.random() * trues.length)];
 				if (this.tryIncrement() ){
 					// optional make this canGrow dependent
@@ -5440,7 +5426,7 @@ var CPM = (function (exports) {
 
 			let dV = 0;
 
-			dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"];
+			dV += this.total_oxphos *this.conf["HOST_V_PER_OXPHOS"];
 			dV -= this.conf["HOST_SHRINK"];
 			dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV);
 			if (dV > 0 && this.canGrow() && mito_vol/(this.vol + mito_vol) > this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
@@ -5455,10 +5441,6 @@ var CPM = (function (exports) {
 			}
 		}
 
-		closeToV(){
-			return Math.abs(this.V-this.vol) < this.conf["VOLCHANGE_THRESHOLD"]
-		}
-
 		canGrow(){
 	        return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
 	    }
@@ -5469,21 +5451,13 @@ var CPM = (function (exports) {
 		
 		tryIncrement(){
 	        // console.log(this.sum, this.vol, this.vol/this.sum)
-	        return (this.C.random() < (this.C.getVolume(this.id)/this.sum))
+	        return (this.C.random() < (this.vol/this.sum))
 		}
 		
 		// should be refactored away
 		get sum(){
 			return this.cytosol.reduce((t, e) => t + e)
 		}
-
-	    /**
-	     * @return {Number}
-	     */
-	    get vol(){
-	        return this.C.getVolume(this.id)
-	    }
-
 
 		death(){
 			/* eslint-disable */

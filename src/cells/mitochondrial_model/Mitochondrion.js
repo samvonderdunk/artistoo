@@ -12,7 +12,9 @@ class Mitochondrion extends SubCell {
         this.last_dna_id = 0
         this.DNA = []
         for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
-            this.DNA.push(new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id)))
+            let dna = new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id))
+            dna.mutate(this.conf["MTDNA_MUT_REP"])
+            this.DNA.push(dna)
         }
         
         this.V = this.conf["INIT_MITO_V"]
@@ -62,7 +64,7 @@ class Mitochondrion extends SubCell {
         dV-=this.conf["MITO_SHRINK"]
         dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV)
         if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
-            dV = -this.conf["MITOPHAGY_SHRINK"]   
+            dV -= this.conf["MITOPHAGY_SHRINK"]   
         }
         if (dV > 0 && this.canGrow()){
             this.V += dV
@@ -106,23 +108,23 @@ class Mitochondrion extends SubCell {
         // this.find_n_replisomes()
     }
 
-    tryIncrement(){
-        return (this.C.random() < (this.vol/this.sum))
-    }
-
-    // tryIncrement(ix){
-    //     if (ix < this.conf["N_OXPHOS"] ){
-    //         return this.C.random() < (this.vol / this.oxphos_products.reduce((t, e) => t + e) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"])
-    //     } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
-    //         return this.C.random() < (this.vol / this.translate_products.reduce((t, e) => t + e) * this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"])
-    //     } else {
-    //         return this.C.random() < (this.vol / this.replicate_products.reduce((t, e) => t + e) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"])
-    //     }
+    // tryIncrement(){
+    //     return (this.C.random() < (this.vol/this.sum))
     // }
 
-    get sum(){
-        return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
+    tryIncrement(ix){
+        if (ix < this.conf["N_OXPHOS"] ){
+            return this.C.random() < (this.vol / this.oxphos_products.reduce((t, e) => t + e) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"] / 100)
+        } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
+            return this.C.random() < (this.vol / this.translate_products.reduce((t, e) => t + e) * this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"] / 100)
+        } else {
+            return this.C.random() < (this.vol / (this.replication_products.reduce((t, e) => t + e) + + (this.n_replisomes * this.conf["N_REPLICATE"])) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"] / 100)
+        }
     }
+
+    // get sum(){
+    //     return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
+    // }
 
     get n_replisomes(){ 
         return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
@@ -130,10 +132,6 @@ class Mitochondrion extends SubCell {
 
     get unmutated(){
         return this.DNA.reduce((t,e) =>  e.sumQuality() == new DNA(this.conf, this.C).sumQuality() ? t+1 : t, 0)
-    }
-   
-    get vol(){
-        return this.C.getVolume(this.id)
     }
 
     importAndProduce(){
