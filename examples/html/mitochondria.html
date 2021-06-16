@@ -37,7 +37,7 @@ let config = {
 	conf : {
 		// Basic CPM parameters
 		torus : [true,true],				// Should the grid have linked borders?
-		seed : 3,							// Seed for random number generation.
+		seed : 2,							// Seed for random number generation.
 		T : 2,								// CPM temperature
         
     
@@ -78,8 +78,8 @@ let config = {
         N_TRANSLATE : 5,
         N_REPLICATE : 100,
         INIT_MITO_V : 500,
-        N_INIT_DNA : 2,
-		MTDNA_MUT_REP : 0.003,
+        N_INIT_DNA : 5,
+		MTDNA_MUT_REP : 0.02,
         MTDNA_MUT_LIFETIME : 0.0000,
 		INIT_HOST_V : 700,
 		INIT_OXPHOS : 10,
@@ -450,7 +450,7 @@ function changeColorBy(){
 <input type="radio" name="Visualization" value="replicating heteroplasmy"unchecked>Replicating fraction deterioration<br>
 <input type="radio" name="Visualization" value="replisomes"unchecked>Replisomes<br>
 <input type="radio" name="Visualization" value="host" unchecked>Host<br>
-<input type="radio" name="Visualization" value="mitophagy"checked>Mitophagy<br>
+<input type="radio" name="Visualization" value="mitophagy"unchecked>Mitophagy<br>
 <input type="radio" name="Visualization" value="replicate products frac"unchecked>Replicating fraction of products<br>
 <input type="radio" name="Visualization" value="kill">Kill<br>
 <div>
