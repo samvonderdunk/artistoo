@@ -178,7 +178,7 @@ class Mitochondrion extends SubCell {
                 }
             } else {
                 let p = this.importbuffer.pop()
-                if (this.tryIncrement() && this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]){
+                if (this.tryIncrement() && this.oxphos > this.conf["MITOPHAGY_THRESHOLD"]){
                     this.products[p]++
                 } else {
                     this.C.getCell(this.host).cytosol[p]++

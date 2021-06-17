@@ -5079,16 +5079,13 @@ var CPM = (function (exports) {
 	        this.last_dna_id = 0;
 	        this.DNA = [];
 	        for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
-	            // console.log(new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id)))
 	            this.DNA.push(new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id)));
 	        }
-	        // console.log(this.DNA)
 	        
 	        this.V = this.conf["INIT_MITO_V"];
 
 	        this.makebuffer = [], this.importbuffer = [];
 	        
-
 	        this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
 	        for (let i = 0 ; i < this.products.length; i++){
 	            if (i < this.conf["N_OXPHOS"] ){
@@ -5129,11 +5126,11 @@ var CPM = (function (exports) {
 	    update(){
 	        let dV = 0;
 	        dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"];
-	        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
-	            dV -= this.conf["MITOPHAGY_SHRINK"];   
-	        }
 	        dV-=this.conf["MITO_SHRINK"];
 	        dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV);
+	        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
+	            dV = -this.conf["MITOPHAGY_SHRINK"];   
+	        }
 	        if (dV > 0 && this.canGrow()){
 	            this.V += dV;
 	        }
@@ -5248,7 +5245,7 @@ var CPM = (function (exports) {
 	                }
 	            } else {
 	                let p = this.importbuffer.pop();
-	                if (this.tryIncrement()){
+	                if (this.tryIncrement() && this.oxphos > this.conf["MITOPHAGY_THRESHOLD"]){
 	                    this.products[p]++;
 	                } else {
 	                    this.C.getCell(this.host).cytosol[p]++;
@@ -6532,8 +6529,7 @@ var CPM = (function (exports) {
 			if( C.ndim != 2 ){
 				throw("The divideCell method is only implemented for 2D lattices yet!")
 			}
-			let cp = C.getStat( PixelsByCell )[id], centroids = C.getStat( CentroidsWithTorusCorrection );
-			let com = centroids[id];
+			let cp = C.getStat( PixelsByCell )[id], com = C.getStat( CentroidsWithTorusCorrection )[id];
 			let bxx = 0, bxy = 0, byy=0, T, D, x1, y1, L2;
 
 			// Loop over the pixels belonging to this cell
@@ -6602,15 +6598,6 @@ var CPM = (function (exports) {
 			}
 			if (C.hasOwnProperty("cells")){
 				C.birth(nid, id, partition);
-				// if (C.cells[id].hasOwnProperty("subcells")){
-					// for( let subcell of this.C.cells[id].subcells ){
-					// 	//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
-					// 	let xdist = centroids[subcell.id][0] - com[0], ydist = centroids[subcell.id][1] - com[1]
-					// 	if( x1*xdist-ydist*y1 > 0 ){
-					// 		subcell.host = nid
-					// 	}
-					// }
-				// }
 			}
 			// console.log()
 			
