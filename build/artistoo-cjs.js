@@ -4914,15 +4914,16 @@ class Mitochondrion extends SubCell {
 
 		this.V = parent.V * partition;
         parent.V *= (1-partition);
+        this.fs = undefined;
     }
 
+    // TODO add CPM level deathlistener that can log from Sim
     death(){
-        let logpath = "./"+config['simsettings']["LOGPATH"]+'/'+config['simsettings']["EXPNAME"]+"_deaths.txt";
+        let logpath = "./deaths.txt"; //HARDCODED
         let mito = {};
         mito["time"] = this.C.time;
         mito["V"] = this.V;
         mito["vol"] = this.vol;
-        // // could be post computed!
         mito["n DNA"] = this.DNA.length;
         mito["oxphos"] = this.oxphos;
         mito["translate"] = this.translate;
@@ -4931,15 +4932,16 @@ class Mitochondrion extends SubCell {
         mito["heteroplasmy"] = this.heteroplasmy();
         mito["translatable heteroplasmy"] = this.heteroplasmy("translatable");
         mito["replicating heteroplasmy"] = this.heteroplasmy("replicating");
-        // from this
         mito["products"] = this.products;
         mito['sum dna'] = this.sum_dna();
-        let objstr = JSON.stringify(mito);
-		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
-			console.log("detected browser");
-        } else {
-            console.log("logged to  " + logpath + "\n\n" + objstring);
-            fs.appendFileSync(logpath, objstring);
+        mito["unmut"] = this.unmutated/this.DNA.length;
+        let objstring = JSON.stringify(mito) + '\n';
+		if( typeof window !== "undefined" && typeof window.document !== "undefined" ); else {
+            // console.log("logged to  " + logpath + "\n\n" + objstring)
+            if (!this.fs){
+                this.fs = require('fs');
+            }    
+            this.fs.appendFileSync(logpath, objstring);
         }
         
     }

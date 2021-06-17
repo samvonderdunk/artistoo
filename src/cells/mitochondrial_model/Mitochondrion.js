@@ -55,10 +55,12 @@ class Mitochondrion extends SubCell {
 
 		this.V = parent.V * partition
         parent.V *= (1-partition)
+        this.fs = undefined
     }
 
+    // TODO add CPM level deathlistener that can log from Sim
     death(){
-        let logpath = "./"+config['simsettings']["LOGPATH"]+'/'+config['simsettings']["EXPNAME"]+"_deaths.txt"
+        let logpath = "./deaths.txt" //HARDCODED
         let mito = {}
         mito["time"] = this.C.time
         mito["V"] = this.V
@@ -73,13 +75,17 @@ class Mitochondrion extends SubCell {
         mito["replicating heteroplasmy"] = this.heteroplasmy("replicating")
         mito["products"] = this.products
         mito['sum dna'] = this.sum_dna()
-        mito["unmut"] = subcell.unmutated/subcell.DNA.length
-        let objstr = JSON.stringify(mito)
+        mito["unmut"] = this.unmutated/this.DNA.length
+        let objstring = JSON.stringify(mito) + '\n'
 		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
-			// console.log("detected browser")
+            // console.log("detected browser")
+            // this.fs.appendFileSync(logpath, objstring)
         } else {
             // console.log("logged to  " + logpath + "\n\n" + objstring)
-            fs.appendFileSync(logpath, objstring)
+            if (!this.fs){
+                this.fs = require('fs')
+            }    
+            this.fs.appendFileSync(logpath, objstring)
         }
         
     }

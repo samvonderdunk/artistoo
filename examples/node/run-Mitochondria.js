@@ -179,6 +179,9 @@ const fs = require('fs')
 if (fs.existsSync(logpath)){
 	fs.unlinkSync(logpath)
 }
+if (fs.existsSync('./deaths.txt')){
+	fs.unlinkSync('./deaths.txt')
+}
 let stringbuffer = ""
 function logStats(){
 	jsonobj = {}
