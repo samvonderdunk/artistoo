@@ -210,13 +210,14 @@ function logStats(){
 				mito["replicating heteroplasmy"] = subcell.heteroplasmy("replicating")
 				// from this
 				mito["products"] = subcell.products
-				mito["DNA"] = {}
-				for (let [ix, dnaobj] of subcell.DNA.entries()){
-					mito["DNA"][dnaobj.id] = {}
-					let dna = mito["DNA"][dnaobj.id]
-					dna["quality"] = dnaobj.quality
-					dna["replicating"] = dnaobj.replicating
-				}
+				mito['sum dna'] = subcell.sum_dna()
+				// mito["DNA"] = {}
+				// for (let [ix, dnaobj] of subcell.DNA.entries()){
+				// 	mito["DNA"][dnaobj.id] = {}
+				// 	let dna = mito["DNA"][dnaobj.id]
+				// 	dna["quality"] = dnaobj.quality
+				// 	dna["replicating"] = dnaobj.replicating
+				// }
 			}
 		}
 	}

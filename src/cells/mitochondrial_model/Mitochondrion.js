@@ -57,6 +57,33 @@ class Mitochondrion extends SubCell {
         parent.V *= (1-partition)
     }
 
+    death(){
+        let logpath = "./"+config['simsettings']["LOGPATH"]+'/'+config['simsettings']["EXPNAME"]+"_deaths.txt"
+        let mito = {}
+        mito["time"] = this.C.time
+        mito["V"] = this.V
+        mito["vol"] = this.vol
+        mito["n DNA"] = this.DNA.length
+        mito["oxphos"] = this.oxphos
+        mito["translate"] = this.translate
+        mito["replicate"] = this.replicate
+        mito["replisomes"] = this.n_replisomes
+        mito["heteroplasmy"] = this.heteroplasmy()
+        mito["translatable heteroplasmy"] = this.heteroplasmy("translatable")
+        mito["replicating heteroplasmy"] = this.heteroplasmy("replicating")
+        mito["products"] = this.products
+        mito['sum dna'] = this.sum_dna()
+        mito["unmut"] = subcell.unmutated/subcell.DNA.length
+        let objstr = JSON.stringify(mito)
+		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
+			// console.log("detected browser")
+        } else {
+            // console.log("logged to  " + logpath + "\n\n" + objstring)
+            fs.appendFileSync(logpath, objstring)
+        }
+        
+    }
+
     /* eslint-disable*/
     update(){
         let dV = 0
