@@ -10,13 +10,6 @@ class SuperCell extends Cell {
 		this.subcells = []
 	}
 
-	death(){
-		/* eslint-disable */
-		// if (this.subcells.length > 0){
-		// 	console.log("Supercell: ", this.id, " died with extant subcells:", this.subcells)
-		// }
-	}
-
 	addSubCell(cell){
 		if (!this.subcells.includes(cell)){
 			this.subcells.push(cell)
@@ -64,6 +57,7 @@ class SuperCell extends Cell {
 		return cvec
 	}
 
+	/* eslint-disable */
 	divideHostCell( ){
 		let C = this.C
 		if( C.ndim != 2 ){

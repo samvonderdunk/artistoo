@@ -12,7 +12,9 @@ class Mitochondrion extends SubCell {
         this.last_dna_id = 0
         this.DNA = []
         for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
-            this.DNA.push(new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id)))
+            let dna = new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id))
+            dna.mutate(this.conf["MTDNA_MUT_REP"])
+            this.DNA.push(dna)
         }
         
         this.V = this.conf["INIT_MITO_V"]
@@ -55,6 +57,33 @@ class Mitochondrion extends SubCell {
         parent.V *= (1-partition)
     }
 
+    death(){
+        let logpath = "./"+config['simsettings']["LOGPATH"]+'/'+config['simsettings']["EXPNAME"]+"_deaths.txt"
+        let mito = {}
+        mito["time"] = this.C.time
+        mito["V"] = this.V
+        mito["vol"] = this.vol
+        mito["n DNA"] = this.DNA.length
+        mito["oxphos"] = this.oxphos
+        mito["translate"] = this.translate
+        mito["replicate"] = this.replicate
+        mito["replisomes"] = this.n_replisomes
+        mito["heteroplasmy"] = this.heteroplasmy()
+        mito["translatable heteroplasmy"] = this.heteroplasmy("translatable")
+        mito["replicating heteroplasmy"] = this.heteroplasmy("replicating")
+        mito["products"] = this.products
+        mito['sum dna'] = this.sum_dna()
+        mito["unmut"] = subcell.unmutated/subcell.DNA.length
+        let objstr = JSON.stringify(mito)
+		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
+			// console.log("detected browser")
+        } else {
+            // console.log("logged to  " + logpath + "\n\n" + objstring)
+            fs.appendFileSync(logpath, objstring)
+        }
+        
+    }
+
     /* eslint-disable*/
     update(){
         let dV = 0
@@ -62,7 +91,7 @@ class Mitochondrion extends SubCell {
         dV-=this.conf["MITO_SHRINK"]
         dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV)
         if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
-            dV = -this.conf["MITOPHAGY_SHRINK"]   
+            dV -= this.conf["MITOPHAGY_SHRINK"]   
         }
         if (dV > 0 && this.canGrow()){
             this.V += dV
@@ -106,55 +135,23 @@ class Mitochondrion extends SubCell {
         // this.find_n_replisomes()
     }
 
-    heteroplasmy(opt = "all"){
-        // compute heteroplasmy, TODO rewrite this
-        if (this.DNA.length == 0){
-            return NaN
+    // tryIncrement(){
+    //     return (this.C.random() < (this.vol/this.sum))
+    // }
+
+    tryIncrement(ix){
+        if (ix < this.conf["N_OXPHOS"] ){
+            return this.C.random() < (this.vol / this.oxphos_products.reduce((t, e) => t + e) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"] / 100)
+        } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
+            return this.C.random() < (this.vol / this.translate_products.reduce((t, e) => t + e) * this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"] / 100)
+        } else {
+            return this.C.random() < (this.vol / (this.replication_products.reduce((t, e) => t + e) + + (this.n_replisomes * this.conf["N_REPLICATE"])) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"] / 100)
         }
-        let all_proteins = new DNA(this.conf, this.C).sumQuality()
-        let heteroplasmy = 0
-        if (opt == "all"){
-            for (let dna of this.DNA){
-                heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
-            }
-            heteroplasmy = 1 - (heteroplasmy/this.DNA.length)
-        } else if (opt == "translatable"){
-            let len = 0
-            for (let dna of this.DNA){
-                if (dna.replicating == 0){
-                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
-                    len++
-                }
-            }
-            if (len == 0){
-                return NaN
-            } else {
-                heteroplasmy = 1 - (heteroplasmy/len)
-            }
-        }else if (opt == "replicating"){
-            let len = 0
-            for (let dna of this.DNA){
-                if (dna.replicating > 0){
-                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
-                    len++
-                }
-            }
-            if (len == 0){
-                return NaN
-            } else {
-                heteroplasmy = 1 - (heteroplasmy/len)
-            }
-        }
-        return heteroplasmy
     }
 
-    tryIncrement(){
-        return (this.C.random() < (this.vol/this.sum))
-    }
-
-    get sum(){
-        return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
-    }
+    // get sum(){
+    //     return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
+    // }
 
     get n_replisomes(){ 
         return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
@@ -163,22 +160,18 @@ class Mitochondrion extends SubCell {
     get unmutated(){
         return this.DNA.reduce((t,e) =>  e.sumQuality() == new DNA(this.conf, this.C).sumQuality() ? t+1 : t, 0)
     }
-   
-    get vol(){
-        return this.C.getVolume(this.id)
-    }
 
     importAndProduce(){
         this.shuffle(this.makebuffer)
         while ((this.makebuffer.length + this.importbuffer.length) > 0){
             if (this.C.random() < this.makebuffer.length/(this.makebuffer.length + this.importbuffer.length)){
                 let p = this.makebuffer.pop()
-                if (this.tryIncrement()){
+                if (this.tryIncrement(p)){
                     this.products[p]++
                 }
             } else {
                 let p = this.importbuffer.pop()
-                if (this.tryIncrement() && this.oxphos > this.conf["MITOPHAGY_THRESHOLD"]){
+                if (this.tryIncrement(p) && this.oxphos > this.conf["MITOPHAGY_THRESHOLD"]){
                     this.products[p]++
                 } else {
                     this.C.getCell(this.host).cytosol[p]++
@@ -229,11 +222,9 @@ class Mitochondrion extends SubCell {
     get replication_products() {
         return this.products.slice(this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"] )
     }
-    get replicate_products(){
-        return this.replication_products()
-    }
+   
     get oxphos(){
-        return Math.min.apply(Math, this.oxphos_products)
+        return Math.min.apply(Math, this.oxphos_products) / (this.vol / 100) / this.conf["OXPHOS_PER_100VOL"]
     }
     get translate(){
         return Math.min.apply(Math, this.translate_products)
@@ -269,6 +260,58 @@ class Mitochondrion extends SubCell {
             }
             k++
         }
+    }
+
+    sum_dna(){
+        let sum = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
+        for (let dna of this.DNA){
+            sum = sum.map(function (num, idx) {
+                return num + dna.quality[idx];
+            })
+        }
+        return sum
+    }
+
+    heteroplasmy(opt = "all"){
+        // compute heteroplasmy, TODO rewrite this
+        if (this.DNA.length == 0){
+            return NaN
+        }
+        let all_proteins = new DNA(this.conf, this.C).sumQuality()
+        let heteroplasmy = 0
+        if (opt == "all"){
+            for (let dna of this.DNA){
+                heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
+            }
+            heteroplasmy = 1 - (heteroplasmy/this.DNA.length)
+        } else if (opt == "translatable"){
+            let len = 0
+            for (let dna of this.DNA){
+                if (dna.replicating == 0){
+                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
+                    len++
+                }
+            }
+            if (len == 0){
+                return NaN
+            } else {
+                heteroplasmy = 1 - (heteroplasmy/len)
+            }
+        }else if (opt == "replicating"){
+            let len = 0
+            for (let dna of this.DNA){
+                if (dna.replicating > 0){
+                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins
+                    len++
+                }
+            }
+            if (len == 0){
+                return NaN
+            } else {
+                heteroplasmy = 1 - (heteroplasmy/len)
+            }
+        }
+        return heteroplasmy
     }
 }
 

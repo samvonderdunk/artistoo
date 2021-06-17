@@ -8,7 +8,6 @@ class HostCell extends SuperCell {
 	/* eslint-disable */ 
 	constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
-		this.selfishness = conf['host_selfishness']
 		this.V = conf["INIT_HOST_V"]
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C)
@@ -17,27 +16,15 @@ class HostCell extends SuperCell {
 
 	birth(parent){
 		super.birth(parent)
-		this.mutate_selfishness(parent)
 		this.V = parent.V/2
 		parent.V /= 2
 		this.DNA = new nDNA(this.conf, this.C, parent.DNA)
 	}
 
-	mutate_selfishness(parent){
-		if (this.C.random() < 0.5){
-			this.selfishness += this.conf["mut_selfishness"]
-		} else {
-			this.selfishness -= this.conf["mut_selfishness"]
-		}
-		// this.selfishness = parent.selfishness + (this.C.random() - 0.5)*0.1*2
-		this.selfishness = Math.min(1, this.selfishness)
-		this.selfishness = Math.max(0, this.selfishness)
-	}
-
 	update(){
 		if (this.subcells.length === 0 ){
 			// console.log(this.V, this.vol)
-			if (this.closeToV()){
+			if (this.canShrink()){
 				this.V -= this.conf["EMPTY_HOST_SHRINK"]
 			}
 			return
@@ -47,7 +34,7 @@ class HostCell extends SuperCell {
 		// let print = this.C.random() <0.001
 		let mito_vol = 0
 		for (let mito of this.subcells){
-			volcumsum.push(this.C.getVolume(mito.id) + volcumsum[volcumsum.length-1])
+			volcumsum.push(mito.vol + volcumsum[volcumsum.length-1])
 			mito.update()
 			//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
 			this.total_oxphos += mito.oxphos
@@ -55,7 +42,7 @@ class HostCell extends SuperCell {
 		}
 		volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)})
 		let trues = this.DNA.trues
-		for (let i = 0; i < this.total_oxphos*(1-this.selfishness)*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
+		for (let i = 0; i < this.total_oxphos*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
 			let ix = trues[Math.floor(this.C.random() * trues.length)]
 			if (this.tryIncrement() ){
 				// optional make this canGrow dependent
@@ -74,7 +61,7 @@ class HostCell extends SuperCell {
 
 		let dV = 0
 
-		dV += this.total_oxphos *  this.selfishness *this.conf["HOST_V_PER_OXPHOS"]
+		dV += this.total_oxphos *this.conf["HOST_V_PER_OXPHOS"]
 		dV -= this.conf["HOST_SHRINK"]
 		dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV)
 		if (dV > 0 && this.canGrow() && mito_vol/(this.vol + mito_vol) > this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
@@ -89,10 +76,6 @@ class HostCell extends SuperCell {
 		}
 	}
 
-	closeToV(){
-		return Math.abs(this.V-this.vol) < this.conf["VOLCHANGE_THRESHOLD"]
-	}
-
 	canGrow(){
         return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
     }
@@ -103,21 +86,13 @@ class HostCell extends SuperCell {
 	
 	tryIncrement(){
         // console.log(this.sum, this.vol, this.vol/this.sum)
-        return (this.C.random() < (this.C.getVolume(this.id)/this.sum))
+        return (this.C.random() < (this.vol/this.sum))
 	}
 	
 	// should be refactored away
 	get sum(){
 		return this.cytosol.reduce((t, e) => t + e)
 	}
-
-    /**
-     * @return {Number}
-     */
-    get vol(){
-        return this.C.getVolume(this.id)
-    }
-
 
 	death(){
 		/* eslint-disable */
