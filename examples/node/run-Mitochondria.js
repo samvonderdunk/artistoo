@@ -7,18 +7,20 @@ let config = {
 
 	// Grid settings
 	ndim : 2,
-	field_size : [250,250],
+	// field_size : [350,200],
+	field_size : [200,150],
 	
 	// CPM parameters and configuration
 	conf : {
 		// Basic CPM parameters
 		torus : [true,true],				// Should the grid have linked borders?
-		seed : 3,							// Seed for random number generation.
+		seed : 2,							// Seed for random number generation.
 		T : 2,								// CPM temperature
         
     
 		CELLS : ["empty", CPM.HostCell, CPM.Mitochondrion], 
-		  
+		
+		        
         J_INT:  [ [15,15], 
         				 [15,15] ],
 
@@ -26,21 +28,47 @@ let config = {
 						[50,750,1500], 
             			[1500, 1500,15000] ],
 
-		
+			        
+        // J_INT:  [ 
+		// 	[15,15], 
+        //     [15,2000] ],
+
+        // J_EXT:  [ [150,15,15000], 
+		// 	[10,150,1500], 
+        //     [1500, 1500,15000] ],
+
+
+        
+        // J_INT:  [ 
+		// 	[15,15], 
+        //     [15,150] ],
+
+        // J_EXT:  [ [15,15,1500], 
+		// 	[10,750,1500], 
+        //     [1500, 15000,15000] ],
+
+
+        // LAMBDA_SUB: [0, 0, 500] ,
+	
         // NOISE : 5,
         N_OXPHOS : 5, 
         N_TRANSLATE : 5,
         N_REPLICATE : 100,
         INIT_MITO_V : 500,
         N_INIT_DNA : 5,
-		MTDNA_MUT_REP : 0.0003,
-        MTDNA_MUT_LIFETIME : 0.02, //deadly!!!!!! TODO REPLACE!!!!!
+		MTDNA_MUT_REP : 0.02,
+        MTDNA_MUT_LIFETIME : 0.0000,
 		INIT_HOST_V : 700,
-		INIT_OXPHOS : 10,
+		INIT_OXPHOS : 4,
 		INIT_TRANSLATE : 10,
-		INIT_REPLICATE : 2,
+		INIT_REPLICATE : 0,
 		HOST_DEPRECATION: 0.00,
 
+		// Carrying capacity for pathways per 100 volume pixels 
+		K_OXPHOS : 5,
+		K_TRANSLATE: 10,
+		K_REPLICATE: 0.05,
+		OXPHOS_PER_100VOL: 0.1,
 
 		// Constraint parameters. 
 		// Mostly these have the format of an array in which each element specifies the
@@ -49,12 +77,12 @@ let config = {
         
 		// division_volume : [0, 200],
 		// minimal_division_volume : 150,
-		REPLICATE_TIME: 2,
+		REPLICATE_TIME: 30,
 		// fission_rate : 0.000003,
 		// fusion_rate : 0.003,
-		fission_rate : 0.00004,
-		fusion_rate : 0.02,
-		deprecation_rate : 0.5,
+		fission_rate : 0.001,
+		fusion_rate : 0.05,
+		deprecation_rate : 0.2,
 		dna_deprecation_rate :0.00,
 		// replication_rate : 1,
 		// translation_rate: 1, 
@@ -62,14 +90,14 @@ let config = {
 		mut_selfishness: 0.0,
 		MITO_SHRINK : 0,
 		MITOPHAGY_THRESHOLD: 1,
-		MITOPHAGY_SHRINK : 2,
+		MITOPHAGY_SHRINK : 3,
 		HOST_SHRINK : 2,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 9,
 		HOST_GROWTH_MAX : 9,
-		MITO_V_PER_OXPHOS : 1,
-		HOST_V_PER_OXPHOS : 1,
-		REP_MACHINE_PER_OXPHOS: 10,
+		MITO_V_PER_OXPHOS : 5,
+		HOST_V_PER_OXPHOS : 5,
+		REP_MACHINE_PER_OXPHOS: 0,
 		PREF_FRACTION_MITO_PER_HOST : 0.7,
 	
 		VOLCHANGE_THRESHOLD : 10,
@@ -78,13 +106,14 @@ let config = {
 
 		// BORDER_SHRINK: 0.0,
 
-		MITO_PARTITION : 0.5,
+		MITO_PARTITION : 0.5
+,
 
 
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
-		division_volume: [100, 1200, 400]
+		division_volume: [100, 1600, 300]
 		// division_volume: [100, 600, 200]
 	},
 	

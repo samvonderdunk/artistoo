@@ -4816,7 +4816,6 @@ class DNA {
                 if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"])
                     this.quality[i] = 1;
             }
-            
         }
     }
 
@@ -5057,7 +5056,7 @@ class Mitochondrion extends SubCell {
     }
    
     get oxphos(){
-        return Math.min.apply(Math, this.oxphos_products)
+        return Math.min.apply(Math, this.oxphos_products) / (this.vol / 100) / this.conf["OXPHOS_PER_100VOL"]
     }
     get translate(){
         return Math.min.apply(Math, this.translate_products)
@@ -5094,6 +5093,17 @@ class Mitochondrion extends SubCell {
             k++;
         }
     }
+
+    sum_dna(){
+        let sum = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
+        for (let dna of this.DNA){
+            sum = sum.map(function (num, idx) {
+                return num + dna.quality[idx];
+            });
+        }
+        return sum
+    }
+
     heteroplasmy(opt = "all"){
         // compute heteroplasmy, TODO rewrite this
         if (this.DNA.length == 0){

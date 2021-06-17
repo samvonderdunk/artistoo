@@ -82,15 +82,16 @@ let config = {
 		MTDNA_MUT_REP : 0.02,
         MTDNA_MUT_LIFETIME : 0.0000,
 		INIT_HOST_V : 700,
-		INIT_OXPHOS : 10,
+		INIT_OXPHOS : 4,
 		INIT_TRANSLATE : 10,
 		INIT_REPLICATE : 0,
 		HOST_DEPRECATION: 0.00,
 
 		// Carrying capacity for pathways per 100 volume pixels 
 		K_OXPHOS : 5,
-		K_TRANSLATE: 5,
+		K_TRANSLATE: 10,
 		K_REPLICATE: 0.05,
+		OXPHOS_PER_100VOL: 0.1,
 
 		// Constraint parameters. 
 		// Mostly these have the format of an array in which each element specifies the
@@ -102,8 +103,8 @@ let config = {
 		REPLICATE_TIME: 30,
 		// fission_rate : 0.000003,
 		// fusion_rate : 0.003,
-		fission_rate : 0.0001,
-		fusion_rate : 0.001,
+		fission_rate : 0.001,
+		fusion_rate : 0.05,
 		deprecation_rate : 0.2,
 		dna_deprecation_rate :0.00,
 		// replication_rate : 1,
@@ -112,14 +113,14 @@ let config = {
 		mut_selfishness: 0.0,
 		MITO_SHRINK : 0,
 		MITOPHAGY_THRESHOLD: 1,
-		MITOPHAGY_SHRINK : 2,
+		MITOPHAGY_SHRINK : 3,
 		HOST_SHRINK : 2,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 9,
 		HOST_GROWTH_MAX : 9,
-		MITO_V_PER_OXPHOS : 3,
-		HOST_V_PER_OXPHOS : 2,
-		REP_MACHINE_PER_OXPHOS: 10,
+		MITO_V_PER_OXPHOS : 5,
+		HOST_V_PER_OXPHOS : 5,
+		REP_MACHINE_PER_OXPHOS: 0,
 		PREF_FRACTION_MITO_PER_HOST : 0.7,
 	
 		VOLCHANGE_THRESHOLD : 10,
@@ -128,13 +129,14 @@ let config = {
 
 		// BORDER_SHRINK: 0.0,
 
-		MITO_PARTITION : 0.8,
+		MITO_PARTITION : 0.5
+,
 
 
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
-		division_volume: [100, 1600, 600]
+		division_volume: [100, 1600, 300]
 		// division_volume: [100, 600, 200]
 	},
 	
@@ -243,9 +245,11 @@ function postMCSListener(){
 	for( let cid of this.C.cellIDs() ){
 		let cell = this.C.cells[cid]
 		if (cell instanceof CPM.SubCell){
-			if (this.C.random() < 0.002 ){ 
+			// if (this.C.random() < 0.002 ){ 
+
+			if (cell.oxphos < this.C.conf["MITOPHAGY_THRESHOLD"] && cell.DNA.length > 0){
 				// let cell = this.C.cells[cid]
-				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, cell.products)
+				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, "sum DNA:", cell.sum_dna(), "products:",cell.products)
 			}
 			if (this.C.random() < this.C.conf['fission_rate'] * cell.vol && cell.vol > this.C.conf["division_volume"][2] && cell.oxphos > this.C.conf["MITOPHAGY_THRESHOLD"]){
 				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
@@ -267,10 +271,10 @@ function postMCSListener(){
 			}
 		}
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
-			if (this.C.random() < 0.01){ 
-				let cell = this.C.cells[cid]
-				console.log("n mito: ", cell.subcells.length, "selfishness:" , cell.selfishness,  "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
-			}
+			// if (this.C.random() < 0.01){ 
+			// 	let cell = this.C.cells[cid]
+			// 	console.log("n mito: ", cell.subcells.length, "selfishness:" , cell.selfishness,  "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
+			// }
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				let nid = this.C.cells[cid].divideHostCell(cid)
 			}
@@ -369,7 +373,7 @@ function getColor (cid) {
 				c = Math.floor(cell.translate)*5
 				break
 			case 'oxphos':
-				c = Math.floor(cell.oxphos)
+				c = Math.floor(cell.oxphos) * 10
 				break
 			case 'replicate':
 				c = Math.floor(cell.replicate)*10
@@ -450,7 +454,7 @@ function changeColorBy(){
 <input type="radio" name="Visualization" value="replicating heteroplasmy"unchecked>Replicating fraction deterioration<br>
 <input type="radio" name="Visualization" value="replisomes"unchecked>Replisomes<br>
 <input type="radio" name="Visualization" value="host" unchecked>Host<br>
-<input type="radio" name="Visualization" value="mitophagy"unchecked>Mitophagy<br>
+<input type="radio" name="Visualization" value="mitophagy"checked>Mitophagy<br>
 <input type="radio" name="Visualization" value="replicate products frac"unchecked>Replicating fraction of products<br>
 <input type="radio" name="Visualization" value="kill">Kill<br>
 <div>
