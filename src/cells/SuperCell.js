@@ -65,14 +65,13 @@ class SuperCell extends Cell {
 		}
 		let pix = C.getStat( PixelsByCell )
 		let ids = [this.id], cp = pix[this.id]
-		for (let subcell of C.cells[this.id].subcells){
-			ids = [...ids, subcell.id]
-			try {
-				cp = [...cp, ...pix[subcell.id]]
-			} catch(e){
-				console.log(e, "pix[subcell.id]: = " ,pix[subcell.id], "subcell id" ,subcell.id)
+		for (let subcell of this.subcells){
+			if (!this.C.cells.hasOwnProperty(subcell.id)){
+				continue
+				// sometimes deathlistening registers later and removeFromHost is not fully called before , it seems.
 			}
-			// cp = [...cp, ...pix[subcell.id]]
+			ids = [...ids, subcell.id]
+			cp = [...cp, ...pix[subcell.id]]
 		}
 		let com = this.computeHostCentroid(cp)
 		let bxx = 0, bxy = 0, byy=0, cx, cy, x2, y2, side, T, D, x0, y0, x1, y1, L2
