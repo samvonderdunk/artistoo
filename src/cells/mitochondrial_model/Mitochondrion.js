@@ -60,6 +60,7 @@ class Mitochondrion extends SubCell {
 
     // TODO add CPM level deathlistener that can log from Sim
     death(){
+        super.death()
         let logpath = "./deaths.txt" //HARDCODED
         let mito = {}
         mito["time"] = this.C.time
