@@ -4525,8 +4525,8 @@ class Cell {
 	}
 
 	get vol(){
-    	return this.C.getVolume(this.id)
-    }
+		return this.C.getVolume(this.id)
+	}
 
 }
 
@@ -4617,24 +4617,28 @@ class SuperCell extends Cell {
 	constructor (conf, kind, id, C) {
 		super(conf, kind, id, C);
 		this.host = this.id;
-		this.subcells = [];
+		this.subcellsObj = {};
 	}
 
 	addSubCell(cell){
-		if (!this.subcells.includes(cell)){
-			this.subcells.push(cell);
-		} else {
-			throw(cell)
-		}
+		this.subcellsObj[cell.id] = cell;
 	}
 
 	removeSubCell(cell){
-		let ix =  this.subcells.indexOf(cell);
-		if (ix !==-1){
-			this.subcells.splice(ix, 1);
-		}
+		delete this.subcellsObj[cell.id];
 	}
 
+	* subcells() {
+		yield* Object.values( this.subcellsObj );
+	}
+
+	* subcellIDs() {
+		yield* Object.keys( this.subcellsObj );
+	}
+
+	get nSubcells(){
+		return Object.keys(this.subcellsObj).length
+	}
 
 	computeHostCentroid(pixels){
 		// copied Torus corrected centroid, but now you can hand all pixels of host+subcells
@@ -4675,13 +4679,14 @@ class SuperCell extends Cell {
 		}
 		let pix = C.getStat( PixelsByCell );
 		let ids = [this.id], cp = pix[this.id];
-		for (let subcell of this.subcells){
-			if (!this.C.cells.hasOwnProperty(subcell.id)){
-				continue
+		for (let scid of Object.this.subcellIDs){
+			if (!this.C.cells.hasOwnProperty(scid)){
+				// continue
+				throw("broken on a cell already having died")
 				// sometimes deathlistening registers later and removeFromHost is not fully called before , it seems.
 			}
-			ids = [...ids, subcell.id];
-			cp = [...cp, ...pix[subcell.id]];
+			ids = [...ids, scid];
+			cp = [...cp, ...pix[scid]];
 		}
 		let com = this.computeHostCentroid(cp);
 		let bxx = 0, bxy = 0, byy=0, T, D, x1, y1, L2;
@@ -4772,8 +4777,6 @@ class SubCell extends Cell {
 		super.birth(parent); // sets ParentId
 		this.host = parent.host;
 	}
-
-	
 
 	death(){
 		this.removeFromHost();
@@ -5225,7 +5228,7 @@ class HostCell extends SuperCell {
 	}
 
 	update(){
-		if (this.subcells.length === 0 ){
+		if (this.nSubcells === 0 ){
 			// console.log(this.V, this.vol)
 			if (this.canShrink()){
 				this.V -= this.conf["EMPTY_HOST_SHRINK"];
@@ -5236,7 +5239,8 @@ class HostCell extends SuperCell {
 		let volcumsum = [0];
 		// let print = this.C.random() <0.001
 		let mito_vol = 0;
-		for (let mito of this.subcells){
+		// console.log(this.subcellsObj)
+		for (let mito of this.subcells()){
 			volcumsum.push(mito.vol + volcumsum[volcumsum.length-1]);
 			mito.update();
 			//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
@@ -5274,7 +5278,7 @@ class HostCell extends SuperCell {
             this.V += dV;
 		}
 		
-		for (let mito of this.subcells){
+		for (let mito of this.subcells()){
 			mito.importAndProduce();
 		}
 	}

@@ -22,7 +22,7 @@ class HostCell extends SuperCell {
 	}
 
 	update(){
-		if (this.subcells.length === 0 ){
+		if (this.nSubcells === 0 ){
 			// console.log(this.V, this.vol)
 			if (this.canShrink()){
 				this.V -= this.conf["EMPTY_HOST_SHRINK"]
@@ -33,7 +33,8 @@ class HostCell extends SuperCell {
 		let volcumsum = [0]
 		// let print = this.C.random() <0.001
 		let mito_vol = 0
-		for (let mito of this.subcells){
+		// console.log(this.subcellsObj)
+		for (let mito of this.subcells()){
 			volcumsum.push(mito.vol + volcumsum[volcumsum.length-1])
 			mito.update()
 			//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
@@ -71,7 +72,7 @@ class HostCell extends SuperCell {
             this.V += dV
 		}
 		
-		for (let mito of this.subcells){
+		for (let mito of this.subcells()){
 			mito.importAndProduce()
 		}
 	}

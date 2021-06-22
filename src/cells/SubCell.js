@@ -14,8 +14,6 @@ class SubCell extends Cell {
 		this.host = parent.host
 	}
 
-	
-
 	death(){
 		this.removeFromHost()
 	}

@@ -7,24 +7,28 @@ class SuperCell extends Cell {
 	constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
 		this.host = this.id
-		this.subcells = []
+		this.subcellsObj = {}
 	}
 
 	addSubCell(cell){
-		if (!this.subcells.includes(cell)){
-			this.subcells.push(cell)
-		} else {
-			throw("Tried to add subcell when already in subcells", this, cell)
-		}
+		this.subcellsObj[cell.id] = cell
 	}
 
 	removeSubCell(cell){
-		let ix =  this.subcells.indexOf(cell)
-		if (ix !==-1){
-			this.subcells.splice(ix, 1)
-		}
+		delete this.subcellsObj[cell.id]
 	}
 
+	* subcells() {
+		yield* Object.values( this.subcellsObj )
+	}
+
+	* subcellIDs() {
+		yield* Object.keys( this.subcellsObj )
+	}
+
+	get nSubcells(){
+		return Object.keys(this.subcellsObj).length
+	}
 
 	computeHostCentroid(pixels){
 		// copied Torus corrected centroid, but now you can hand all pixels of host+subcells
@@ -65,13 +69,14 @@ class SuperCell extends Cell {
 		}
 		let pix = C.getStat( PixelsByCell )
 		let ids = [this.id], cp = pix[this.id]
-		for (let subcell of this.subcells){
-			if (!this.C.cells.hasOwnProperty(subcell.id)){
-				continue
+		for (let scid of Object.this.subcellIDs){
+			if (!this.C.cells.hasOwnProperty(scid)){
+				// continue
+				throw("broken on a cell already having died")
 				// sometimes deathlistening registers later and removeFromHost is not fully called before , it seems.
 			}
-			ids = [...ids, subcell.id]
-			cp = [...cp, ...pix[subcell.id]]
+			ids = [...ids, scid]
+			cp = [...cp, ...pix[scid]]
 		}
 		let com = this.computeHostCentroid(cp)
 		let bxx = 0, bxy = 0, byy=0, cx, cy, x2, y2, side, T, D, x0, y0, x1, y1, L2

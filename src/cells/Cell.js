@@ -36,8 +36,8 @@ class Cell {
 	}
 
 	get vol(){
-    	return this.C.getVolume(this.id)
-    }
+		return this.C.getVolume(this.id)
+	}
 
 }
 

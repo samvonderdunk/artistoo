@@ -105,21 +105,21 @@ let config = {
 		// fusion_rate : 0.003,
 		fission_rate : 0.001,
 		fusion_rate : 0.05,
-		deprecation_rate : 0.2,
+		deprecation_rate : 0.4,
 		dna_deprecation_rate :0.00,
 		// replication_rate : 1,
 		// translation_rate: 1, 
 		host_selfishness : 0.5, 
 		mut_selfishness: 0.0,
-		MITO_SHRINK : 0,
+		MITO_SHRINK : 0.5,
 		MITOPHAGY_THRESHOLD: 1,
-		MITOPHAGY_SHRINK : 3,
-		HOST_SHRINK : 2,
+		MITOPHAGY_SHRINK : 6,
+		HOST_SHRINK : 1,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 9,
 		HOST_GROWTH_MAX : 9,
-		MITO_V_PER_OXPHOS : 5,
-		HOST_V_PER_OXPHOS : 5,
+		MITO_V_PER_OXPHOS : 3,
+		HOST_V_PER_OXPHOS : 7,
 		REP_MACHINE_PER_OXPHOS: 0,
 		PREF_FRACTION_MITO_PER_HOST : 0.7,
 	
@@ -247,10 +247,10 @@ function postMCSListener(){
 		if (cell instanceof CPM.SubCell){
 			// if (this.C.random() < 0.002 ){ 
 
-			if (cell.oxphos < this.C.conf["MITOPHAGY_THRESHOLD"] && cell.DNA.length > 0){
-				// let cell = this.C.cells[cid]
-				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, "sum DNA:", cell.sum_dna(), "products:",cell.products)
-			}
+			// if (cell.oxphos < this.C.conf["MITOPHAGY_THRESHOLD"] && cell.DNA.length > 0){
+			// 	// let cell = this.C.cells[cid]
+			// 	console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, "sum DNA:", cell.sum_dna(), "products:",cell.products)
+			// }
 			if (this.C.random() < this.C.conf['fission_rate'] * cell.vol && cell.vol > this.C.conf["division_volume"][2] && cell.oxphos > this.C.conf["MITOPHAGY_THRESHOLD"]){
 				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
 			} else {
@@ -271,10 +271,10 @@ function postMCSListener(){
 			}
 		}
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
-			// if (this.C.random() < 0.01){ 
-			// 	let cell = this.C.cells[cid]
-			// 	console.log("n mito: ", cell.subcells.length, "selfishness:" , cell.selfishness,  "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
-			// }
+			if (this.C.random() < 0.1){ 
+				let cell = this.C.cells[cid]
+				console.log("n mito: ", cell.nSubcells, "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
+			}
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				let nid = this.C.cells[cid].divideHostCell(cid)
 			}
@@ -342,7 +342,7 @@ function getColor (cid) {
 	} else {
 		switch (colorby){
 			case "host":
-				if (this.C.cells[cell.host].subcells.includes(cell)){
+				if (this.C.cells[cell.host].subcellsObj.hasOwnProperty(cid)){
 					c = Math.floor(cell.host/10)
 				} else {
 					c = NaN
