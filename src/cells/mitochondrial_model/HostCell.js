@@ -30,31 +30,39 @@ class HostCell extends SuperCell {
 			return
 		}
 		this.total_oxphos = 0
-		let volcumsum = [0]
-		// let print = this.C.random() <0.001
-		let mito_vol = 0
+
+		// let total_mito_vol = 0
+		let cells = []
 		// console.log(this.subcellsObj)
 		for (let mito of this.subcells()){
-			volcumsum.push(mito.vol + volcumsum[volcumsum.length-1])
+			cells.push(mito) // subcells may need to be an array again
+			// volcumsum.push(mito.vol + volcumsum[volcumsum.length-1])
 			mito.update()
 			//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
 			this.total_oxphos += mito.oxphos
-			mito_vol += mito.vol
 		}
-		volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)})
-		let trues = this.DNA.trues
+		
+		// let trues = 
 		for (let i = 0; i < this.total_oxphos*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
-			let ix = trues[Math.floor(this.C.random() * trues.length)]
+			let ix = this.DNA.trues[Math.floor(this.C.random() * trues.length)]
 			if (this.tryIncrement() ){
 				// optional make this canGrow dependent
 				this.cytosol[ix]++
 			}
 		}
+		let volcumsum = []
+		let mito_vol = 0
+		this.shuffle(cells) // need te erase all structure: should maybe refactor subcells back to array?
+		for (let mito of cells){
+			mito_vol += mito.vol
+			volcumsum.push(mito_vol)
+		}
+		volcumsum = volcumsum.map(function(item) {return item/ mito_vol})
 		for (const [ix, product] of this.cytosol.entries()){
 			for (let i = 0 ; i < product;i++){
 				let ran = this.C.random() 
-				let mito = volcumsum.findIndex(element => ran < element )
-				this.subcells[mito-1].importbuffer.push(ix)
+				let which = volcumsum.findIndex(element => ran < element )
+				cells[which].importbuffer.push(ix)
 				this.cytosol[ix]--
 			}
 		}
@@ -98,10 +106,18 @@ class HostCell extends SuperCell {
 	death(){
 		/* eslint-disable */
 		super.death()
-		for (let mito of this.subcells){
-			mito.V = -5000
+		for (let mito of this.subcells()){
+			mito.V = -50
 		}
 	}
+
+	shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(this.C.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
 }
 
 export default HostCell
