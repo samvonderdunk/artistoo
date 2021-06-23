@@ -44,7 +44,7 @@ class HostCell extends SuperCell {
 		
 		// let trues = 
 		for (let i = 0; i < this.total_oxphos*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
-			let ix = this.DNA.trues[Math.floor(this.C.random() * trues.length)]
+			let ix = this.DNA.trues[Math.floor(this.C.random() * this.DNA.trues.length)]
 			if (this.tryIncrement() ){
 				// optional make this canGrow dependent
 				this.cytosol[ix]++
