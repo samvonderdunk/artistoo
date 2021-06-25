@@ -5392,7 +5392,7 @@ var CPM = (function (exports) {
 	    }
 	   
 	    makeAssemblies(){
-	        this.oxphos = this.assemble(this.products.oxphos, this.bad_products.oxphos);
+	        this.oxphos = this.assemble(this.products.oxphos, this.bad_products.oxphos)/ (this.vol / 100) / this.conf["OXPHOS_PER_100VOL"];
 	        this.translate = this.assemble(this.products.translate, this.bad_products.translate);
 	        this.replicate = this.assemble(this.products.replicate, this.bad_products.replicate);
 	        // this.time = this.C.time
