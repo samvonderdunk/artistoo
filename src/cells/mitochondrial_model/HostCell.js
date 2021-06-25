@@ -62,7 +62,7 @@ class HostCell extends SuperCell {
 			for (let i = 0 ; i < product;i++){
 				let ran = this.C.random() 
 				let which = volcumsum.findIndex(element => ran < element )
-				cells[which].importbuffer.push(ix)
+				cells[which].importbuffer.push({"which":ix})
 				this.cytosol[ix]--
 			}
 		}
