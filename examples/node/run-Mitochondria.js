@@ -208,9 +208,9 @@ function logStats(){
 				mito["translate"] = subcell.translate
 				mito["replicate"] = subcell.replicate
 				mito["replisomes"] = subcell.n_replisomes
-				mito["heteroplasmy"] = subcell.heteroplasmy()
-				mito["translatable heteroplasmy"] = subcell.heteroplasmy("translatable")
-				mito["replicating heteroplasmy"] = subcell.heteroplasmy("replicating")
+				// mito["heteroplasmy"] = subcell.heteroplasmy()
+				// mito["translatable heteroplasmy"] = subcell.heteroplasmy("translatable")
+				// mito["replicating heteroplasmy"] = subcell.heteroplasmy("replicating")
 				// from this
 				mito["products"] = subcell.products
 				mito['sum dna'] = subcell.sum_dna()

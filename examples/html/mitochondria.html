@@ -79,10 +79,11 @@ let config = {
         N_REPLICATE : 100,
         INIT_MITO_V : 500,
         N_INIT_DNA : 5,
-		MTDNA_MUT_REP : 0.02,
+		MTDNA_MUT_REP : 0.0002,
+		MTDNA_MUT_INIT: 0.02,
         MTDNA_MUT_LIFETIME : 0.0000,
 		INIT_HOST_V : 700,
-		INIT_OXPHOS : 4,
+		INIT_OXPHOS : 10,
 		INIT_TRANSLATE : 10,
 		INIT_REPLICATE : 0,
 		HOST_DEPRECATION: 0.00,
@@ -103,9 +104,9 @@ let config = {
 		REPLICATE_TIME: 30,
 		// fission_rate : 0.000003,
 		// fusion_rate : 0.003,
-		fission_rate : 0.001,
-		fusion_rate : 0.05,
-		deprecation_rate : 0.4,
+		fission_rate : 0.00001,
+		fusion_rate : 0.0005,
+		deprecation_rate : 0.2,
 		dna_deprecation_rate :0.00,
 		// replication_rate : 1,
 		// translation_rate: 1, 
@@ -113,14 +114,14 @@ let config = {
 		mut_selfishness: 0.0,
 		MITO_SHRINK : 0.5,
 		MITOPHAGY_THRESHOLD: 1,
-		MITOPHAGY_SHRINK : 6,
+		MITOPHAGY_SHRINK : 2,
 		HOST_SHRINK : 1,
 		EMPTY_HOST_SHRINK: 10,
 		MITO_GROWTH_MAX : 9,
 		HOST_GROWTH_MAX : 9,
 		MITO_V_PER_OXPHOS : 3,
 		HOST_V_PER_OXPHOS : 7,
-		REP_MACHINE_PER_OXPHOS: 0,
+		REP_MACHINE_PER_OXPHOS: 5,
 		PREF_FRACTION_MITO_PER_HOST : 0.7,
 	
 		VOLCHANGE_THRESHOLD : 10,
@@ -136,7 +137,7 @@ let config = {
 		// VolumeConstraint parameters
 		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
 		V : [0,502, 200],					
-		division_volume: [100, 1600, 300]
+		division_volume: [100, 1600, 500]
 		// division_volume: [100, 600, 200]
 	},
 	
@@ -247,10 +248,10 @@ function postMCSListener(){
 		if (cell instanceof CPM.SubCell){
 			// if (this.C.random() < 0.002 ){ 
 
-			// if (cell.oxphos < this.C.conf["MITOPHAGY_THRESHOLD"] && cell.DNA.length > 0){
-			// 	// let cell = this.C.cells[cid]
-			// 	console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes ,"heteroplasmy: ", cell.heteroplasmy(), "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, "sum DNA:", cell.sum_dna(), "products:",cell.products)
-			// }
+			if (cell.oxphos < this.C.conf["MITOPHAGY_THRESHOLD"] && cell.DNA.length > 0 &&this.C.random() < 0.05 ){
+				// let cell = this.C.cells[cid]
+				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes , "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, "sum DNA:", cell.sum_dna(), "good-bad products:",cell.sum_products())
+			}
 			if (this.C.random() < this.C.conf['fission_rate'] * cell.vol && cell.vol > this.C.conf["division_volume"][2] && cell.oxphos > this.C.conf["MITOPHAGY_THRESHOLD"]){
 				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
 			} else {
@@ -273,7 +274,7 @@ function postMCSListener(){
 		if (this.C.cells[cid] instanceof CPM.SuperCell){
 			if (this.C.random() < 0.1){ 
 				let cell = this.C.cells[cid]
-				console.log("n mito: ", cell.nSubcells, "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
+				// console.log("n mito: ", cell.nSubcells, "V:", cell.V , "vol:", cell.vol, "total oxphos", cell.total_oxphos,  "cytosol total: ", cell.sum, cell.cytosol)
 			}
 			if (this.C.getVolume(cid) > this.C.conf.division_volume[this.C.cellKind(cid)]){
 				let nid = this.C.cells[cid].divideHostCell(cid)
@@ -351,15 +352,15 @@ function getColor (cid) {
 			case 'n_DNA':
 				c = Math.floor(cell.DNA.length) 
 				break
-			case 'heteroplasmy':
-				c = Math.floor(cell.heteroplasmy() *100)
-				break
-			case 'free heteroplasmy':
-				c = Math.floor(cell.heteroplasmy("translatable") *100)
-				break
-			case 'replicating heteroplasmy':
-				c = Math.floor(cell.heteroplasmy("replicating") *100)
-				break	
+			// case 'heteroplasmy':
+			// 	c = Math.floor(cell.heteroplasmy() *100)
+			// 	break
+			// case 'free heteroplasmy':
+			// 	c = Math.floor(cell.heteroplasmy("translatable") *100)
+			// 	break
+			// case 'replicating heteroplasmy':
+			// 	c = Math.floor(cell.heteroplasmy("replicating") *100)
+			// 	break	
 			case 'replicate products frac':
 				let totrep = cell.replication_products.reduce((a, b) => a + b, 0)
 				c = Math.floor(totrep/cell.sum * 100)
@@ -449,9 +450,9 @@ function changeColorBy(){
 <input type="radio" name="Visualization" value="translate" >Translate rate<br>
 <input type="radio" name="Visualization" value="replicate" >Replicate rate<br>
 <input type="radio" name="Visualization" value="fraction unmutated"checked>Fraction unmutated<br>
-<input type="radio" name="Visualization" value="heteroplasmy"unchecked>Deterioration<br>
+<!-- <input type="radio" name="Visualization" value="heteroplasmy"unchecked>Deterioration<br>
 <input type="radio" name="Visualization" value="free heteroplasmy"unchecked>Translatable fraction deterioration<br>
-<input type="radio" name="Visualization" value="replicating heteroplasmy"unchecked>Replicating fraction deterioration<br>
+<input type="radio" name="Visualization" value="replicating heteroplasmy"unchecked>Replicating fraction deterioration<br> -->
 <input type="radio" name="Visualization" value="replisomes"unchecked>Replisomes<br>
 <input type="radio" name="Visualization" value="host" unchecked>Host<br>
 <input type="radio" name="Visualization" value="mitophagy"checked>Mitophagy<br>

@@ -15,13 +15,19 @@ class DNA {
             // console.log("records parentage!")
             this.quality = [...parent.quality]
             this.mutate(this.conf['MTDNA_MUT_REP'])
+            this.exists = [...parent.exists]
             // console.log(this.quality)
         } else {
             this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
+            this.exists = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
             for (let i = 0 ; i < this.quality.length; i++){
-                if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"])
+                if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"]){
                     this.quality[i] = 1
+                    this.exists[i] = 1
+                }
             }
+            // this.mutate(this.conf["MTDNA_MUT_INIT"])
+            // console.log(this.quality, this.exists[55])
         }
     }
 

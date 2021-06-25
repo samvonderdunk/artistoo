@@ -4885,7 +4885,7 @@ var CPM = (function (exports) {
 			}
 			let pix = C.getStat( PixelsByCell );
 			let ids = [this.id], cp = pix[this.id];
-			for (let scid of Object.this.subcellIDs){
+			for (let scid of this.subcellIDs()){
 				if (!this.C.cells.hasOwnProperty(scid)){
 					// continue
 					throw("broken on a cell already having died")
@@ -5022,13 +5022,19 @@ var CPM = (function (exports) {
 	            // console.log("records parentage!")
 	            this.quality = [...parent.quality];
 	            this.mutate(this.conf['MTDNA_MUT_REP']);
+	            this.exists = [...parent.exists];
 	            // console.log(this.quality)
 	        } else {
 	            this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
+	            this.exists = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
 	            for (let i = 0 ; i < this.quality.length; i++){
-	                if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"])
+	                if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"]){
 	                    this.quality[i] = 1;
+	                    this.exists[i] = 1;
+	                }
 	            }
+	            // this.mutate(this.conf["MTDNA_MUT_INIT"])
+	            // console.log(this.quality, this.exists[55])
 	        }
 	    }
 
@@ -5075,6 +5081,77 @@ var CPM = (function (exports) {
 
 	}
 
+	class Products {
+
+		/* eslint-disable */ 
+		constructor (conf, C) {
+	        // this.C = C
+	        this.conf = conf;
+	        this.arr = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
+	        this.C = C;
+	    }
+
+	    init(){
+	        for (let i = 0 ; i < this.arr.length; i++){
+	            if (i < this.conf["N_OXPHOS"] ){
+	                this.arr[i] = this.conf["INIT_OXPHOS"];
+	            } else if (i <  (this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"])){
+	                this.arr[i] = this.conf["INIT_TRANSLATE"];
+	            } else {
+	                this.arr[i] = this.conf["INIT_REPLICATE"];
+	            }
+	        }
+	    }
+	    // TODO: maybe encapsulate the .arr fully? ? 
+	    // increment(p){
+	    //     this.arr[p]++
+	    // }
+
+	    get oxphos() {
+	        return this.arr.slice(0, this.conf["N_OXPHOS"])
+	    }
+	    get translate() {
+	        return this.arr.slice(this.conf["N_OXPHOS"], this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])
+	    }
+	    get replicate() {
+	        return this.arr.slice(this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"] )
+	    }
+
+	    sum(arr){
+	        return arr.reduce((t, e) => t + e)
+	    }
+
+	    get oxphos_sum(){
+	        return this.sum(this.oxphos)
+	    }
+	    get translate_sum(){
+	        return this.sum(this.translate)
+	    }
+	    get replicate_sum(){
+	        return this.sum(this.replicate)
+	    }
+
+	    deprecate(chance){
+	        for ( let ix = 0; ix < this.arr.length; ix++){
+	            this.arr[ix] -= this.binomial(this.arr[ix], chance);
+	        }
+	    }
+
+	    /* eslint-disable */
+	    binomial(n, p){
+	        let log_q = Math.log(1.0-p), k = 0, sum = 0;
+	        for (;;){
+	            sum += Math.log(this.C.random())/(n-k);
+	            if (sum < log_q){
+	                return k
+	            }
+	            k++;
+	        }
+	    }
+	    
+
+	}
+
 	class Mitochondrion extends SubCell {
 
 		/* eslint-disable */ 
@@ -5085,7 +5162,7 @@ var CPM = (function (exports) {
 	        this.DNA = [];
 	        for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
 	            let dna = new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id));
-	            dna.mutate(this.conf["MTDNA_MUT_REP"]);
+	            dna.mutate(this.conf["MTDNA_MUT_INIT"]);
 	            this.DNA.push(dna);
 	        }
 	        
@@ -5093,27 +5170,24 @@ var CPM = (function (exports) {
 
 	        this.makebuffer = [], this.importbuffer = [];
 	        
-	        this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
-	        for (let i = 0 ; i < this.products.length; i++){
-	            if (i < this.conf["N_OXPHOS"] ){
-	                this.products[i] = this.conf["INIT_OXPHOS"];
-	            } else if (i <  (this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"])){
-	                this.products[i] = this.conf["INIT_TRANSLATE"];
-	            } else {
-	                this.products[i] = this.conf["INIT_REPLICATE"];
-	            }
-	        }
+	        this.products = new Products(this.conf, this.C);
+	        this.products.init();
+	        this.bad_products = new Products(this.conf, this.C);
+	        // this.time = -1
+	        this.makeAssemblies();
 		}
 		
 		clear(){
 	        this.DNA = [];
-	        this.products = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
+	        this.products = new Products(this.conf, this.C);
+	        this.bad_products = new Products(this.conf, this.C);
 		}
 
 	    birth(parent, partition = 0.5){
 	        super.birth(parent);
 			this.clear();
-			this.divideProducts(parent.products, this.products, partition);
+	        this.divideProducts(parent.products, this.products, partition);
+	        this.divideProducts(parent.bad_products, this.bad_products, partition);
 	        
 			let new_parent = [];
 	        for (let dna of parent.DNA){
@@ -5128,24 +5202,28 @@ var CPM = (function (exports) {
 			this.V = parent.V * partition;
 	        parent.V *= (1-partition);
 	        this.fs = undefined;
+	        this.makeAssemblies();
 	    }
 
 	    // TODO add CPM level deathlistener that can log from Sim
 	    death(){
+	        super.death();
 	        let logpath = "./deaths.txt"; //HARDCODED
 	        let mito = {};
 	        mito["time"] = this.C.time;
 	        mito["V"] = this.V;
+	        mito["host"] = this.host;
 	        mito["vol"] = this.vol;
 	        mito["n DNA"] = this.DNA.length;
 	        mito["oxphos"] = this.oxphos;
 	        mito["translate"] = this.translate;
 	        mito["replicate"] = this.replicate;
 	        mito["replisomes"] = this.n_replisomes;
-	        mito["heteroplasmy"] = this.heteroplasmy();
-	        mito["translatable heteroplasmy"] = this.heteroplasmy("translatable");
-	        mito["replicating heteroplasmy"] = this.heteroplasmy("replicating");
-	        mito["products"] = this.products;
+	        // mito["heteroplasmy"] = this.heteroplasmy()
+	        // mito["translatable heteroplasmy"] = this.heteroplasmy("translatable")
+	        // mito["replicating heteroplasmy"] = this.heteroplasmy("replicating")
+	        mito["products"] = this.products.arr;
+	        mito["bad products"] = this.bad_products.arr;
 	        mito['sum dna'] = this.sum_dna();
 	        mito["unmut"] = this.unmutated/this.DNA.length;
 	        let objstring = JSON.stringify(mito) + '\n';
@@ -5161,6 +5239,7 @@ var CPM = (function (exports) {
 
 	    /* eslint-disable*/
 	    update(){
+	        this.makeAssemblies();
 	        let dV = 0;
 	        dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"];
 	        dV-=this.conf["MITO_SHRINK"];
@@ -5176,57 +5255,50 @@ var CPM = (function (exports) {
 	        }
 	        this.repAndTranslate();
 	        this.deprecateProducts();
+	        
 	        // importandcreate() - called by host
 	        
 		}
 
 	   
-	    divideProducts(parent_arr, child_arr, partition){
-	        for (const [ix, product] of parent_arr.entries()){
+	    divideProducts(parent_products, child_products, partition){
+	        for (const [ix, product] of parent_products.arr.entries()){
 	            for (let i = 0; i < product; i ++){
 	                if (this.C.random() < partition){
-	                    parent_arr[ix]--;
-	                    child_arr[ix]++;
+	                    parent_products.arr[ix]--;
+	                    child_products.arr[ix]++;
 	                }
 	            }
 	        }  
 	    }
 
 	    deprecateProducts(){
-	        for (const [ix, product] of this.products.entries()){
-	            this.products[ix] -= this.binomial(product, this.conf['deprecation_rate']);
-	        }
+	       this.products.deprecate(this.conf['deprecation_rate']);
+	       this.bad_products.deprecate(this.conf['deprecation_rate']);
+	       
 	        for (let dna of this.DNA){
 	            dna.mutate(this.conf['MTDNA_MUT_LIFETIME']);
 	        }
 	    }
 
 	    fuse(partner) {
-	        this.products = this.products.map(function (num, idx) {
-	            return num + partner.products[idx];
-	        });
+	        this.products.arr = this.sum_arr(this.products.arr, partner.products.arr);
+	        this.bad_products.arr = this.sum_arr(this.bad_products.arr, partner.bad_products.arr);
+
 	        this.DNA = [...this.DNA, ...partner.DNA];
 	        this.V += partner.V;
-	        // this.find_n_replisomes()
 	    }
-
-	    // tryIncrement(){
-	    //     return (this.C.random() < (this.vol/this.sum))
-	    // }
 
 	    tryIncrement(ix){
 	        if (ix < this.conf["N_OXPHOS"] ){
-	            return this.C.random() < (this.vol / this.oxphos_products.reduce((t, e) => t + e) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"] / 100)
+	            return this.C.random() < (this.vol / (this.products.oxphos_sum +this.bad_products.oxphos_sum) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"] / 100)
 	        } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
-	            return this.C.random() < (this.vol / this.translate_products.reduce((t, e) => t + e) * this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"] / 100)
+	            return this.C.random() < (this.vol /( this.products.translate_sum+ this.bad_products.replicate_sum )* this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"] / 100)
 	        } else {
-	            return this.C.random() < (this.vol / (this.replication_products.reduce((t, e) => t + e) + + (this.n_replisomes * this.conf["N_REPLICATE"])) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"] / 100)
+	            return this.C.random() < (this.vol / (this.products.replicate_sum + this.bad_products.replicate_sum ) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"] / 100)
 	        }
 	    }
 
-	    // get sum(){
-	    //     return this.products.reduce((t, e) => t + e) + (this.n_replisomes * this.conf["N_REPLICATE"])
-	    // }
 
 	    get n_replisomes(){ 
 	        return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
@@ -5238,18 +5310,24 @@ var CPM = (function (exports) {
 
 	    importAndProduce(){
 	        this.shuffle(this.makebuffer);
+	        // console.log(this.makebuffer)
 	        while ((this.makebuffer.length + this.importbuffer.length) > 0){
 	            if (this.C.random() < this.makebuffer.length/(this.makebuffer.length + this.importbuffer.length)){
 	                let p = this.makebuffer.pop();
-	                if (this.tryIncrement(p)){
-	                    this.products[p]++;
+	                if (this.tryIncrement(p.which)){
+	                    if (p.good){
+	                        this.products.arr[p.which]++;
+	                    } else {
+	                        this.bad_products.arr[p.which]++;
+	                    }
 	                }
 	            } else {
 	                let p = this.importbuffer.pop();
-	                if (this.tryIncrement(p) && this.oxphos > this.conf["MITOPHAGY_THRESHOLD"]){
-	                    this.products[p]++;
+	                if (this.tryIncrement(p.which) && this.oxphos > this.conf["MITOPHAGY_THRESHOLD"]){
+	                    // currently no bad nuclear products.
+	                    this.products.arr[p.which]++;
 	                } else {
-	                    this.C.getCell(this.host).cytosol[p]++;
+	                    this.C.getCell(this.host).cytosol[p.which]++;
 	                }
 	            }
 	        }
@@ -5260,57 +5338,66 @@ var CPM = (function (exports) {
 	        let replicate_attempts = this.replicate, translate_attempts = this.translate;
 	        // replication and translation machinery try to find DNA to execute on
 	        this.shuffle(this.DNA);
-	        for (let i = 0; i < this.DNA.length ; i++){
-	            if (replicate_attempts + translate_attempts <= 0){break}
-	            let dna = this.DNA[i];
+	        let new_dna = [];
+	        for (let dna of this.DNA){
+	            if (replicate_attempts < 0){
+	                break
+	            }
 	            if (dna.replicating > 0){
-	                // tick replisome
+	                replicate_attempts--;
 	                dna.replicating--;
 	                if (dna.replicating == 0){
-	                    this.DNA.unshift(new DNA(this.conf, this.C, String(this.id) + "_" + String(++this.last_dna_id), dna)); // add to beginning so it does not evaluate again
-	                    i++; // array is longer at beginning
-	                    for (let ix = 0 ; ix < this.replication_products.length; ix++){
-	                        this.products[ix + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] ++;
-	                    }
+	                    new_dna.push(new DNA(this.conf, this.C, String(this.id) + "_" + String(++this.last_dna_id), dna)); 
 	                }
-	            } else if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
-	                // make replisome
+	            }
+	        }
+	        
+	        
+	        for (let dna of this.DNA){
+	            if (replicate_attempts + translate_attempts <= 0){
+	                break
+	            }
+	            if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
 	                dna.replicating = this.conf["REPLICATE_TIME"]; 
-	                for (let ix = 0 ; ix < this.conf["N_REPLICATE"]; ix++){
-	                    this.products[ix + this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"]] --;
-	                }
 	                replicate_attempts--;
 	            } else {
 	                // translate
-	                this.makebuffer.push(...dna.trues);
+	                for (let ix = 0 ; ix < dna.quality.length; ix++){
+	                    if (dna.exists[ix] !== 0){
+	                        this.makebuffer.push({"which":ix,"good":dna.quality[ix]});
+	                    }
+	                }
 	                translate_attempts--; 
 	            }
 	        }
+	        this.DNA = [...this.DNA, ...new_dna];
 	    }
 
-	    get oxphos_products() {
-	        return this.products.slice(0, this.conf["N_OXPHOS"])
-	    }
-	    get translate_products() {
-	        return this.products.slice(this.conf["N_OXPHOS"], this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])
-	    }
-	    get replication_products() {
-	        return this.products.slice(this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"] )
+	    // expects shallow copies!!!
+	    assemble(arr, bad_arr){
+	        let assemblies = 0, attempts = Math.min.apply(Math, this.sum_arr(arr,bad_arr)); 
+	        for (let i = 0; i < attempts ; i ++){
+	            let complete = 1;
+	            for (let  j= 0; j<arr.length; j++){
+	                if(bad_arr[j] > 0 && this.C.random() < arr[j]/bad_arr[j]){
+	                    bad_arr[j]--;
+	                    complete = 0;
+	                } else {
+	                    arr[j]--;
+	                }
+	            }
+	            assemblies += complete;
+	        }
+	        return assemblies
 	    }
 	   
-	    get oxphos(){
-	        return Math.min.apply(Math, this.oxphos_products) / (this.vol / 100) / this.conf["OXPHOS_PER_100VOL"]
-	    }
-	    get translate(){
-	        return Math.min.apply(Math, this.translate_products)
-	    }
-	    get replicate(){
-	        return Math.min.apply(Math, this.replication_products) 
+	    makeAssemblies(){
+	        this.oxphos = this.assemble(this.products.oxphos, this.bad_products.oxphos);
+	        this.translate = this.assemble(this.products.translate, this.bad_products.translate);
+	        this.replicate = this.assemble(this.products.replicate, this.bad_products.replicate);
+	        // this.time = this.C.time
 	    }
 
-		closeToV(){
-			return Math.abs(this.V-this.vol) < this.conf["VOLCHANGE_THRESHOLD"]
-	    }
 	    canGrow(){
 	        return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
 	    }
@@ -5325,69 +5412,30 @@ var CPM = (function (exports) {
 	        }
 	    }
 
-	    /* eslint-disable */
-	    binomial(n, p){
-	        let log_q = Math.log(1.0-p), k = 0, sum = 0;
-	        for (;;){
-	            sum += Math.log(this.C.random())/(n-k);
-	            if (sum < log_q){
-	                return k
-	            }
-	            k++;
-	        }
-	    }
 
 	    sum_dna(){
 	        let sum = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
 	        for (let dna of this.DNA){
-	            sum = sum.map(function (num, idx) {
-	                return num + dna.quality[idx];
-	            });
+	            sum = this.sum_arr(sum, dna.quality);
 	        }
 	        return sum
 	    }
 
-	    heteroplasmy(opt = "all"){
-	        // compute heteroplasmy, TODO rewrite this
-	        if (this.DNA.length == 0){
-	            return NaN
-	        }
-	        let all_proteins = new DNA(this.conf, this.C).sumQuality();
-	        let heteroplasmy = 0;
-	        if (opt == "all"){
-	            for (let dna of this.DNA){
-	                heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
-	            }
-	            heteroplasmy = 1 - (heteroplasmy/this.DNA.length);
-	        } else if (opt == "translatable"){
-	            let len = 0;
-	            for (let dna of this.DNA){
-	                if (dna.replicating == 0){
-	                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
-	                    len++;
-	                }
-	            }
-	            if (len == 0){
-	                return NaN
-	            } else {
-	                heteroplasmy = 1 - (heteroplasmy/len);
-	            }
-	        }else if (opt == "replicating"){
-	            let len = 0;
-	            for (let dna of this.DNA){
-	                if (dna.replicating > 0){
-	                    heteroplasmy += (all_proteins - dna.sumQuality() )/all_proteins;
-	                    len++;
-	                }
-	            }
-	            if (len == 0){
-	                return NaN
-	            } else {
-	                heteroplasmy = 1 - (heteroplasmy/len);
-	            }
-	        }
-	        return heteroplasmy
+	    sum_products(){
+	        let bad_arr = this.bad_products.arr;
+	        return this.products.arr.map(function (num, idx) {
+	            return num - bad_arr[idx];
+	        })
 	    }
+
+	    sum_arr(arr1, arr2){
+	        // console.log(arr1)
+	        return arr1.map(function (num, idx) {
+	            return num + arr2[idx];
+	        })
+	    }
+
+	    
 	}
 
 	class nDNA extends DNA {
@@ -5442,31 +5490,39 @@ var CPM = (function (exports) {
 				return
 			}
 			this.total_oxphos = 0;
-			let volcumsum = [0];
-			// let print = this.C.random() <0.001
-			let mito_vol = 0;
+
+			// let total_mito_vol = 0
+			let cells = [];
 			// console.log(this.subcellsObj)
 			for (let mito of this.subcells()){
-				volcumsum.push(mito.vol + volcumsum[volcumsum.length-1]);
+				cells.push(mito); // subcells may need to be an array again
+				// volcumsum.push(mito.vol + volcumsum[volcumsum.length-1])
 				mito.update();
 				//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
 				this.total_oxphos += mito.oxphos;
-				mito_vol += mito.vol;
 			}
-			volcumsum = volcumsum.map(function(item) {return item/ volcumsum.slice(-1)});
-			let trues = this.DNA.trues;
+			
+			// let trues = 
 			for (let i = 0; i < this.total_oxphos*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
-				let ix = trues[Math.floor(this.C.random() * trues.length)];
+				let ix = this.DNA.trues[Math.floor(this.C.random() * this.DNA.trues.length)];
 				if (this.tryIncrement() ){
 					// optional make this canGrow dependent
 					this.cytosol[ix]++;
 				}
 			}
+			let volcumsum = [];
+			let mito_vol = 0;
+			this.shuffle(cells); // need te erase all structure: should maybe refactor subcells back to array?
+			for (let mito of cells){
+				mito_vol += mito.vol;
+				volcumsum.push(mito_vol);
+			}
+			volcumsum = volcumsum.map(function(item) {return item/ mito_vol});
 			for (const [ix, product] of this.cytosol.entries()){
 				for (let i = 0 ; i < product;i++){
 					let ran = this.C.random(); 
-					let mito = volcumsum.findIndex(element => ran < element );
-					this.subcells[mito-1].importbuffer.push(ix);
+					let which = volcumsum.findIndex(element => ran < element );
+					cells[which].importbuffer.push({"which":ix});
 					this.cytosol[ix]--;
 				}
 			}
@@ -5510,10 +5566,18 @@ var CPM = (function (exports) {
 		death(){
 			/* eslint-disable */
 			super.death();
-			for (let mito of this.subcells){
-				mito.V = -5000;
+			for (let mito of this.subcells()){
+				mito.V = -50;
 			}
 		}
+
+		shuffle(array) {
+	        for (let i = array.length - 1; i > 0; i--) {
+	            const j = Math.floor(this.C.random() * (i + 1));
+	            [array[i], array[j]] = [array[j], array[i]];
+	        }
+	    }
+
 	}
 
 	/**
