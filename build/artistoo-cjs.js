@@ -5134,7 +5134,7 @@ class Mitochondrion extends SubCell {
         this.shuffle(this.DNA);
         let new_dna = [];
         for (let dna of this.DNA){
-            if (replicate_attempts < 0){
+            if (replicate_attempts <= 0){
                 break
             }
             if (dna.replicating > 0){
