@@ -5276,8 +5276,11 @@ var CPM = (function (exports) {
 	       this.products.deprecate(this.conf['deprecation_rate']);
 	       this.bad_products.deprecate(this.conf['deprecation_rate']);
 	       
-	        for (let dna of this.DNA){
+	        for (const [ix, dna] of this.DNA.entries()){
 	            dna.mutate(this.conf['MTDNA_MUT_LIFETIME']);
+	            if (this.C.random() < this.conf["dna_deprecation_rate"]){
+	                this.DNA.splice(ix, 1);
+	            }
 	        }
 	    }
 
@@ -5289,14 +5292,16 @@ var CPM = (function (exports) {
 	        this.V += partner.V;
 	    }
 
+	    /* eslint-ignore */
 	    tryIncrement(ix){
-	        if (ix < this.conf["N_OXPHOS"] ){
-	            return this.C.random() < (this.vol / (this.products.oxphos_sum +this.bad_products.oxphos_sum) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"] / 100)
-	        } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
-	            return this.C.random() < (this.vol /( this.products.translate_sum+ this.bad_products.replicate_sum )* this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"] / 100)
-	        } else {
-	            return this.C.random() < (this.vol / (this.products.replicate_sum + this.bad_products.replicate_sum ) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"] / 100)
-	        }
+	        return this.C.random() < (this.vol /  this.sum_products().reduce((t, e) => t + e))
+	        // if (ix < this.conf["N_OXPHOS"] ){
+	        //     return this.C.random() < (this.vol / (this.products.oxphos_sum +this.bad_products.oxphos_sum) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"] / 100)
+	        // } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
+	        //     return this.C.random() < (this.vol /( this.products.translate_sum+ this.bad_products.replicate_sum )* this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"] / 100)
+	        // } else {
+	        //     return this.C.random() < (this.vol / (this.products.replicate_sum + this.bad_products.replicate_sum ) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"] / 100)
+	        // }
 	    }
 
 
