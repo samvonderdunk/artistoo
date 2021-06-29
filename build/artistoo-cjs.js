@@ -5174,11 +5174,13 @@ class Mitochondrion extends SubCell {
 
     // expects shallow copies!!!
     assemble(arr, bad_arr){
+        // console.log("-------")
         let assemblies = 0, attempts = Math.min.apply(Math, this.sum_arr(arr,bad_arr)); 
         for (let i = 0; i < attempts ; i ++){
+            // console.log(arr, bad_arr, assemblies)
             let complete = 1;
             for (let  j= 0; j<arr.length; j++){
-                if(bad_arr[j] > 0 && this.C.random() < arr[j]/bad_arr[j]){
+                if(this.C.random() < bad_arr[j]/(arr[j]+bad_arr[j])){
                     bad_arr[j]--;
                     complete = 0;
                 } else {
