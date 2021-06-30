@@ -83,6 +83,13 @@ class HostCell extends SuperCell {
 		for (let mito of this.subcells()){
 			mito.importAndProduce()
 		}
+		for (const [ix, product] of this.cytosol.entries()){
+			for (let i = 0 ; i < product;i++){
+				if( this.C.random() < this.conf["HOST_DEPRECATION"]){
+					this.cytosol[ix]--
+				}
+			}
+		}
 	}
 
 	canGrow(){
