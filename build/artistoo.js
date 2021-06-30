@@ -5512,7 +5512,7 @@ var CPM = (function (exports) {
 			// let trues = 
 			for (let i = 0; i < this.total_oxphos*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
 				let ix = this.DNA.trues[Math.floor(this.C.random() * this.DNA.trues.length)];
-				if (this.tryIncrement() ){
+				if (this.tryIncrement() && this.total_oxphos < this.conf["THRESHOLD_REPLICATION_STOP"]){
 					// optional make this canGrow dependent
 					this.cytosol[ix]++;
 				}
