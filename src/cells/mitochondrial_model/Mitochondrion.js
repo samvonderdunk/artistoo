@@ -132,7 +132,7 @@ class Mitochondrion extends SubCell {
        this.bad_products.deprecate(this.conf['deprecation_rate'])
        
         for (const [ix, dna] of this.DNA.entries()){
-            dna.mutate(this.conf['MTDNA_MUT_LIFETIME'])
+            dna.mutate(this.conf['MTDNA_MUT_LIFETIME'] * this.oxphos)
             if (this.C.random() < this.conf["dna_deprecation_rate"]){
                 this.DNA.splice(ix, 1)
             }
