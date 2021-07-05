@@ -5276,7 +5276,7 @@ var CPM = (function (exports) {
 	       this.products.deprecate(this.conf['deprecation_rate']);
 	       this.bad_products.deprecate(this.conf['deprecation_rate']);
 	       
-	       console.log(this.ros, this.oxphos);
+	    //    console.log(this.ros, this.oxphos)
 	        for (const [ix, dna] of this.DNA.entries()){
 	            dna.mutate(this.conf['MTDNA_MUT_ROS'] * this.ros);
 	            if (this.C.random() < this.conf["dna_deprecation_rate"]){
