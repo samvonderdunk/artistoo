@@ -131,6 +131,7 @@ class Mitochondrion extends SubCell {
        this.products.deprecate(this.conf['deprecation_rate'])
        this.bad_products.deprecate(this.conf['deprecation_rate'])
        
+       console.log(this.ros, this.oxphos)
         for (const [ix, dna] of this.DNA.entries()){
             dna.mutate(this.conf['MTDNA_MUT_ROS'] * this.ros)
             if (this.C.random() < this.conf["dna_deprecation_rate"]){
@@ -257,7 +258,8 @@ class Mitochondrion extends SubCell {
         this.oxphos = this.assemble(this.products.oxphos, this.bad_products.oxphos)/ (this.vol / 100) * this.conf["OXPHOS_PER_100VOL"]
         this.translate = this.assemble(this.products.translate, this.bad_products.translate)
         this.replicate = this.assemble(this.products.replicate, this.bad_products.replicate)
-        this.ros = Math.min.apply(Math, this.sum_arr(this.products.oxphos,this.bad_products.oxphos)) 
+        this.ros = Math.min.apply(Math, this.sum_arr(this.products.oxphos,this.bad_products.oxphos)) / (this.vol / 100) * this.conf["OXPHOS_PER_100VOL"]
+
         // this.time = this.C.time
     }
 
