@@ -9,6 +9,9 @@ class HostCell extends SuperCell {
 	constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
 		this.V = conf["INIT_HOST_V"]
+		this.fission_rate = conf["fission_rate"]
+		this.fusion_rate = conf["fusion_rate"]
+		this.rep = conf["REP_MACHINE_PER_OXPHOS"]
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C)
 		this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
@@ -19,6 +22,27 @@ class HostCell extends SuperCell {
 		this.V = parent.V/2
 		parent.V /= 2
 		this.DNA = new nDNA(this.conf, this.C, parent.DNA)
+		if (this.C.random() < this.conf["MUT_FISFUS"]){
+			if (this.C.random() < 0.5){
+				this.fission_rate *= (1-this.conf["MUTSTEP"])
+			} else {
+				this.fission_rate *= (1 + this.conf["MUTSTEP"])
+			}
+		}
+		if (this.C.random() < this.conf["MUT_FISFUS"]){
+			if (this.C.random() < 0.5){
+				this.fusion_rate *= (1-this.conf["MUTSTEP"])
+			} else {
+				this.fusion_rate *= (1 + this.conf["MUTSTEP"])
+			}
+		}
+		if (this.C.random() < this.conf["MUT_REP_PRESSURE"]){
+			if (this.C.random() < 0.5){
+				this.rep *= (1-this.conf["MUTSTEP"])
+			} else {
+				this.rep *= (1 + this.conf["MUTSTEP"])
+			}
+		}
 	}
 
 	update(){
@@ -43,7 +67,7 @@ class HostCell extends SuperCell {
 		}
 		
 		// let trues = 
-		for (let i = 0; i < this.total_oxphos*this.conf["REP_MACHINE_PER_OXPHOS"]; i++){
+		for (let i = 0; i < this.total_oxphos*this.rep; i++){
 			let ix = this.DNA.trues[Math.floor(this.C.random() * this.DNA.trues.length)]
 			if (this.tryIncrement() && this.total_oxphos < this.conf["THRESHOLD_REPLICATION_STOP"]){
 				// optional make this canGrow dependent

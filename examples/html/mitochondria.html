@@ -123,6 +123,10 @@ let config = {
 		HOST_V_PER_OXPHOS : 7,
 		REP_MACHINE_PER_OXPHOS: 5,
 		PREF_FRACTION_MITO_PER_HOST : 0.7,
+
+		MUTSTEP: 0.02,
+		MUT_FISFUS: 0.2,
+		MUT_REP_PRESSURE:0.02,
 	
 		VOLCHANGE_THRESHOLD : 10,
 		// SELECTIVE_FUSION: false,
@@ -252,10 +256,10 @@ function postMCSListener(){
 				// let cell = this.C.cells[cid]
 				console.log("n DNA: ", cell.DNA.length, "oxphos: ", cell.oxphos, "translate: ", cell.translate, "replicate: ", cell.replicate, "replisomes: ", cell.n_replisomes , "fraction unmutated:" , cell.unmutated/cell.DNA.length,"V:", cell.V , "vol:", cell.vol, "DNA:" ,cell.DNA, "sum DNA:", cell.sum_dna(), "good-bad products:",cell.sum_products())
 			}
-			if (this.C.random() < this.C.conf['fission_rate'] * cell.vol && cell.vol > this.C.conf["division_volume"][2] && cell.oxphos > this.C.conf["MITOPHAGY_THRESHOLD"]){
+			if (this.C.random() < cell.fission_rate * cell.vol && cell.vol > this.C.conf["division_volume"][2] && cell.oxphos > this.C.conf["MITOPHAGY_THRESHOLD"]){
 				let nid = this.gm.divideCell(cid, this.C.conf['MITO_PARTITION'])
 			} else {
-				if ( this.C.random() < this.C.conf['fusion_rate'] ){
+				if ( this.C.random() < cell.fusion_rate ){
 					let fusables = []
 					for (let neigh of Object.keys(neighs[cid])){
 						if (this.C.cells[neigh] instanceof CPM.Mitochondrion && cell.host == this.C.cells[neigh].host){

@@ -160,6 +160,12 @@ class Mitochondrion extends SubCell {
         // }
     }
 
+    get fission_rate(){
+        return this.C.cells[this.hostId].fission_rate
+    }
+    get fusion_rate(){
+        return this.C.cells[this.hostId].fusion_rate
+    }
 
     get n_replisomes(){ 
         return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
