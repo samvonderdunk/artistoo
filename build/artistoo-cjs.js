@@ -5292,6 +5292,9 @@ class HostCell extends SuperCell {
 		this.V = parent.V/2;
 		parent.V /= 2;
 		this.DNA = new nDNA(this.conf, this.C, parent.DNA);
+		this.fission_rate = parent.fission_rate;
+		this.fusion_rate = parent.fusion_rate;
+		this.rep = parent.rep;
 		if (this.C.random() < this.conf["MUT_FISFUS"]){
 			if (this.C.random() < 0.5){
 				this.fission_rate *= (1-this.conf["MUTSTEP"]);
