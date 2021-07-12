@@ -13,7 +13,7 @@ class HostCell extends SuperCell {
 		this.fusion_rate = conf["fusion_rate"]
 		this.rep = conf["REP_MACHINE_PER_OXPHOS"]
 		this.total_oxphos = 0
-		this.DNA = new nDNA(conf, C)
+		this.DNA = new nDNA(conf, C) 
 		this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
 	}
 
@@ -26,25 +26,13 @@ class HostCell extends SuperCell {
 		this.fusion_rate = parent.fusion_rate
 		this.rep = parent.rep
 		if (this.C.random() < this.conf["MUT_FISFUS"]){
-			if (this.C.random() < 0.5){
-				this.fission_rate *= (1-this.conf["MUTSTEP"])
-			} else {
-				this.fission_rate *= (1 + this.conf["MUTSTEP"])
-			}
+			this.fission_rate *= 1 + this.conf["MUT_SIGMA"] * this.rand_normal()
 		}
 		if (this.C.random() < this.conf["MUT_FISFUS"]){
-			if (this.C.random() < 0.5){
-				this.fusion_rate *= (1-this.conf["MUTSTEP"])
-			} else {
-				this.fusion_rate *= (1 + this.conf["MUTSTEP"])
-			}
+			this.fusion_rate *= 1 + this.conf["MUT_SIGMA"] * this.rand_normal()
 		}
 		if (this.C.random() < this.conf["MUT_REP_PRESSURE"]){
-			if (this.C.random() < 0.5){
-				this.rep *= (1-this.conf["MUTSTEP"])
-			} else {
-				this.rep *= (1 + this.conf["MUTSTEP"])
-			}
+			this.rep *= 1 + this.conf["MUT_SIGMA"] * this.rand_normal()
 		}
 	}
 
@@ -150,8 +138,15 @@ class HostCell extends SuperCell {
             const j = Math.floor(this.C.random() * (i + 1));
             [array[i], array[j]] = [array[j], array[i]];
         }
-    }
-
+	}
+	
+	// Standard Normal variate using Box-Muller transform.
+	rand_normal() {
+		var u = 0, v = 0;
+		while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+		while(v === 0) v = Math.random();
+		return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+	}
 }
 
 export default HostCell
