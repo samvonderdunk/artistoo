@@ -131,6 +131,24 @@ class HostCell extends SuperCell {
 		for (let mito of this.subcells()){
 			mito.V = -50
 		}
+		let logpath = "./celldeaths.txt" //HARDCODED
+        let cell = {}
+        cell["time"] = this.C.time
+        cell["V"] = this.V
+        cell["vol"] = this.vol
+        
+        let objstring = JSON.stringify(cell) + '\n'
+		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
+            // console.log("detected browser")
+            // this.fs.appendFileSync(logpath, objstring)
+        } else {
+            // console.log("logged to  " + logpath + "\n\n" + objstring)
+            if (!this.fs){
+                this.fs = require('fs')
+            }    
+            this.fs.appendFileSync(logpath, objstring)
+        }
+        
 	}
 
 	shuffle(array) {
@@ -142,7 +160,7 @@ class HostCell extends SuperCell {
 	
 	// Standard Normal variate using Box-Muller transform.
 	rand_normal() {
-		var u = 0, v = 0;
+		let u = 0, v = 0;
 		while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
 		while(v === 0) v = Math.random();
 		return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
