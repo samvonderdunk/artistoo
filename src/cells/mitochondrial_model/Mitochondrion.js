@@ -60,7 +60,7 @@ class Mitochondrion extends SubCell {
     // TODO add CPM level deathlistener that can log from Sim
     death(){
         super.death()
-        let logpath = "./mitodeaths.txt" //HARDCODED
+        let logpath = "./deaths.txt" //HARDCODED
         let mito = {}
         mito["time"] = this.C.time
         mito["V"] = this.V
@@ -71,6 +71,7 @@ class Mitochondrion extends SubCell {
         mito["translate"] = this.translate
         mito["replicate"] = this.replicate
         mito["replisomes"] = this.n_replisomes
+        mito["type"] = "mito"
         // mito["heteroplasmy"] = this.heteroplasmy()
         // mito["translatable heteroplasmy"] = this.heteroplasmy("translatable")
         // mito["replicating heteroplasmy"] = this.heteroplasmy("replicating")

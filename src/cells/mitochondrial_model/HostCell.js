@@ -131,12 +131,12 @@ class HostCell extends SuperCell {
 		for (let mito of this.subcells()){
 			mito.V = -50
 		}
-		let logpath = "./celldeaths.txt" //HARDCODED
+		let logpath = "./deaths.txt" //HARDCODED
         let cell = {}
         cell["time"] = this.C.time
         cell["V"] = this.V
         cell["vol"] = this.vol
-        
+        cell["type"] = "host"
         let objstring = JSON.stringify(cell) + '\n'
 		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
             // console.log("detected browser")
