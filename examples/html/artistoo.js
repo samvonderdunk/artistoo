@@ -5630,6 +5630,9 @@ var CPM = (function (exports) {
 	        cell["V"] = this.V;
 	        cell["vol"] = this.vol;
 			cell["type"] = "host";
+			cell["fission rate"] = this._fission_rate;
+			cell["fusion_rate"] = this._fusion_rate;
+			cell["rep"] = this._rep;
 			cell["time of birth"] = this.time_of_birth;
 	        let objstring = JSON.stringify(cell) + '\n';
 			if( typeof window !== "undefined" && typeof window.document !== "undefined" ); else {
