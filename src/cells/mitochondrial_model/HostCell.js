@@ -9,12 +9,13 @@ class HostCell extends SuperCell {
 	constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
 		this.V = conf["INIT_HOST_V"]
-		this.fission_rate = conf["fission_rate"]
-		this.fusion_rate = conf["fusion_rate"]
-		this.rep = conf["REP_MACHINE_PER_OXPHOS"]
+		this._fission_rate = conf["fission_rate"]
+		this._fusion_rate = conf["fusion_rate"]
+		this._rep = conf["REP_MACHINE_PER_OXPHOS"]
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C) 
 		this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
+		this.time_of_birth = this.C.time
 	}
 
 	birth(parent){
@@ -22,17 +23,17 @@ class HostCell extends SuperCell {
 		this.V = parent.V/2
 		parent.V /= 2
 		this.DNA = new nDNA(this.conf, this.C, parent.DNA)
-		this.fission_rate = parent.fission_rate
-		this.fusion_rate = parent.fusion_rate
-		this.rep = parent.rep
+		this._fission_rate = parent._fission_rate
+		this._fusion_rate = parent._fusion_rate
+		this._rep = parent._rep
 		if (this.C.random() < this.conf["MUT_FISFUS"]){
-			this.fission_rate *= 1 + this.conf["MUT_SIGMA"] * this.rand_normal()
+			this._fission_rate += this.conf["SIGMA_FISFUS"] * this.rand_normal()
 		}
 		if (this.C.random() < this.conf["MUT_FISFUS"]){
-			this.fusion_rate *= 1 + this.conf["MUT_SIGMA"] * this.rand_normal()
+			this._fusion_rate += this.conf["SIGMA_FISFUS"] * this.rand_normal()
 		}
 		if (this.C.random() < this.conf["MUT_REP_PRESSURE"]){
-			this.rep *= 1 + this.conf["MUT_SIGMA"] * this.rand_normal()
+			this._rep += this.conf["SIGMA_REP"] * this.rand_normal()
 		}
 	}
 
@@ -60,7 +61,7 @@ class HostCell extends SuperCell {
 		// let trues = 
 		for (let i = 0; i < this.total_oxphos*this.rep; i++){
 			let ix = this.DNA.trues[Math.floor(this.C.random() * this.DNA.trues.length)]
-			if (this.tryIncrement() && this.total_oxphos < this.conf["THRESHOLD_REPLICATION_STOP"]){
+			if (this.tryIncrement()){
 				// optional make this canGrow dependent
 				this.cytosol[ix]++
 			}
@@ -113,16 +114,26 @@ class HostCell extends SuperCell {
     canShrink(){
         return this.vol-this.V < this.conf["VOLCHANGE_THRESHOLD"]
     }
-
 	
 	tryIncrement(){
         // console.log(this.sum, this.vol, this.vol/this.sum)
         return (this.C.random() < (this.vol/this.sum))
 	}
 	
-	// should be refactored away
 	get sum(){
 		return this.cytosol.reduce((t, e) => t + e)
+	}
+
+	get fission_rate(){
+		return Math.max(0, this._fission_rate)
+	}
+
+	get fusion_rate(){
+		return Math.max(0, this._fusion_rate)
+	}
+
+	get rep(){
+		return Math.max(0, this._rep)
 	}
 
 	death(){
@@ -136,7 +147,8 @@ class HostCell extends SuperCell {
         cell["time"] = this.C.time
         cell["V"] = this.V
         cell["vol"] = this.vol
-        cell["type"] = "host"
+		cell["type"] = "host"
+		cell["time of birth"] = this.time_of_birth
         let objstring = JSON.stringify(cell) + '\n'
 		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
             // console.log("detected browser")

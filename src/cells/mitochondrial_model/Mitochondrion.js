@@ -19,6 +19,7 @@ class Mitochondrion extends SubCell {
         }
         
         this.V = this.conf["INIT_MITO_V"]
+        this.fusing = false
 
         this.makebuffer = [], this.importbuffer = []
         
@@ -60,6 +61,9 @@ class Mitochondrion extends SubCell {
     // TODO add CPM level deathlistener that can log from Sim
     death(){
         super.death()
+        if (this.fusing){
+            return
+        }
         let logpath = "./deaths.txt" //HARDCODED
         let mito = {}
         mito["time"] = this.C.time
@@ -147,6 +151,7 @@ class Mitochondrion extends SubCell {
 
         this.DNA = [...this.DNA, ...partner.DNA]
         this.V += partner.V
+        partner.fusing = true
     }
 
     /* eslint-ignore */
@@ -266,8 +271,6 @@ class Mitochondrion extends SubCell {
         this.translate = this.assemble(this.products.translate, this.bad_products.translate)
         this.replicate = this.assemble(this.products.replicate, this.bad_products.replicate)
         this.ros = Math.min.apply(Math, this.sum_arr(this.products.oxphos,this.bad_products.oxphos)) / (this.vol / 100) * this.conf["OXPHOS_PER_100VOL"]
-
-        // this.time = this.C.time
     }
 
     canGrow(){
