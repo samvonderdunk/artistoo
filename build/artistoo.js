@@ -5216,6 +5216,7 @@ var CPM = (function (exports) {
 	        let mito = {};
 	        mito["time"] = this.C.time;
 	        mito["V"] = this.V;
+	        mito["id"] = this.id;
 	        mito["host"] = this.host;
 	        mito["vol"] = this.vol;
 	        mito["n DNA"] = this.DNA.length;
@@ -5624,7 +5625,8 @@ var CPM = (function (exports) {
 			}
 			let logpath = "./deaths.txt"; //HARDCODED
 	        let cell = {};
-	        cell["time"] = this.C.time;
+			cell["time"] = this.C.time;
+			cell["id"] = this.id;
 	        cell["V"] = this.V;
 	        cell["vol"] = this.vol;
 			cell["type"] = "host";

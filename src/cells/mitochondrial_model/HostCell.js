@@ -144,7 +144,8 @@ class HostCell extends SuperCell {
 		}
 		let logpath = "./deaths.txt" //HARDCODED
         let cell = {}
-        cell["time"] = this.C.time
+		cell["time"] = this.C.time
+		cell["id"] = this.id
         cell["V"] = this.V
         cell["vol"] = this.vol
 		cell["type"] = "host"

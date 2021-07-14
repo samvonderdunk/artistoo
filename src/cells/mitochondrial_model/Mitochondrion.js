@@ -68,6 +68,7 @@ class Mitochondrion extends SubCell {
         let mito = {}
         mito["time"] = this.C.time
         mito["V"] = this.V
+        mito["id"] = this.id
         mito["host"] = this.host
         mito["vol"] = this.vol
         mito["n DNA"] = this.DNA.length
