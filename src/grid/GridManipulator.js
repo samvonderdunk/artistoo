@@ -539,10 +539,12 @@ class GridManipulator {
 			// calls death on cell by deleting its last pixel by assigning it a random pixel from parent
 			C.setpix( cp[0], nid ) 
 			C.setpix( cp[0], id ) 
+		} else {
+			if (C.hasOwnProperty("cells")){
+				C.birth(nid, id, partition)
+			}
 		}
-		if (C.hasOwnProperty("cells")){
-			C.birth(nid, id, partition)
-		}
+		
 		// console.log()
 		
 		
