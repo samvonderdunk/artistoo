@@ -6745,15 +6745,14 @@ var CPM = (function (exports) {
 			// create a new ID for the second cell
 			let nid = C.makeNewCellID( C.cellKind( id ) );
 			
-			let newvol = 0;
+			let newpix = [];
 			if (partition === 0.5){
-				
 				for( let j = 0 ; j < cp.length ; j ++ ){
 					//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
-					
 					if( x1*pixdist[j][1]-pixdist[j][0]*y1 > 0 ){
-						C.setpix( cp[j], nid ); 
-						newvol++;
+						newpix.push(cp[j]);
+						// C.setpix( cp[j], nid ) 
+						// newvol++
 					}
 				}
 			} else {
@@ -6769,21 +6768,26 @@ var CPM = (function (exports) {
 				}
 				for( let j = 0 ; j < cp.length ; j ++ ){
 					if (j < partition * cp.length){
-						C.setpix( cp[sides[j].i], nid ); 
-						newvol++;
+						newpix.push(cp[i]);
+						// C.setpix( cp[sides[j].i], nid ) 
+						// newvol++
 					}
 				}
 			}
-			if (newvol == 0){
-				// ugly!!!
-				console.log("tried to divide cell " + id + " at time " + C.time + " with volume " + C.getVolume(id) + " and made no pixels the daugther, deleting daughter ");
-				// calls death on cell by deleting its last pixel by assigning it a random pixel from parent
-				C.setpix( cp[0], nid ); 
-				C.setpix( cp[0], id ); 
+
+			if (newpix.length == 0){
+				newpix = cp.pop();
+			} else if (newpix.length == cp.length){
+				newpix.pop();
 			}
+			for (let pix of newpix){
+				C.setpix( pix, nid ); 
+			}
+		
 			if (C.hasOwnProperty("cells")){
 				C.birth(nid, id, partition);
 			}
+			
 			// console.log()
 			
 			
