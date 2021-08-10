@@ -500,7 +500,6 @@ class GridManipulator {
 			x1 = L2 - byy
 			y1 = bxy
 		}
-		// console.log( id )
 		// create a new ID for the second cell
 		let nid = C.makeNewCellID( C.cellKind( id ) )
 		
@@ -510,32 +509,26 @@ class GridManipulator {
 				//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
 				if( x1*pixdist[j][1]-pixdist[j][0]*y1 > 0 ){
 					newpix.push(cp[j])
-					// C.setpix( cp[j], nid ) 
-					// newvol++
 				}
 			}
 		} else {
 			let sides = new Array(cp.length)
 			for( let j = 0 ; j < cp.length ; j ++ ){
-				sides[j] = ({i : j, side : x1*pixdist[j][1]-pixdist[j][0]*y1})
+				sides[j] = ({pix : cp[j], side : x1*pixdist[j][1]-pixdist[j][0]*y1})
 			}
-			sides.sort(function(a,b) {
-				return a.side - b.side;
-			})
+			sides.sort(function(a,b) {return a.side - b.side;})
 			if (this.C.random() < 0.5){
 				sides.reverse()
 			}
 			for( let j = 0 ; j < cp.length ; j ++ ){
 				if (j < partition * cp.length){
-					newpix.push(cp[sides[j],i])
-					// C.setpix( cp[sides[j].i], nid ) 
-					// newvol++
+					newpix.push(sides[j].pix)
 				}
 			}
 		}
 
 		if (newpix.length == 0){
-			newpix = cp.pop()
+			newpix.push(cp.pop())
 		} else if (newpix.length == cp.length){
 			newpix.pop()
 		}
@@ -547,12 +540,9 @@ class GridManipulator {
 			C.birth(nid, id, partition)
 		}
 		
-		// console.log()
-		
-		
-		C.stat_values = {} // remove cached stats or this will crash!!!
 		return nid
 	}
+
 
 	fuseCells(cid1, cid2){
 		if (this.C.hasOwnProperty("cells")){
