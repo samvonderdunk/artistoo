@@ -70,11 +70,6 @@ class SuperCell extends Cell {
 		let pix = C.getStat( PixelsByCell )
 		let ids = [this.id], cp = pix[this.id]
 		for (let scid of this.subcellIDs()){
-			if (!this.C.cells.hasOwnProperty(scid)){
-				// continue
-				throw("broken on a cell already having died")
-				// sometimes deathlistening registers later and removeFromHost is not fully called before , it seems.
-			}
 			ids = [...ids, scid]
 			cp = [...cp, ...pix[scid]]
 		}
