@@ -58,7 +58,18 @@ class CellNeighborList extends Stat {
 				
 		let neigh_cell_amountborder = { }
 		let cbp = cellborderpixels[cellid]
-		
+		if (cbp == undefined){
+			var fs = require("fs")
+			let stringbuffer = ""
+			stringbuffer += "## AAAA breaks in compute neighbors of cell "+ cellid +" \n"
+			stringbuffer += "volume : " + this.M.cells[cellid].vol + "\n"
+			stringbuffer += "V : " + this.M.cells[cellid].V + "\n"
+			stringbuffer += "fusing : " + this.M.cells[cellid].fusing + "\n"
+			stringbuffer += "time : " + this.M.time + "\n"
+			stringbuffer += "time of birth : " + this.M.cells[cellid].time_of_birth + "\n"
+			fs.appendFileSync("./debug.log", stringbuffer)
+			// exit(1)
+		}
 		//loop over border pixels of cell
 		for ( let cellpix = 0; cellpix < cbp.length; cellpix++ ) {
 
@@ -95,6 +106,13 @@ class CellNeighborList extends Stat {
 		
 		// the this.M.cellIDs() iterator returns non-background cellids on the grid.
 		for( let i of this.M.cellIDs() ){
+			if (this.M.cells[i] == undefined){
+				var fs = require("fs")
+				let stringbuffer = ""
+				stringbuffer += "## AAAAundefined cell "+ i +" in compute of celneighbors \n"
+				fs.appendFileSync("./debug.log", stringbuffer)
+				// exit(1)
+			}
 			neighborlist[i] = this.getNeighborsOfCell( i, cellborderpixels )
 		}
 		

@@ -35,6 +35,8 @@ class CPM extends GridBasedModel {
 		 * @type{boolean}*/
 		this.isCPM = true
 
+		this.over_max_cells = false
+
 		/** Track time in MCS.
 		 * @type{number}*/
 		this.time = 0
@@ -400,6 +402,12 @@ class CPM extends GridBasedModel {
 				delete this.cellvolume[t_old]
 				delete this.t2k[t_old]
 				this.nr_cells--
+				this.stat_values = {}
+			} else if (this.cellvolume[t_old] < 0 ){
+				var fs = require("fs")
+				let stringbuffer = ""
+				stringbuffer += "a cell is under 0  volume \n"
+				fs.appendFileSync("./debug.log", stringbuffer)
 			}
 		}
 		// update volume of the new cell and cellid of the pixel.
@@ -408,7 +416,8 @@ class CPM extends GridBasedModel {
 			this.cellvolume[t] ++
 		}
 		this.updateborderneari( i, t_old, t )
-		//this.stat_values = {} // invalidate stat value cache
+		// WARNING VERY SLOW!! DEBUG OPT ONLY
+		// this.stat_values = {} // invalidate stat value cache
 		for( let l of this.post_setpix_listeners ){
 			l( i, t_old, t )
 		}
@@ -460,6 +469,7 @@ class CPM extends GridBasedModel {
 	   for this cell in the relevant arrays (cellvolume, t2k).
 	   @param {CellKind} kind - cellkind of the cell that has to be made.
 	   @return {CellId} of the new cell.*/
+	/* eslint-disable */
 	makeNewCellID ( kind ){
 		if (this.nr_cells >= 65533){
 			// here you know that there are indices available in the Uint16 range for new cellIds
@@ -471,9 +481,19 @@ class CPM extends GridBasedModel {
 			if (newid >= 65534){
 				this.last_cell_id = 1
 				newid = 1
+				var fs = require("fs")
+				let stringbuffer = ""
+				stringbuffer += "Resetting newid counter \n"
+				fs.appendFileSync("./debug.log", stringbuffer)
 			}
 		}  while (this.cellvolume.hasOwnProperty(newid))
 		this.cellvolume[newid] = 0
+		if (kind === undefined){
+			var fs = require("fs")
+			let stringbuffer = ""
+			stringbuffer += "Kind undefined in makeNewCellId \n"
+			fs.appendFileSync("./debug.log", stringbuffer)
+		}
 		this.setCellKind( newid, kind )
 		return newid
 	}

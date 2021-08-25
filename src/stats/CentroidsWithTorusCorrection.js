@@ -78,6 +78,18 @@ class CentroidsWithTorusCorrection extends Stat {
 			
 			// Loop over the pixels;
 			// compute mean position per dimension with online algorithm
+			if (pixels == undefined){
+				var fs = require("fs")
+				let stringbuffer = ""
+				stringbuffer += "## AAAA breaks in compute centroid of cell "+ cellid +" \n"
+				stringbuffer += "volume : " + this.M.cells[cellid].vol + "\n"
+				stringbuffer += "V : " + this.M.cells[cellid].V + "\n"
+				stringbuffer += "fusing : " + this.M.cells[cellid].fusing + "\n"
+				stringbuffer += "time : " + this.M.time + "\n"
+				stringbuffer += "time of birth : " + this.M.cells[cellid].time_of_birth + "\n"
+				fs.appendFileSync("./debug.log", stringbuffer)
+				// exit(1)
+			}
 			for( let j = 0 ; j < pixels.length ; j ++ ){
 				
 				// Check distance of current pixel to the accumulated mean in this dim.
@@ -126,6 +138,13 @@ class CentroidsWithTorusCorrection extends Stat {
 		// Create an object for the centroids. Add the centroid array for each cell.
 		let centroids = {}
 		for( let cid of this.M.cellIDs() ){
+			if (this.M.cells[cid] == undefined){
+				var fs = require("fs")
+				let stringbuffer = ""
+				stringbuffer += "## AAAA breaks in compute centroid of cell "+ cid +" \n"
+				fs.appendFileSync("./debug.log", stringbuffer)
+				// exit(1)
+			}
 			centroids[cid] = this.computeCentroidOfCell( cid, cellpixels )
 		}
 		

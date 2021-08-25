@@ -3052,6 +3052,8 @@ var CPM = (function (exports) {
 			 * @type{boolean}*/
 			this.isCPM = true;
 
+			this.over_max_cells = false;
+
 			/** Track time in MCS.
 			 * @type{number}*/
 			this.time = 0;
@@ -3417,6 +3419,11 @@ var CPM = (function (exports) {
 					delete this.cellvolume[t_old];
 					delete this.t2k[t_old];
 					this.nr_cells--;
+				} else if (this.cellvolume[t_old] < 0 ){
+					var fs = require("fs");
+					let stringbuffer = "";
+					stringbuffer += "a cell is under 0  volume \n";
+					fs.appendFileSync("./debug.log", stringbuffer);
 				}
 			}
 			// update volume of the new cell and cellid of the pixel.
@@ -3425,7 +3432,8 @@ var CPM = (function (exports) {
 				this.cellvolume[t] ++;
 			}
 			this.updateborderneari( i, t_old, t );
-			//this.stat_values = {} // invalidate stat value cache
+			// WARNING VERY SLOW!! DEBUG OPT ONLY
+			this.stat_values = {}; // invalidate stat value cache
 			for( let l of this.post_setpix_listeners ){
 				l( i, t_old, t );
 			}
@@ -3477,9 +3485,31 @@ var CPM = (function (exports) {
 		   for this cell in the relevant arrays (cellvolume, t2k).
 		   @param {CellKind} kind - cellkind of the cell that has to be made.
 		   @return {CellId} of the new cell.*/
+		/* eslint-disable */
 		makeNewCellID ( kind ){
-			const newid = ++ this.last_cell_id;
+			if (this.nr_cells >= 65533){
+				// here you know that there are indices available in the Uint16 range for new cellIds
+				throw("Max amount of living cells exceeded!")
+			}
+			let newid;
+			do{
+				newid = ++this.last_cell_id;
+				if (newid >= 65534){
+					this.last_cell_id = 1;
+					newid = 1;
+					var fs = require("fs");
+					let stringbuffer = "";
+					stringbuffer += "Resetting newid counter \n";
+					fs.appendFileSync("./debug.log", stringbuffer);
+				}
+			}  while (this.cellvolume.hasOwnProperty(newid))
 			this.cellvolume[newid] = 0;
+			if (kind === undefined){
+				var fs = require("fs");
+				let stringbuffer = "";
+				stringbuffer += "Kind undefined in makeNewCellId \n";
+				fs.appendFileSync("./debug.log", stringbuffer);
+			}
 			this.setCellKind( newid, kind );
 			return newid
 		}
@@ -4785,7 +4815,19 @@ var CPM = (function (exports) {
 		*/
 		/* eslint-disable no-unused-vars*/
 		cellDeath( i, t_old, t_new){
-			if (this.cellvolume[t_old] === undefined && t_old !== 0){
+			if (this.cellvolume[t_old] === undefined && t_old !== 0 ){
+				if (this.cells[t_old] === undefined){
+					var fs = require("fs");
+					let stringbuffer = "";
+					stringbuffer += "Broke in death \n";
+					stringbuffer += "t_old: "+ t_old+" \n";
+					stringbuffer += "time: " +this.time +"\n";
+					stringbuffer += "t_new: " + t_new + "\n";
+					stringbuffer += "i: " + i + "\n";
+					// stringbuffer += ": " + + "\n"
+					// stringbuffer += "Broke in death \n"
+					fs.appendFileSync("./debug.log", stringbuffer);
+				}
 				this.cells[t_old].death();
 				delete this.cells[t_old];
 			} 
@@ -4805,7 +4847,7 @@ var CPM = (function (exports) {
 		   @return {CellId} newid of the new cell.*/
 		makeNewCellID ( kind ){
 			let newid = super.makeNewCellID(kind);
-			this.cells[newid] =new this.cellclasses[kind](this.conf, kind, newid, this);
+			this.cells[newid] =new this.cellclasses[kind](this.conf, kind, newid, this);	
 			return newid
 		}
 
@@ -4886,11 +4928,6 @@ var CPM = (function (exports) {
 			let pix = C.getStat( PixelsByCell );
 			let ids = [this.id], cp = pix[this.id];
 			for (let scid of this.subcellIDs()){
-				if (!this.C.cells.hasOwnProperty(scid)){
-					// continue
-					throw("broken on a cell already having died")
-					// sometimes deathlistening registers later and removeFromHost is not fully called before , it seems.
-				}
 				ids = [...ids, scid];
 				cp = [...cp, ...pix[scid]];
 			}
@@ -4962,10 +4999,31 @@ var CPM = (function (exports) {
 					}
 					C.birth(nid, id, newpix.length/pix[id].length);
 					C.cells[nid].host = newhost;
+					if (C.cells[nid] == undefined ){
+						var fs = require('fs');
+						stringbuffer = "";
+						stringbuffer += "## AAAA new mitochondrial daughter in host dividecell is undefined \n";
+						fs.appendFileSync("./debug.log", stringbuffer);
+						// exit(1)
+					}
+				}
+				if (C.cells[id] == undefined){
+					var fs = require('fs');
+					stringbuffer = "";
+					stringbuffer += "## AAAA old mitochondrial daughters in host dividecell is undefined \n";
+					fs.appendFileSync("./debug.log", stringbuffer);
+					// exit(1)
 				}
 			}
 			
 			C.stat_values = {}; // remove cached stats or this will crash!!!
+			if (C.cells[this.id] == undefined || C.cells[newhost] == undefined){
+				var fs = require('fs');
+				let stringbuffer = "";
+				stringbuffer += "## AAAA one of the hosts in host dividecell is undefined  \n";
+				fs.appendFileSync("./debug.log", stringbuffer);
+				// exit(1)
+			}
 			return newhost
 		}
 
@@ -5196,7 +5254,7 @@ var CPM = (function (exports) {
 					this.DNA.push(dna);
 	            } else {
 	                new_parent.push(dna);
-	            }   
+	            }
 			}
 	        parent.DNA = new_parent;
 
@@ -5883,6 +5941,13 @@ var CPM = (function (exports) {
 			// Create an object for the centroids. Add the centroid array for each cell.
 			let centroids = {};
 			for( let cid of this.M.cellIDs() ){
+				if (this.M.cells[cid] == undefined){
+					var fs = require("fs");
+					let stringbuffer = "";
+					stringbuffer += "## AAAA breaks in compute centroid of cell "+ cid +" \n";
+					fs.appendFileSync("./debug.log", stringbuffer);
+					// exit(1)
+				}
 				centroids[cid] = this.computeCentroidOfCell( cid, cellpixels );
 			}
 			
@@ -6061,7 +6126,17 @@ var CPM = (function (exports) {
 					
 			let neigh_cell_amountborder = { };
 			let cbp = cellborderpixels[cellid];
-			
+			if (cbp == undefined){
+				var fs = require("fs");
+				let stringbuffer = "";
+				stringbuffer += "## AAAA breaks in compute neighbors of cell "+ cellid +" \n";
+				stringbuffer += "volume : " + this.M.cells[cellid].vol + "\n";
+				stringbuffer += "V : " + this.M.cells[cellid].V + "\n";
+				stringbuffer += "fusing : " + this.M.cells[cellid].fusing + "\n";
+				stringbuffer += "time : " + this.M.time + "\n";
+				fs.appendFileSync("./debug.log", stringbuffer);
+				// exit(1)
+			}
 			//loop over border pixels of cell
 			for ( let cellpix = 0; cellpix < cbp.length; cellpix++ ) {
 
@@ -6098,6 +6173,13 @@ var CPM = (function (exports) {
 			
 			// the this.M.cellIDs() iterator returns non-background cellids on the grid.
 			for( let i of this.M.cellIDs() ){
+				if (this.M.cells[i] == undefined){
+					var fs = require("fs");
+					let stringbuffer = "";
+					stringbuffer += "## AAAAundefined cell "+ i +" in compute of celneighbors \n";
+					fs.appendFileSync("./debug.log", stringbuffer);
+					// exit(1)
+				}
 				neighborlist[i] = this.getNeighborsOfCell( i, cellborderpixels );
 			}
 			
@@ -6758,17 +6840,15 @@ var CPM = (function (exports) {
 			} else {
 				let sides = new Array(cp.length);
 				for( let j = 0 ; j < cp.length ; j ++ ){
-					sides[j] = ({i : j, side : x1*pixdist[j][1]-pixdist[j][0]*y1});
+					sides[j] = ({pix : cp[j], side : x1*pixdist[j][1]-pixdist[j][0]*y1});
 				}
-				sides.sort(function(a,b) {
-					return a.side - b.side;
-				});
+				sides.sort(function(a,b) {return a.side - b.side;});
 				if (this.C.random() < 0.5){
 					sides.reverse();
 				}
 				for( let j = 0 ; j < cp.length ; j ++ ){
 					if (j < partition * cp.length){
-						newpix.push(cp[i]);
+						newpix.push(cp[sides[j].i]);
 						// C.setpix( cp[sides[j].i], nid ) 
 						// newvol++
 					}
@@ -6776,11 +6856,30 @@ var CPM = (function (exports) {
 			}
 
 			if (newpix.length == 0){
-				newpix = cp.pop();
+				var fs = require('fs');
+				let stringbuffer = "";
+				stringbuffer += "no newpix \n";
+				stringbuffer += "newpix: " + newpix + "\n";
+				stringbuffer += "cp: " + cp + "\n";
+				stringbuffer += "first cp: " + cp[0] + "\n";
+				newpix.push(cp.pop());
+				stringbuffer += "cp after pop: " + cp + "\n";
+				stringbuffer += "newpix after pop: " + newpix + "\n";
+				for (let pix of newpix){
+					stringbuffer += "pix: " + pix + "\n";
+				}
+				fs.appendFileSync("./debug.log", stringbuffer);
 			} else if (newpix.length == cp.length){
+				var fs = require('fs');
+				let stringbuffer = "";
+				stringbuffer += "all newpix \n";
+				stringbuffer += "newpix: " + newpix + "\n";
+				stringbuffer += "cp: " + cp + "\n";
+				fs.appendFileSync("./debug.log", stringbuffer);
 				newpix.pop();
 			}
 			for (let pix of newpix){
+				
 				C.setpix( pix, nid ); 
 			}
 		
@@ -6792,6 +6891,13 @@ var CPM = (function (exports) {
 			
 			
 			C.stat_values = {}; // remove cached stats or this will crash!!!
+			if (C.cells[nid] == undefined || C.cells[id] == undefined){
+				var fs = require('fs');
+				stringbuffer = "";
+				stringbuffer += "## AAAA one of the daughters in regular dividecell is undefined \n";
+				fs.appendFileSync("./debug.log", stringbuffer);
+				// exit(1)
+			}
 			return nid
 		}
 

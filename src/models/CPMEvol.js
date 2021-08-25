@@ -52,7 +52,19 @@ class CPMEvol extends CPM {
 	*/
 	/* eslint-disable no-unused-vars*/
 	cellDeath( i, t_old, t_new){
-		if (this.cellvolume[t_old] === undefined && t_old !== 0){
+		if (this.cellvolume[t_old] === undefined && t_old !== 0 ){
+			if (this.cells[t_old] === undefined){
+				var fs = require("fs")
+				let stringbuffer = ""
+				stringbuffer += "Broke in death \n"
+				stringbuffer += "t_old: "+ t_old+" \n"
+				stringbuffer += "time: " +this.time +"\n"
+				stringbuffer += "t_new: " + t_new + "\n"
+				stringbuffer += "i: " + i + "\n"
+				// stringbuffer += ": " + + "\n"
+				// stringbuffer += "Broke in death \n"
+				fs.appendFileSync("./debug.log", stringbuffer)
+			}
 			this.cells[t_old].death()
 			delete this.cells[t_old]
 		} 
@@ -72,7 +84,7 @@ class CPMEvol extends CPM {
 	   @return {CellId} newid of the new cell.*/
 	makeNewCellID ( kind ){
 		let newid = super.makeNewCellID(kind)
-		this.cells[newid] =new this.cellclasses[kind](this.conf, kind, newid, this)
+		this.cells[newid] =new this.cellclasses[kind](this.conf, kind, newid, this)	
 		return newid
 	}
 
@@ -80,7 +92,7 @@ class CPMEvol extends CPM {
 	 * the other daughter (as parent) on to the Cell.
 	   @param {CellId} childId - id of the newly created Cell object
 	   @param {CellId} parentId - id of the other daughter (that kept the parent id)*/
-	birth (childId, parentId, partition = 0.5){
+	birth (childId, parentId, partition){
 		this.cells[childId].birth(this.cells[parentId], partition )
 	}
 }

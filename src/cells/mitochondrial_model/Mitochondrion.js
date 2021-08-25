@@ -22,6 +22,8 @@ class Mitochondrion extends SubCell {
         this.fusing = false
 
         this.makebuffer = [], this.importbuffer = []
+
+        this.time_of_birth = this.C.time
         
         this.products = new Products(this.conf, this.C)
         this.products.init()
@@ -36,7 +38,7 @@ class Mitochondrion extends SubCell {
         this.bad_products = new Products(this.conf, this.C)
 	}
 
-    birth(parent, partition = 0.5){
+    birth(parent, partition){
         super.birth(parent)
 		this.clear()
         this.divideProducts(parent.products, this.products, partition)
@@ -48,7 +50,7 @@ class Mitochondrion extends SubCell {
 				this.DNA.push(dna)
             } else {
                 new_parent.push(dna)
-            }   
+            }
 		}
         parent.DNA = new_parent
 
@@ -77,6 +79,7 @@ class Mitochondrion extends SubCell {
         mito["replicate"] = this.replicate
         mito["replisomes"] = this.n_replisomes
         mito["type"] = "mito"
+        mito["time of birth"] = this.C.time_of_birth
         // mito["heteroplasmy"] = this.heteroplasmy()
         // mito["translatable heteroplasmy"] = this.heteroplasmy("translatable")
         // mito["replicating heteroplasmy"] = this.heteroplasmy("replicating")

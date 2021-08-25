@@ -16,21 +16,32 @@ class HostCell extends SuperCell {
 		this.DNA = new nDNA(conf, C) 
 		this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
 		this.time_of_birth = this.C.time
+		this.fission_events = 0
+		this.fusion_events = 0
 	}
 
-	birth(parent){
-		super.birth(parent)
-		this.V = parent.V/2
-		parent.V /= 2
+	birth(parent, partition){
+		super.birth(parent, partition)
+		this.V = parent.V * partition
+        parent.V *= (1-partition)
 		this.DNA = new nDNA(this.conf, this.C, parent.DNA)
+		for (const [ix, product] of parent.cytosol.entries()){
+            for (let i = 0; i < product; i ++){
+                if (this.C.random() < partition){
+                    parent.cytosol[ix]--
+                    this.cytosol[ix]++
+                }
+            }
+		}  
+		
 		this._fission_rate = parent._fission_rate
 		this._fusion_rate = parent._fusion_rate
 		this._rep = parent._rep
 		if (this.C.random() < this.conf["MUT_FISFUS"]){
-			this._fission_rate += this.conf["SIGMA_FISFUS"] * this.rand_normal()
+			this._fission_rate += this.conf["SIGMA_FIS"] * this.rand_normal()
 		}
 		if (this.C.random() < this.conf["MUT_FISFUS"]){
-			this._fusion_rate += this.conf["SIGMA_FISFUS"] * this.rand_normal()
+			this._fusion_rate += this.conf["SIGMA_FUS"] * this.rand_normal()
 		}
 		if (this.C.random() < this.conf["MUT_REP_PRESSURE"]){
 			this._rep += this.conf["SIGMA_REP"] * this.rand_normal()
@@ -38,6 +49,7 @@ class HostCell extends SuperCell {
 	}
 
 	update(){
+		
 		if (this.nSubcells === 0 ){
 			// console.log(this.V, this.vol)
 			if (this.canShrink()){
@@ -138,6 +150,8 @@ class HostCell extends SuperCell {
 
 	death(){
 		/* eslint-disable */
+		console.log(this.fission_events)
+		console.log("events in death")
 		super.death()
 		for (let mito of this.subcells()){
 			mito.V = -50
@@ -151,6 +165,8 @@ class HostCell extends SuperCell {
 		cell["type"] = "host"
 		cell["fission rate"] = this._fission_rate
 		cell["fusion_rate"] = this._fusion_rate
+		cell["fission events"] = this.fission_events
+		cell["fusion events"] = this.fusion_events
 		cell["rep"] = this._rep
 		cell["time of birth"] = this.time_of_birth
         let objstring = JSON.stringify(cell) + '\n'

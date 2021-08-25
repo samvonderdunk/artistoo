@@ -6,6 +6,7 @@ import Grid3D from "./Grid3D.js"
 import CentroidsWithTorusCorrection from "../stats/CentroidsWithTorusCorrection.js"
 
 
+
 /** This class contains methods that should be executed once per
  * Monte Carlo Step. Examples are cell division, cell death etc.
  *
@@ -529,7 +530,7 @@ class GridManipulator {
 
 		if (newpix.length == 0){
 			newpix.push(cp.pop())
-		} else if (newpix.length == cp.length){
+		} else if (newpix.length == cp.length ){
 			newpix.pop()
 		}
 		for (let pix of newpix){
@@ -537,9 +538,9 @@ class GridManipulator {
 		}
 	
 		if (C.hasOwnProperty("cells")){
-			C.birth(nid, id, partition)
+			C.birth(nid, id, newpix.length/(newpix.length+cp.length))
 		}
-		
+		this.C.stat_values = {} // remove cached stats or this will crash!!!
 		return nid
 	}
 

@@ -71,7 +71,15 @@ class SuperCell extends Cell {
 		let ids = [this.id], cp = pix[this.id]
 		for (let scid of this.subcellIDs()){
 			ids = [...ids, scid]
+			// if (pix[scid].length == 1){
+			// 	var fs = require("fs")
+			// 	let stringbuffer = ""
+			// 	stringbuffer += "single cell subcell \n"
+			// 	fs.appendFileSync("./debug.log", stringbuffer)
+			// 	cp = [...cp, pix[scid]]
+			// } else {
 			cp = [...cp, ...pix[scid]]
+			// }
 		}
 		let com = this.computeHostCentroid(cp)
 		let bxx = 0, bxy = 0, byy=0, cx, cy, x2, y2, side, T, D, x0, y0, x1, y1, L2
@@ -83,7 +91,7 @@ class SuperCell extends Cell {
 			for( let j = 0 ; j < pix[id].length ; j ++ ){
 				for ( let dim = 0 ; dim < 2 ; dim ++ ){
 					c[dim] = pix[id][j][dim] - com[dim]
-					if( C.conf.torus[dim] && j > 0 ){
+					if( C.conf.torus[dim]){
 						// If distance is greater than half the grid size, correct the
 						// coordinate.
 						if( c[dim] > si[dim]/2 ){
@@ -119,12 +127,40 @@ class SuperCell extends Cell {
 			y1 = bxy
 		}
 		let newhost =  C.makeNewCellID( C.cellKind( this.id ) )
+		let newhostpix = []
 		for (let j = 0; j < pix[this.id].length; j++){
 			if( x1*pixdist[this.id][j][1]-pixdist[this.id][j][0]*y1 > 0 ){
-				C.setpix( pix[this.id][j], newhost) 
+				newhostpix.push(pix[this.id][j])
 			}
 		}
-		C.birth(newhost, this.id)
+		
+		if (newhostpix.length == 0){
+			var fs = require("fs")
+			let stringbuffer = ""
+			stringbuffer += "no newpixhost \n"
+			fs.appendFileSync("./debug.log", stringbuffer)
+			newhostpix.push(cp.pop())
+		} else if (newhostpix.length >= cp.length -1){
+			var fs = require("fs")
+			let stringbuffer = ""
+			stringbuffer += "all newpixhost \n"
+			fs.appendFileSync("./debug.log", stringbuffer)
+			newhostpix.pop()
+		}
+		var fs = require("fs")
+		let stringbuffer = ""
+		stringbuffer += "id: " +  this.id + " \n"
+		stringbuffer += "pix full host:" +  pix[this.id].length + " \n"
+		stringbuffer += "pix new host:" +  newhostpix.length + " \n"
+		stringbuffer += "pixdist:" +  pixdist + " \n"
+		stringbuffer += "centroid:" +  com + " \n"
+		stringbuffer += "partition host:" +  newhostpix.length/pix[this.id].length + " \n\n"
+		// stringbuffer += " pixdists " + pixdist[this.id]  + " \n\n"
+		fs.appendFileSync("./debug.log", stringbuffer)
+		for (let pix of newhostpix){
+			C.setpix( pix, newhost ) 
+		}
+		C.birth(newhost, this.id, newhostpix.length/pix[this.id].length)
 		
 		for (let id of ids){
 			if (id === this.id ){
@@ -145,10 +181,31 @@ class SuperCell extends Cell {
 				}
 				C.birth(nid, id, newpix.length/pix[id].length)
 				C.cells[nid].host = newhost
+				if (C.cells[nid] == undefined ){
+					var fs = require('fs')
+					stringbuffer = ""
+					stringbuffer += "## AAAA new mitochondrial daughter in host dividecell is undefined \n"
+					fs.appendFileSync("./debug.log", stringbuffer)
+					// exit(1)
+				}
+			}
+			if (C.cells[id] == undefined){
+				var fs = require('fs')
+				stringbuffer = ""
+				stringbuffer += "## AAAA old mitochondrial daughters in host dividecell is undefined \n"
+				fs.appendFileSync("./debug.log", stringbuffer)
+				// exit(1)
 			}
 		}
 		
 		C.stat_values = {} // remove cached stats or this will crash!!!
+		if (C.cells[this.id] == undefined || C.cells[newhost] == undefined){
+			var fs = require('fs')
+			let stringbuffer = ""
+			stringbuffer += "## AAAA one of the hosts in host dividecell is undefined  \n"
+			fs.appendFileSync("./debug.log", stringbuffer)
+			// exit(1)
+		}
 		return newhost
 	}
 
