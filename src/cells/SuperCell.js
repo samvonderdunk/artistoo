@@ -135,28 +135,11 @@ class SuperCell extends Cell {
 		}
 		
 		if (newhostpix.length == 0){
-			var fs = require("fs")
-			let stringbuffer = ""
-			stringbuffer += "no newpixhost \n"
-			fs.appendFileSync("./debug.log", stringbuffer)
 			newhostpix.push(cp.pop())
 		} else if (newhostpix.length >= cp.length -1){
-			var fs = require("fs")
-			let stringbuffer = ""
-			stringbuffer += "all newpixhost \n"
-			fs.appendFileSync("./debug.log", stringbuffer)
 			newhostpix.pop()
 		}
-		var fs = require("fs")
-		let stringbuffer = ""
-		stringbuffer += "id: " +  this.id + " \n"
-		stringbuffer += "pix full host:" +  pix[this.id].length + " \n"
-		stringbuffer += "pix new host:" +  newhostpix.length + " \n"
-		stringbuffer += "pixdist:" +  pixdist + " \n"
-		stringbuffer += "centroid:" +  com + " \n"
-		stringbuffer += "partition host:" +  newhostpix.length/pix[this.id].length + " \n\n"
-		// stringbuffer += " pixdists " + pixdist[this.id]  + " \n\n"
-		fs.appendFileSync("./debug.log", stringbuffer)
+		
 		for (let pix of newhostpix){
 			C.setpix( pix, newhost ) 
 		}
@@ -181,31 +164,12 @@ class SuperCell extends Cell {
 				}
 				C.birth(nid, id, newpix.length/pix[id].length)
 				C.cells[nid].host = newhost
-				if (C.cells[nid] == undefined ){
-					var fs = require('fs')
-					stringbuffer = ""
-					stringbuffer += "## AAAA new mitochondrial daughter in host dividecell is undefined \n"
-					fs.appendFileSync("./debug.log", stringbuffer)
-					// exit(1)
-				}
+				
 			}
-			if (C.cells[id] == undefined){
-				var fs = require('fs')
-				stringbuffer = ""
-				stringbuffer += "## AAAA old mitochondrial daughters in host dividecell is undefined \n"
-				fs.appendFileSync("./debug.log", stringbuffer)
-				// exit(1)
-			}
+		
 		}
 		
 		C.stat_values = {} // remove cached stats or this will crash!!!
-		if (C.cells[this.id] == undefined || C.cells[newhost] == undefined){
-			var fs = require('fs')
-			let stringbuffer = ""
-			stringbuffer += "## AAAA one of the hosts in host dividecell is undefined  \n"
-			fs.appendFileSync("./debug.log", stringbuffer)
-			// exit(1)
-		}
 		return newhost
 	}
 

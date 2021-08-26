@@ -11,7 +11,8 @@ class HostCell extends SuperCell {
 		this.V = conf["INIT_HOST_V"]
 		this._fission_rate = conf["fission_rate"]
 		this._fusion_rate = conf["fusion_rate"]
-		this._rep = conf["REP_MACHINE_PER_OXPHOS"]
+		this._rep = conf["REP"]
+		this._rep2 = conf["REP2"]
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C) 
 		this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
@@ -37,15 +38,21 @@ class HostCell extends SuperCell {
 		this._fission_rate = parent._fission_rate
 		this._fusion_rate = parent._fusion_rate
 		this._rep = parent._rep
+		this._rep2 = parent._rep2
 		if (this.C.random() < this.conf["MUT_FISFUS"]){
 			this._fission_rate += this.conf["SIGMA_FIS"] * this.rand_normal()
 		}
 		if (this.C.random() < this.conf["MUT_FISFUS"]){
 			this._fusion_rate += this.conf["SIGMA_FUS"] * this.rand_normal()
 		}
-		if (this.C.random() < this.conf["MUT_REP_PRESSURE"]){
+		if (this.C.random() < this.conf["MUT_REP"]){
 			this._rep += this.conf["SIGMA_REP"] * this.rand_normal()
 		}
+		if (this.C.random() < this.conf["MUT_REP2"]){
+			this._rep2 += this.conf["SIGMA_REP2"] * this.rand_normal()
+		}
+		this.writeState("divisions.txt")
+		parent.writeState("divisions.txt", {"daughter":this.stateDct(), "parent":parent.stateDct()})
 	}
 
 	update(){
@@ -59,28 +66,23 @@ class HostCell extends SuperCell {
 		}
 		this.total_oxphos = 0
 
-		// let total_mito_vol = 0
 		let cells = []
-		// console.log(this.subcellsObj)
 		for (let mito of this.subcells()){
-			cells.push(mito) // subcells may need to be an array again
-			// volcumsum.push(mito.vol + volcumsum[volcumsum.length-1])
+			cells.push(mito) //need to link id in a structured format to pick from volcumsum
 			mito.update()
-			//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
 			this.total_oxphos += mito.oxphos
 		}
 		
-		// let trues = 
-		for (let i = 0; i < this.total_oxphos*this.rep; i++){
+		
+		let new_products = (this.total_oxphos*this.rep) - (this.total_oxphos*this.total_oxphos*this.rep2)
+		for (let i = 0; i < new_products; i++){
 			let ix = this.DNA.trues[Math.floor(this.C.random() * this.DNA.trues.length)]
 			if (this.tryIncrement()){
-				// optional make this canGrow dependent
 				this.cytosol[ix]++
 			}
 		}
 		let volcumsum = []
 		let mito_vol = 0
-		this.shuffle(cells) // need te erase all structure: should maybe refactor subcells back to array?
 		for (let mito of cells){
 			mito_vol += mito.vol
 			volcumsum.push(mito_vol)
@@ -88,8 +90,7 @@ class HostCell extends SuperCell {
 		volcumsum = volcumsum.map(function(item) {return item/ mito_vol})
 		for (const [ix, product] of this.cytosol.entries()){
 			for (let i = 0 ; i < product;i++){
-				let ran = this.C.random() 
-				let which = volcumsum.findIndex(element => ran < element )
+				let which = volcumsum.findIndex(element => this.C.random()  < element )
 				cells[which].importbuffer.push({"which":ix})
 				this.cytosol[ix]--
 			}
@@ -97,14 +98,14 @@ class HostCell extends SuperCell {
 
 
 		let dV = 0
-
 		dV += this.total_oxphos *this.conf["HOST_V_PER_OXPHOS"]
 		dV -= this.conf["HOST_SHRINK"]
 		dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV)
-		if (dV > 0 && this.canGrow() && mito_vol/(this.vol + mito_vol) > this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
+		// if (dV > 0 && this.canGrow() && mito_vol/(this.vol + mito_vol) > this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
+		if (dV > 0 && this.canGrow() ){
             this.V += dV
         }
-        if (dV < 0 && this.canShrink() && mito_vol/(this.vol + mito_vol) < this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
+        if (dV < 0 && this.canShrink()){
             this.V += dV
 		}
 		
@@ -136,6 +137,15 @@ class HostCell extends SuperCell {
 		return this.cytosol.reduce((t, e) => t + e)
 	}
 
+	get total_vol(){
+		let vol = this.vol
+		for (let subcell of this.subcells()){
+			vol += subcell.vol
+		}
+		return vol
+	}
+
+	//TODO: refactor all evolvables to indexable object!!
 	get fission_rate(){
 		return Math.max(0, this._fission_rate)
 	}
@@ -148,39 +158,17 @@ class HostCell extends SuperCell {
 		return Math.max(0, this._rep)
 	}
 
+	get rep2(){
+		return Math.max(0, this._rep2)
+	}
+
 	death(){
 		/* eslint-disable */
-		console.log(this.fission_events)
-		console.log("events in death")
 		super.death()
 		for (let mito of this.subcells()){
 			mito.V = -50
 		}
-		let logpath = "./deaths.txt" //HARDCODED
-        let cell = {}
-		cell["time"] = this.C.time
-		cell["id"] = this.id
-        cell["V"] = this.V
-        cell["vol"] = this.vol
-		cell["type"] = "host"
-		cell["fission rate"] = this._fission_rate
-		cell["fusion_rate"] = this._fusion_rate
-		cell["fission events"] = this.fission_events
-		cell["fusion events"] = this.fusion_events
-		cell["rep"] = this._rep
-		cell["time of birth"] = this.time_of_birth
-        let objstring = JSON.stringify(cell) + '\n'
-		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
-            // console.log("detected browser")
-            // this.fs.appendFileSync(logpath, objstring)
-        } else {
-            // console.log("logged to  " + logpath + "\n\n" + objstring)
-            if (!this.fs){
-                this.fs = require('fs')
-            }    
-            this.fs.appendFileSync(logpath, objstring)
-        }
-        
+		this.writeState("./deaths.txt", this.stateDct()) //HARDCODED
 	}
 
 	shuffle(array) {
@@ -196,6 +184,41 @@ class HostCell extends SuperCell {
 		while(u === 0) u = this.C.random(); //Converting [0,1) to (0,1)
 		while(v === 0) v = this.C.random();
 		return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+	}
+
+	stateDct() {
+		let dct = {}
+		dct["time"] = this.C.time
+		dct["id"] = this.id
+        dct["V"] = this.V
+		dct["vol"] = this.vol
+		dct['total_vol'] = this.total_vol
+		dct["type"] = "host"
+		dct["fission rate"] = this._fission_rate
+		dct["fusion_rate"] = this._fusion_rate
+		dct["fission events"] = this.fission_events
+		dct["fusion events"] = this.fusion_events
+		dct["rep"] = this._rep
+		dct["rep2"] = this._rep2
+		dct["time of birth"] = this.time_of_birth
+		dct["n mito"] = this.nSubcells
+		dct["total_oxphos"] = this.total_oxphos
+		dct["cytosolsum"] = this.sum
+		dct["parent"] = this.parentId
+		dct["fission events"] = this.fission_events
+		dct["fusion events"] = this.fusion_events
+		return dct
+	}
+
+	writeState(logpath, dct){
+        let objstring = JSON.stringify(dct) + '\n'
+		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
+        } else {
+            if (!this.fs){
+                this.fs = require('fs')
+            }    
+            this.fs.appendFileSync(logpath, objstring)
+		}   
 	}
 }
 
