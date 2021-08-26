@@ -1,6 +1,10 @@
 examples-dev
 examples-old
 *.swp
+*.bmp
+*.png
+*.mp4
+
 build.make
 node_modules
 .idea
