@@ -15,6 +15,7 @@ class nDNA extends DNA {
             for (let i = 0 ; i < this.quality.length; i++){
                 if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"])
                     this.quality[i] = 0
+                    this.exists[i] = 0
             }
         }
     }

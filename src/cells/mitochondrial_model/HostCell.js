@@ -3,20 +3,21 @@
 import SuperCell from "../SuperCell.js" 
 import nDNA from "./nDNA.js"
 
+
 class HostCell extends SuperCell {
 
 	/* eslint-disable */ 
 	constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
 		this.V = conf["INIT_HOST_V"]
-		this._fission_rate = conf["fission_rate"]
-		this._fusion_rate = conf["fusion_rate"]
-		this._rep = conf["REP"]
-		this._rep2 = conf["REP2"]
+		for (let evolvable in conf['evolvables']){
+			this[evolvable] = conf[evolvable]
+		}
+		
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C) 
 		this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
-		this.time_of_birth = this.C.time
+		
 		this.fission_events = 0
 		this.fusion_events = 0
 	}
@@ -35,24 +36,13 @@ class HostCell extends SuperCell {
             }
 		}  
 		
-		this._fission_rate = parent._fission_rate
-		this._fusion_rate = parent._fusion_rate
-		this._rep = parent._rep
-		this._rep2 = parent._rep2
-		if (this.C.random() < this.conf["MUT_FISFUS"]){
-			this._fission_rate += this.conf["SIGMA_FIS"] * this.rand_normal()
+		for (const evolvable in this.conf['evolvables']){
+			this[evolvable] = parent.cellParameter(evolvable)
+			this[evolvable] += this.conf['evolvables'][evolvable] * this.rand_normal()
 		}
-		if (this.C.random() < this.conf["MUT_FISFUS"]){
-			this._fusion_rate += this.conf["SIGMA_FUS"] * this.rand_normal()
-		}
-		if (this.C.random() < this.conf["MUT_REP"]){
-			this._rep += this.conf["SIGMA_REP"] * this.rand_normal()
-		}
-		if (this.C.random() < this.conf["MUT_REP2"]){
-			this._rep2 += this.conf["SIGMA_REP2"] * this.rand_normal()
-		}
-		this.writeState("divisions.txt")
-		parent.writeState("divisions.txt", {"daughter":this.stateDct(), "parent":parent.stateDct()})
+
+		// console.log(this.stateDct())
+		this.write("divisions.txt", {"daughter":this.stateDct(), "parent":parent.stateDct()})
 	}
 
 	update(){
@@ -60,47 +50,36 @@ class HostCell extends SuperCell {
 		if (this.nSubcells === 0 ){
 			// console.log(this.V, this.vol)
 			if (this.canShrink()){
-				this.V -= this.conf["EMPTY_HOST_SHRINK"]
+				this.V -= this.cellParameter("HOST_SHRINK")
 			}
 			return
 		}
 		this.total_oxphos = 0
 
-		let cells = []
+		let cells = [], volcumsum = []
+		let mito_vol = 0
 		for (let mito of this.subcells()){
 			cells.push(mito) //need to link id in a structured format to pick from volcumsum
+			mito_vol += mito.vol
+			volcumsum.push(mito_vol)
 			mito.update()
 			this.total_oxphos += mito.oxphos
 		}
 		
 		
-		let new_products = (this.total_oxphos*this.rep) - (this.total_oxphos*this.total_oxphos*this.rep2)
+		let new_products = (this.total_oxphos*this.cellParameter("rep")) - (this.total_oxphos*this.total_oxphos*this.cellParameter("rep2"))
+		volcumsum = volcumsum.map(function(item) {return item/ mito_vol})
 		for (let i = 0; i < new_products; i++){
 			let ix = this.DNA.trues[Math.floor(this.C.random() * this.DNA.trues.length)]
-			if (this.tryIncrement()){
-				this.cytosol[ix]++
-			}
-		}
-		let volcumsum = []
-		let mito_vol = 0
-		for (let mito of cells){
-			mito_vol += mito.vol
-			volcumsum.push(mito_vol)
-		}
-		volcumsum = volcumsum.map(function(item) {return item/ mito_vol})
-		for (const [ix, product] of this.cytosol.entries()){
-			for (let i = 0 ; i < product;i++){
-				let which = volcumsum.findIndex(element => this.C.random()  < element )
-				cells[which].importbuffer.push({"which":ix})
-				this.cytosol[ix]--
-			}
+			let which = volcumsum.findIndex(element => this.C.random()  < element )
+			cells[which].proteinbuffer.push({"which":ix, "good" : true}) //currently all nDNA is good, watch out for this when starting host mutation!
 		}
 
 
 		let dV = 0
-		dV += this.total_oxphos *this.conf["HOST_V_PER_OXPHOS"]
-		dV -= this.conf["HOST_SHRINK"]
-		dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV)
+		dV += this.total_oxphos *this.cellParameter("HOST_V_PER_OXPHOS")
+		dV -= this.cellParameter("HOST_SHRINK")
+		dV = Math.min(this.cellParameter("HOST_GROWTH_MAX"), dV)
 		// if (dV > 0 && this.canGrow() && mito_vol/(this.vol + mito_vol) > this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
 		if (dV > 0 && this.canGrow() ){
             this.V += dV
@@ -108,28 +87,28 @@ class HostCell extends SuperCell {
         if (dV < 0 && this.canShrink()){
             this.V += dV
 		}
+		if (dV < 0 && !this.canShrink()){
+			for (let mito of this.subcells()){
+				mito.V += (mito.vol/mito_vol) * dV *this.conf["FACTOR_HOSTSHRINK_OVERFLOW"]
+			}
+		}
+
 		
 		for (let mito of this.subcells()){
 			mito.importAndProduce()
 		}
 		for (const [ix, product] of this.cytosol.entries()){
 			for (let i = 0 ; i < product;i++){
-				if( this.C.random() < this.conf["HOST_DEPRECATION"]){
+				if( this.C.random() < this.cellParameter("HOST_DEPRECATION")){
 					this.cytosol[ix]--
 				}
 			}
 		}
 	}
 
-	canGrow(){
-        return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
-    }
-    canShrink(){
-        return this.vol-this.V < this.conf["VOLCHANGE_THRESHOLD"]
-    }
+
 	
 	tryIncrement(){
-        // console.log(this.sum, this.vol, this.vol/this.sum)
         return (this.C.random() < (this.vol/this.sum))
 	}
 	
@@ -145,30 +124,14 @@ class HostCell extends SuperCell {
 		return vol
 	}
 
-	//TODO: refactor all evolvables to indexable object!!
-	get fission_rate(){
-		return Math.max(0, this._fission_rate)
-	}
-
-	get fusion_rate(){
-		return Math.max(0, this._fusion_rate)
-	}
-
-	get rep(){
-		return Math.max(0, this._rep)
-	}
-
-	get rep2(){
-		return Math.max(0, this._rep2)
-	}
-
 	death(){
 		/* eslint-disable */
 		super.death()
 		for (let mito of this.subcells()){
-			mito.V = -50
+			this.write("debug.log", {"message": "Host died with extant subcells, please mind the balance in your model", "cell" : this.stateDct()})
+			mito.V = -50 // if this is necessary coul
 		}
-		this.writeState("./deaths.txt", this.stateDct()) //HARDCODED
+		this.write("./deaths.txt", this.stateDct()) 
 	}
 
 	shuffle(array) {
@@ -192,25 +155,25 @@ class HostCell extends SuperCell {
 		dct["id"] = this.id
         dct["V"] = this.V
 		dct["vol"] = this.vol
-		dct['total_vol'] = this.total_vol
-		dct["type"] = "host"
-		dct["fission rate"] = this._fission_rate
-		dct["fusion_rate"] = this._fusion_rate
-		dct["fission events"] = this.fission_events
-		dct["fusion events"] = this.fusion_events
-		dct["rep"] = this._rep
-		dct["rep2"] = this._rep2
+		dct["parent"] = this.parentId
 		dct["time of birth"] = this.time_of_birth
+
+		// host specific
+		dct["type"] = "host"
 		dct["n mito"] = this.nSubcells
 		dct["total_oxphos"] = this.total_oxphos
 		dct["cytosolsum"] = this.sum
-		dct["parent"] = this.parentId
+		dct['total_vol'] = this.total_vol
 		dct["fission events"] = this.fission_events
 		dct["fusion events"] = this.fusion_events
+		dct['evolvables'] = {}
+		for (const evolvable in this.conf.evolvables){
+			dct['evolvables'][evolvable] = this[evolvable]
+		}
 		return dct
 	}
 
-	writeState(logpath, dct){
+	write(logpath, dct){
         let objstring = JSON.stringify(dct) + '\n'
 		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
         } else {

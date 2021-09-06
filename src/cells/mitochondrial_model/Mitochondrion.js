@@ -21,15 +21,14 @@ class Mitochondrion extends SubCell {
         this.V = this.conf["INIT_MITO_V"]
         this.fusing = false
 
-        this.makebuffer = [], this.importbuffer = []
+        this.proteinbuffer = []
+        this.oxphos_q = new Array(5).fill(0)
 
         this.time_of_birth = this.C.time
         
         this.products = new Products(this.conf, this.C)
         this.products.init()
         this.bad_products = new Products(this.conf, this.C)
-        // this.time = -1
-        this.makeAssemblies()
 	}
 	
 	clear(){
@@ -60,39 +59,16 @@ class Mitochondrion extends SubCell {
         this.makeAssemblies()
     }
 
-    // TODO add CPM level deathlistener that can log from Sim
+    
     death(){
         super.death()
         if (this.fusing){
             return
         }
         let logpath = "./deaths.txt" //HARDCODED
-        let mito = {}
-        mito["time"] = this.C.time
-        mito["V"] = this.V
-        mito["id"] = this.id
-        mito["host"] = this.host
-        mito["vol"] = this.vol
-        mito["n DNA"] = this.DNA.length
-        mito["oxphos"] = this.oxphos
-        mito["translate"] = this.translate
-        mito["replicate"] = this.replicate
-        mito["replisomes"] = this.n_replisomes
-        mito["type"] = "mito"
-        mito["time of birth"] = this.C.time_of_birth
-        // mito["heteroplasmy"] = this.heteroplasmy()
-        // mito["translatable heteroplasmy"] = this.heteroplasmy("translatable")
-        // mito["replicating heteroplasmy"] = this.heteroplasmy("replicating")
-        mito["products"] = this.products.arr
-        mito["bad products"] = this.bad_products.arr
-        mito['sum dna'] = this.sum_dna()
-        mito["unmut"] = this.unmutated/this.DNA.length
-        let objstring = JSON.stringify(mito) + '\n'
+        let objstring = JSON.stringify(this.stateDct()) + '\n'
 		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
-            // console.log("detected browser")
-            // this.fs.appendFileSync(logpath, objstring)
         } else {
-            // console.log("logged to  " + logpath + "\n\n" + objstring)
             if (!this.fs){
                 this.fs = require('fs')
             }    
@@ -105,11 +81,11 @@ class Mitochondrion extends SubCell {
     update(){
         this.makeAssemblies()
         let dV = 0
-        dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"]
-        dV-=this.conf["MITO_SHRINK"]
-        dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV)
-        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
-            dV -= this.conf["MITOPHAGY_SHRINK"]   
+        dV += this.oxphos * this.cellParameter("MITO_V_PER_OXPHOS")
+        dV-= this.cellParameter("MITO_SHRINK")
+        dV = Math.min(this.cellParameter("MITO_GROWTH_MAX"), dV)
+        if (this.oxphos < this.cellParameter("MITOPHAGY_THRESHOLD")) {
+            dV -= this.cellParameter("MITOPHAGY_SHRINK")
         }
         if (dV > 0 && this.canGrow()){
             this.V += dV
@@ -119,7 +95,6 @@ class Mitochondrion extends SubCell {
         }
         this.repAndTranslate()
         this.deprecateProducts()
-        
         // importandcreate() - called by host
         
 	}
@@ -137,15 +112,11 @@ class Mitochondrion extends SubCell {
     }
 
     deprecateProducts(){
-       this.products.deprecate(this.conf['deprecation_rate'])
-       this.bad_products.deprecate(this.conf['deprecation_rate'])
+       this.products.deprecate(this.cellParameter('deprecation_rate'))
+       this.bad_products.deprecate(this.cellParameter('deprecation_rate'))
        
-    //    console.log(this.ros, this.oxphos)
         for (const [ix, dna] of this.DNA.entries()){
-            dna.mutate(this.conf['MTDNA_MUT_ROS'] * this.ros)
-            if (this.C.random() < this.conf["dna_deprecation_rate"]){
-                this.DNA.splice(ix, 1)
-            }
+            dna.mutate(this.cellParameter('MTDNA_MUT_ROS') * this.ros)
         }
     }
 
@@ -158,24 +129,19 @@ class Mitochondrion extends SubCell {
         partner.fusing = true
     }
 
-    /* eslint-ignore */
-    tryIncrement(ix){
-        return this.C.random() < (this.vol /  this.sum_products().reduce((t, e) => t + e))
-        // if (ix < this.conf["N_OXPHOS"] ){
-        //     return this.C.random() < (this.vol / (this.products.oxphos_sum +this.bad_products.oxphos_sum) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"] / 100)
-        // } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
-        //     return this.C.random() < (this.vol /( this.products.translate_sum+ this.bad_products.replicate_sum )* this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"] / 100)
-        // } else {
-        //     return this.C.random() < (this.vol / (this.products.replicate_sum + this.bad_products.replicate_sum ) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"] / 100)
-        // }
+    tryIncrement(){
+        return this.C.random() < (this.vol /  this.sum_arr(this.products.arr, this.bad_products.arr).reduce((t, e) => t + e))
     }
 
-    get fission_rate(){
-        return this.C.cells[this.hostId].fission_rate
-    }
-    get fusion_rate(){
-        return this.C.cells[this.hostId].fusion_rate
-    }
+    /**
+	 * all evolvables of Mitochondria are controlled by host
+	*/
+	cellParameter(param){
+		if (this.C.cells[this.host][param] !== undefined){
+			return this.C.cells[this.host][param] 
+		}
+		return this.conf[param]
+	}
 
     get n_replisomes(){ 
         return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
@@ -186,27 +152,17 @@ class Mitochondrion extends SubCell {
     }
 
     importAndProduce(){
-        this.shuffle(this.makebuffer)
+        this.shuffle(this.proteinbuffer)
         // console.log(this.makebuffer)
-        while ((this.makebuffer.length + this.importbuffer.length) > 0){
-            if (this.C.random() < this.makebuffer.length/(this.makebuffer.length + this.importbuffer.length)){
-                let p = this.makebuffer.pop()
-                if (this.tryIncrement(p.which)){
-                    if (p.good){
-                        this.products.arr[p.which]++
-                    } else {
-                        this.bad_products.arr[p.which]++
-                    }
-                }
-            } else {
-                let p = this.importbuffer.pop()
-                if (this.tryIncrement(p.which) && this.oxphos > this.conf["MITOPHAGY_THRESHOLD"]){
-                    // currently no bad nuclear products.
+        while (this.proteinbuffer.length > 0){
+            let p = this.proteinbuffer.pop()
+            if (this.tryIncrement(p.which)){
+                if (p.good){
                     this.products.arr[p.which]++
                 } else {
-                    this.C.getCell(this.host).cytosol[p.which]++
+                    this.bad_products.arr[p.which]++
                 }
-            }
+            } 
         }
     }
 
@@ -235,13 +191,13 @@ class Mitochondrion extends SubCell {
                 break
             }
             if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
-                dna.replicating = this.conf["REPLICATE_TIME"] 
+                dna.replicating = this.cellParameter("REPLICATE_TIME")
                 replicate_attempts--
             } else {
                 // translate
                 for (let ix = 0 ; ix < dna.quality.length; ix++){
                     if (dna.exists[ix] !== 0){
-                        this.makebuffer.push({"which":ix,"good":dna.quality[ix]})
+                        this.proteinbuffer.push({"which":ix,"good":dna.quality[ix]})
                     }
                 }
                 translate_attempts-- 
@@ -250,15 +206,18 @@ class Mitochondrion extends SubCell {
         this.DNA = [...this.DNA, ...new_dna]
     }
 
-    // expects shallow copies!!!
+    
+    // Note: expects shallow copies of arrays.
     assemble(arr, bad_arr){
-        // console.log("-------")
-        let assemblies = 0, attempts = Math.min.apply(Math, this.sum_arr(arr,bad_arr)) 
-        for (let i = 0; i < attempts ; i ++){
-            // console.log(arr, bad_arr, assemblies)
+        let assemblies = 0
+        while (true) {
             let complete = 1
             for (let  j= 0; j<arr.length; j++){
-                if(this.C.random() < bad_arr[j]/(arr[j]+bad_arr[j])){
+                let all_j = arr[j] + bad_arr[j] 
+                if (all_j == 0){
+                    return assemblies
+                }
+                if(this.C.random() < bad_arr[j]/all_j){
                     bad_arr[j]--
                     complete = 0
                 } else {
@@ -267,7 +226,6 @@ class Mitochondrion extends SubCell {
             }
             assemblies += complete
         }
-        return assemblies
     }
    
     makeAssemblies(){
@@ -275,13 +233,12 @@ class Mitochondrion extends SubCell {
         this.translate = this.assemble(this.products.translate, this.bad_products.translate)
         this.replicate = this.assemble(this.products.replicate, this.bad_products.replicate)
         this.ros = Math.min.apply(Math, this.sum_arr(this.products.oxphos,this.bad_products.oxphos)) / (this.vol / 100) * this.conf["OXPHOS_PER_100VOL"]
+        this.oxphos_q.push(this.oxphos)
+        this.oxphos_q = this.oxphos_q.slice(-5)
     }
 
-    canGrow(){
-        return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
-    }
-    canShrink(){
-        return this.vol-this.V < this.conf["VOLCHANGE_THRESHOLD"]
+    get oxphos_avg() {
+        return this.oxphos_q.reduce((t, e) => t + e) / 5
     }
 
     shuffle(array) {
@@ -291,22 +248,6 @@ class Mitochondrion extends SubCell {
         }
     }
 
-
-    sum_dna(){
-        let sum = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
-        for (let dna of this.DNA){
-            sum = this.sum_arr(sum, dna.quality)
-        }
-        return sum
-    }
-
-    sum_products(){
-        let bad_arr = this.bad_products.arr
-        return this.products.arr.map(function (num, idx) {
-            return num - bad_arr[idx];
-        })
-    }
-
     sum_arr(arr1, arr2){
         // console.log(arr1)
         return arr1.map(function (num, idx) {
@@ -314,6 +255,31 @@ class Mitochondrion extends SubCell {
         })
     }
 
+    stateDct(){
+        let mito = {}
+        mito["time"] = this.C.time
+        mito["V"] = this.V
+        mito["id"] = this.id
+        mito["host"] = this.host
+        mito["vol"] = this.vol
+        mito["n DNA"] = this.DNA.length
+        mito["oxphos"] = this.oxphos
+        mito["oxphos_avg"] = this.oxphos_avg
+        mito["translate"] = this.translate
+        mito["replicate"] = this.replicate
+        mito["replisomes"] = this.n_replisomes
+        mito["type"] = "mito"
+        mito["time of birth"] = this.C.time_of_birth
+        mito["products"] = this.products.arr
+        mito["bad products"] = this.bad_products.arr.slice(0,10)
+        let sumdna = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
+        for (let dna of this.DNA){
+            sumdna = this.sum_arr(sumdna, dna.quality)
+        }
+        mito['sum dna'] = sumdna.slice(0,10)
+        mito["unmut"] = this.unmutated/this.DNA.length
+        return mito
+    }
     
 }
 

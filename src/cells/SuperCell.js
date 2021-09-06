@@ -71,15 +71,7 @@ class SuperCell extends Cell {
 		let ids = [this.id], cp = pix[this.id]
 		for (let scid of this.subcellIDs()){
 			ids = [...ids, scid]
-			// if (pix[scid].length == 1){
-			// 	var fs = require("fs")
-			// 	let stringbuffer = ""
-			// 	stringbuffer += "single cell subcell \n"
-			// 	fs.appendFileSync("./debug.log", stringbuffer)
-			// 	cp = [...cp, pix[scid]]
-			// } else {
 			cp = [...cp, ...pix[scid]]
-			// }
 		}
 		let com = this.computeHostCentroid(cp)
 		let bxx = 0, bxy = 0, byy=0, cx, cy, x2, y2, side, T, D, x0, y0, x1, y1, L2

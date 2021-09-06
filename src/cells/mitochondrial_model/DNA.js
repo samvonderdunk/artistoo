@@ -12,11 +12,9 @@ class DNA {
         this.translateFlag = false
         // console.log("also in seed")
         if (parent instanceof DNA){
-            // console.log("records parentage!")
             this.quality = [...parent.quality]
             this.mutate(this.conf['MTDNA_MUT_REP'])
             this.exists = [...parent.exists]
-            // console.log(this.quality)
         } else {
             this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
             this.exists = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
@@ -26,20 +24,15 @@ class DNA {
                     this.exists[i] = 1
                 }
             }
-            // this.mutate(this.conf["MTDNA_MUT_INIT"])
-            // console.log(this.quality, this.exists[55])
         }
     }
 
     mutate(rate){ 
-        // console.log(this.quality, this.trues)
         for (let ix = 0 ; ix < this.quality.length; ix++){
             if (this.C.random() < rate){
                 this.quality[ix] = 0
             }
         }
-        // this.quality[this.trues[Math.floor(this.C.random() * this.trues.length)]] = 0
-        // console.log(this.quality, this.trues)
     }
 
     notBusy(){

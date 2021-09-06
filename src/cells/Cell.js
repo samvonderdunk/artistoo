@@ -14,6 +14,7 @@ class Cell {
 		this.kind = kind
 		this.C = C
 		this.id = id
+		
 
 		/** The id of the parent cell, all seeded cells have parent -1, to overwrite this
 		 * this.birth(parent) needs to be called 
@@ -27,6 +28,7 @@ class Cell {
 	 */
 	birth (parent){
 		this.parentId = parent.id 
+		this.time_of_birth = this.C.time
 	}
 
 	/**
@@ -37,6 +39,23 @@ class Cell {
 
 	get vol(){
 		return this.C.getVolume(this.id)
+	}
+
+	/**
+	 * variable setting for evolvable parameters within cell class 
+	*/
+	cellParameter(param){
+		if (this[param] !== undefined){
+			return this[param]
+		}
+		return this.conf[param]
+	}
+
+	canGrow(){
+		return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
+	}
+	canShrink(){
+		return this.vol-this.V < this.conf["VOLCHANGE_THRESHOLD"]
 	}
 
 }
