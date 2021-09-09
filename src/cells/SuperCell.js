@@ -119,6 +119,7 @@ class SuperCell extends Cell {
 			y1 = bxy
 		}
 		let newhost =  C.makeNewCellID( C.cellKind( this.id ) )
+		
 		let newhostpix = []
 		for (let j = 0; j < pix[this.id].length; j++){
 			if( x1*pixdist[this.id][j][1]-pixdist[this.id][j][0]*y1 > 0 ){
@@ -127,16 +128,15 @@ class SuperCell extends Cell {
 		}
 		
 		if (newhostpix.length == 0){
-			newhostpix.push(cp.pop())
-		} else if (newhostpix.length >= cp.length -1){
+			newhostpix.push(pix[this.id].pop())
+		} else if (newhostpix.length >= pix[this.id].length -1){
 			newhostpix.pop()
 		}
-		
+		// console.log(newhostpix.length, "newhostpix length")
 		for (let pix of newhostpix){
 			C.setpix( pix, newhost ) 
 		}
 		C.birth(newhost, this.id, newhostpix.length/pix[this.id].length)
-		
 		for (let id of ids){
 			if (id === this.id ){
 				continue
@@ -158,7 +158,6 @@ class SuperCell extends Cell {
 				C.cells[nid].host = newhost
 				
 			}
-		
 		}
 		
 		C.stat_values = {} // remove cached stats or this will crash!!!

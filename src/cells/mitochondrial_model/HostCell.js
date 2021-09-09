@@ -16,7 +16,7 @@ class HostCell extends SuperCell {
 		
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C) 
-		this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
+		// this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
 		
 		this.fission_events = 0
 		this.fusion_events = 0
@@ -25,23 +25,31 @@ class HostCell extends SuperCell {
 	birth(parent, partition){
 		super.birth(parent, partition)
 		this.V = parent.V * partition
-        parent.V *= (1-partition)
+		parent.V *= (1-partition)
+		this.total_oxphos = parent.total_oxphos * partition
+        parent.total_oxphos *= (1-partition)
 		this.DNA = new nDNA(this.conf, this.C, parent.DNA)
-		for (const [ix, product] of parent.cytosol.entries()){
-            for (let i = 0; i < product; i ++){
-                if (this.C.random() < partition){
-                    parent.cytosol[ix]--
-                    this.cytosol[ix]++
-                }
-            }
-		}  
+		// for (const [ix, product] of parent.cytosol.entries()){
+        //     for (let i = 0; i < product; i ++){
+        //         if (this.C.random() < partition){
+        //             parent.cytosol[ix]--
+        //             this.cytosol[ix]++
+        //         }
+        //     }
+		// }  
 		
 		for (const evolvable in this.conf['evolvables']){
+			
 			this[evolvable] = parent.cellParameter(evolvable)
-			this[evolvable] += this.conf['evolvables'][evolvable] * this.rand_normal()
+			this[evolvable] += this.conf['evolvables'][evolvable]['sigma'] * this.rand_normal()
+			if (this.conf['evolvables'][evolvable]['lower_bound'] !== undefined){
+				this[evolvable] = Math.max(this[evolvable], this.conf['evolvables'][evolvable]['lower_bound'])
+			}
+			if (this.conf['evolvables'][evolvable]['upper_bound'] !== undefined){
+				this[evolvable] = Math.min(this[evolvable], this.conf['evolvables'][evolvable]['upper_bound'])
+			}
 		}
 
-		// console.log(this.stateDct())
 		this.write("divisions.txt", {"daughter":this.stateDct(), "parent":parent.stateDct()})
 	}
 
@@ -65,7 +73,7 @@ class HostCell extends SuperCell {
 			mito.update()
 			this.total_oxphos += mito.oxphos
 		}
-		
+		 
 		
 		let new_products = (this.total_oxphos*this.cellParameter("rep")) - (this.total_oxphos*this.total_oxphos*this.cellParameter("rep2"))
 		volcumsum = volcumsum.map(function(item) {return item/ mito_vol})
@@ -97,13 +105,13 @@ class HostCell extends SuperCell {
 		for (let mito of this.subcells()){
 			mito.importAndProduce()
 		}
-		for (const [ix, product] of this.cytosol.entries()){
-			for (let i = 0 ; i < product;i++){
-				if( this.C.random() < this.cellParameter("HOST_DEPRECATION")){
-					this.cytosol[ix]--
-				}
-			}
-		}
+		// for (const [ix, product] of this.cytosol.entries()){
+		// 	for (let i = 0 ; i < product;i++){
+		// 		if( this.C.random() < this.cellParameter("HOST_DEPRECATION")){
+		// 			this.cytosol[ix]--
+		// 		}
+		// 	}
+		// }
 	}
 
 
@@ -112,9 +120,9 @@ class HostCell extends SuperCell {
         return (this.C.random() < (this.vol/this.sum))
 	}
 	
-	get sum(){
-		return this.cytosol.reduce((t, e) => t + e)
-	}
+	// get sum(){
+	// 	return this.cytosol.reduce((t, e) => t + e)
+	// }
 
 	get total_vol(){
 		let vol = this.vol
@@ -162,7 +170,7 @@ class HostCell extends SuperCell {
 		dct["type"] = "host"
 		dct["n mito"] = this.nSubcells
 		dct["total_oxphos"] = this.total_oxphos
-		dct["cytosolsum"] = this.sum
+		// dct["cytosolsum"] = this.sum
 		dct['total_vol'] = this.total_vol
 		dct["fission events"] = this.fission_events
 		dct["fusion events"] = this.fusion_events

@@ -135,9 +135,11 @@ class Mitochondrion extends SubCell {
 
     /**
 	 * all evolvables of Mitochondria are controlled by host
+     * returns conf value if host not extant
+     * TODO add all parameters at birth to mito so they stay with extant subcells after host death
 	*/
 	cellParameter(param){
-		if (this.C.cells[this.host][param] !== undefined){
+		if ((this.C.cells[this.host] || {})[param] !== undefined){
 			return this.C.cells[this.host][param] 
 		}
 		return this.conf[param]
