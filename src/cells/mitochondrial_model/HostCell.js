@@ -3,10 +3,9 @@
 import SuperCell from "../SuperCell.js" 
 import nDNA from "./nDNA.js"
 
-
+/* eslint-disable*/
 class HostCell extends SuperCell {
 
-	/* eslint-disable */ 
 	constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
 		this.V = conf["INIT_HOST_V"]
@@ -16,10 +15,6 @@ class HostCell extends SuperCell {
 		
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C) 
-		// this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
-		
-		this.fission_events = 0
-		this.fusion_events = 0
 	}
 
 	birth(parent, partition){
@@ -29,17 +24,9 @@ class HostCell extends SuperCell {
 		this.total_oxphos = parent.total_oxphos * partition
         parent.total_oxphos *= (1-partition)
 		this.DNA = new nDNA(this.conf, this.C, parent.DNA)
-		// for (const [ix, product] of parent.cytosol.entries()){
-        //     for (let i = 0; i < product; i ++){
-        //         if (this.C.random() < partition){
-        //             parent.cytosol[ix]--
-        //             this.cytosol[ix]++
-        //         }
-        //     }
-		// }  
+		this.DNA.mutate(this.cellParameter('MTDNA_MUT_REP'))
 		
 		for (const evolvable in this.conf['evolvables']){
-			
 			this[evolvable] = parent.cellParameter(evolvable)
 			this[evolvable] += this.conf['evolvables'][evolvable]['sigma'] * this.rand_normal()
 			if (this.conf['evolvables'][evolvable]['lower_bound'] !== undefined){
@@ -49,14 +36,11 @@ class HostCell extends SuperCell {
 				this[evolvable] = Math.min(this[evolvable], this.conf['evolvables'][evolvable]['upper_bound'])
 			}
 		}
-
-		this.write("divisions.txt", {"daughter":this.stateDct(), "parent":parent.stateDct()})
 	}
 
 	update(){
 		
 		if (this.nSubcells === 0 ){
-			// console.log(this.V, this.vol)
 			if (this.canShrink()){
 				this.V -= this.cellParameter("HOST_SHRINK")
 			}
@@ -80,7 +64,7 @@ class HostCell extends SuperCell {
 		for (let i = 0; i < new_products; i++){
 			let ix = this.DNA.trues[Math.floor(this.C.random() * this.DNA.trues.length)]
 			let which = volcumsum.findIndex(element => this.C.random()  < element )
-			cells[which].proteinbuffer.push({"which":ix, "good" : true}) //currently all nDNA is good, watch out for this when starting host mutation!
+			cells[which].proteinbuffer.push({"which":ix, "good" : this.DNA.quality[ix]})
 		}
 
 
@@ -88,16 +72,17 @@ class HostCell extends SuperCell {
 		dV += this.total_oxphos *this.cellParameter("HOST_V_PER_OXPHOS")
 		dV -= this.cellParameter("HOST_SHRINK")
 		dV = Math.min(this.cellParameter("HOST_GROWTH_MAX"), dV)
-		// if (dV > 0 && this.canGrow() && mito_vol/(this.vol + mito_vol) > this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
+	
 		if (dV > 0 && this.canGrow() ){
             this.V += dV
         }
         if (dV < 0 && this.canShrink()){
-            this.V += dV
-		}
-		if (dV < 0 && !this.canShrink()){
-			for (let mito of this.subcells()){
-				mito.V += (mito.vol/mito_vol) * dV *this.conf["FACTOR_HOSTSHRINK_OVERFLOW"]
+			if (this.canShrink()){
+				this.V += dV
+			} else {
+				for (let mito of this.subcells()){
+					mito.V += (mito.vol/mito_vol) * dV *this.conf["FACTOR_HOSTSHRINK_OVERFLOW"]
+				}
 			}
 		}
 
@@ -105,13 +90,8 @@ class HostCell extends SuperCell {
 		for (let mito of this.subcells()){
 			mito.importAndProduce()
 		}
-		// for (const [ix, product] of this.cytosol.entries()){
-		// 	for (let i = 0 ; i < product;i++){
-		// 		if( this.C.random() < this.cellParameter("HOST_DEPRECATION")){
-		// 			this.cytosol[ix]--
-		// 		}
-		// 	}
-		// }
+
+		this.DNA.mutate(this.cellParameter('NDNA_MUT_LIFETIME'))
 	}
 
 
@@ -120,10 +100,6 @@ class HostCell extends SuperCell {
         return (this.C.random() < (this.vol/this.sum))
 	}
 	
-	// get sum(){
-	// 	return this.cytosol.reduce((t, e) => t + e)
-	// }
-
 	get total_vol(){
 		let vol = this.vol
 		for (let subcell of this.subcells()){
@@ -133,7 +109,6 @@ class HostCell extends SuperCell {
 	}
 
 	death(){
-		/* eslint-disable */
 		super.death()
 		for (let mito of this.subcells()){
 			this.write("debug.log", {"message": "Host died with extant subcells, please mind the balance in your model", "cell" : this.stateDct()})
@@ -170,7 +145,6 @@ class HostCell extends SuperCell {
 		dct["type"] = "host"
 		dct["n mito"] = this.nSubcells
 		dct["total_oxphos"] = this.total_oxphos
-		// dct["cytosolsum"] = this.sum
 		dct['total_vol'] = this.total_vol
 		dct["fission events"] = this.fission_events
 		dct["fusion events"] = this.fusion_events

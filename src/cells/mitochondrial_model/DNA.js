@@ -47,7 +47,7 @@ class DNA {
     }
 
     get trues(){
-        return this.quality.reduce(
+        return this.exists.reduce(
             (out, bool, index) => bool ? out.concat(index) : out, 
             []
           )
