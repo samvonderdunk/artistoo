@@ -52,7 +52,6 @@ class DNA {
             []
           )
     }
-    
 
     get oxphos_quality() {
         return this.quality.slice(0, this.conf["N_OXPHOS"])

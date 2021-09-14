@@ -135,6 +135,7 @@ class HostCell extends SuperCell {
 		dct["vol"] = this.vol
 		dct["parent"] = this.parentId
 		dct["time of birth"] = this.time_of_birth
+		dct['dna'] = this.dna_good
 
 		// host specific
 		dct["type"] = "host"
@@ -148,6 +149,10 @@ class HostCell extends SuperCell {
 			dct['evolvables'][evolvable] = this[evolvable]
 		}
 		return dct
+	}
+
+	get dna_good(){
+		return this.DNA.sumQuality() == new nDNA(this.conf, this.C).sumQuality()
 	}
 
 	write(logpath, dct){
