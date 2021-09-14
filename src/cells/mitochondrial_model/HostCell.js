@@ -41,7 +41,7 @@ class HostCell extends SuperCell {
 	update(){
 		
 		if (this.nSubcells === 0 ){
-			if (this.canShrink()){
+			if (this.closeToV()){
 				this.V -= this.cellParameter("HOST_SHRINK")
 			}
 			return
@@ -73,16 +73,11 @@ class HostCell extends SuperCell {
 		dV -= this.cellParameter("HOST_SHRINK")
 		dV = Math.min(this.cellParameter("HOST_GROWTH_MAX"), dV)
 	
-		if (dV > 0 && this.canGrow() ){
+		if (this.closeToV() ){
             this.V += dV
-        }
-        if (dV < 0 && this.canShrink()){
-			if (this.canShrink()){
-				this.V += dV
-			} else {
-				for (let mito of this.subcells()){
-					mito.V += (mito.vol/mito_vol) * dV *this.conf["FACTOR_HOSTSHRINK_OVERFLOW"]
-				}
+        } else if (dV < 0){
+			for (let mito of this.subcells()){
+				mito.V += (mito.vol/mito_vol) * dV *this.conf["FACTOR_HOSTSHRINK_OVERFLOW"]
 			}
 		}
 

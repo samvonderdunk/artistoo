@@ -87,10 +87,7 @@ class Mitochondrion extends SubCell {
         if (this.oxphos < this.cellParameter("MITOPHAGY_THRESHOLD")) {
             dV -= this.cellParameter("MITOPHAGY_SHRINK")
         }
-        if (dV > 0 && this.canGrow()){
-            this.V += dV
-        }
-        if (dV < 0 && this.canShrink()){
+        if (this.closeToV()){
             this.V += dV
         }
         this.repAndTranslate()
@@ -155,7 +152,6 @@ class Mitochondrion extends SubCell {
 
     importAndProduce(){
         this.shuffle(this.proteinbuffer)
-        // console.log(this.makebuffer)
         while (this.proteinbuffer.length > 0){
             let p = this.proteinbuffer.pop()
             if (this.tryIncrement(p.which)){

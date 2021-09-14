@@ -51,11 +51,8 @@ class Cell {
 		return this.conf[param]
 	}
 
-	canGrow(){
-		return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
-	}
-	canShrink(){
-		return this.vol-this.V < this.conf["VOLCHANGE_THRESHOLD"]
+	closeToV(){
+		return Math.abs(this.V-this.vol) < this.conf["VOLCHANGE_THRESHOLD"]
 	}
 
 }
