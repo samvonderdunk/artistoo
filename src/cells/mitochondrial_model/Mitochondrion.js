@@ -253,6 +253,15 @@ class Mitochondrion extends SubCell {
         })
     }
 
+    // debug_hostbad_printer(){
+    //     let outdct = {}
+    //     for (let i in this.C.cells[this.host].DNA.bads){
+    //         outdct[ + " good"] = this.products.arr[i + ]
+    //         outdct[i + " bad"] = this.bad_products.arr[i]
+    //     }
+    //     return outdct
+    // }
+
     stateDct(){
         let mito = {}
         mito["time"] = this.C.time
@@ -262,6 +271,7 @@ class Mitochondrion extends SubCell {
         mito["vol"] = this.vol
         mito["n DNA"] = this.DNA.length
         mito["oxphos"] = this.oxphos
+        mito["ros"] = this.ros
         mito["oxphos_avg"] = this.oxphos_avg
         mito["translate"] = this.translate
         mito["replicate"] = this.replicate
@@ -269,7 +279,8 @@ class Mitochondrion extends SubCell {
         mito["type"] = "mito"
         mito["time of birth"] = this.C.time_of_birth
         mito["products"] = this.products.arr
-        mito["bad products"] = this.bad_products.arr.slice(0,10)
+        mito["bad products"] = this.bad_products.arr
+        // mito['products at bad host DNA'] = this.debug_hostbad_printer()
         let sumdna = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
         for (let dna of this.DNA){
             sumdna = this.sum_arr(sumdna, dna.quality)

@@ -8,7 +8,7 @@ class nDNA extends DNA {
         if (parent instanceof DNA){
             this.quality = [...parent.quality]
             this.exists = [...parent.exists]
-            this.DNA.mutate(this.conf['MTDNA_MUT_REP'])
+            this.mutate(this.conf['NDNA_MUT_REP'])
         } else {
             this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(1)
             this.exists = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(1)

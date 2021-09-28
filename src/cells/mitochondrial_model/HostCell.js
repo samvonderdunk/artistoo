@@ -14,7 +14,7 @@ class HostCell extends SuperCell {
 		}
 		
 		this.total_oxphos = 0
-		this.DNA = new nDNA(conf, C, id) 
+		this.DNA = new nDNA(conf, C, String(this.id)) 
 	}
 
 	birth(parent, partition){
@@ -23,7 +23,7 @@ class HostCell extends SuperCell {
 		parent.V *= (1-partition)
 		this.total_oxphos = parent.total_oxphos * partition
         parent.total_oxphos *= (1-partition)
-		this.DNA = new nDNA(this.conf, this.C, id, parent.DNA)
+		this.DNA = new nDNA(this.conf, this.C,String(this.id), parent.DNA)
 		
 		
 		for (const evolvable in this.conf['evolvables']){
@@ -135,8 +135,9 @@ class HostCell extends SuperCell {
 		dct["vol"] = this.vol
 		dct["parent"] = this.parentId
 		dct["time of birth"] = this.time_of_birth
-		dct['dna'] = this.dna_good
-
+		dct['good'] = this.dna_good
+		dct['bads'] = this.DNA.bads
+		dct['dna'] = this.DNA.quality
 		// host specific
 		dct["type"] = "host"
 		dct["n mito"] = this.nSubcells

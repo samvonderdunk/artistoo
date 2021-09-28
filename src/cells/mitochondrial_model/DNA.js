@@ -13,8 +13,8 @@ class DNA {
         // console.log("also in seed")
         if (parent instanceof DNA){
             this.quality = [...parent.quality]
-            this.mutate(this.conf['MTDNA_MUT_REP'])
             this.exists = [...parent.exists]
+            this.mutate(this.conf['MTDNA_MUT_REP'])
         } else {
             this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
             this.exists = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0)
@@ -28,7 +28,7 @@ class DNA {
     }
 
     mutate(rate){ 
-        for (let ix = 0 ; ix < this.quality.length; ix++){
+        for (let ix of this.trues){
             if (this.C.random() < rate){
                 this.quality[ix] = 0
             }
@@ -46,9 +46,21 @@ class DNA {
         return  this.quality.reduce((t, e) => t + e)
     }
 
+    // this assumes exists is static - for speed
     get trues(){
-        return this.exists.reduce(
-            (out, bool, index) => bool ? out.concat(index) : out, 
+        if (this.fixedtrues === undefined){
+            // console.log(this.exists)
+            this.fixedtrues = this.exists.reduce(
+                (out, bool, index) => bool ? out.concat(index) : out, 
+                []
+            )
+        }
+        return this.fixedtrues
+    }
+
+    get bads(){
+        return this.quality.reduce(
+            (out, bool, index) => bool ? out : out.concat(index), 
             []
           )
     }
