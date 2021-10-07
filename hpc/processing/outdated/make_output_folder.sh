@@ -1,0 +1,5 @@
+mkdir current_processing
+mkdir current_processing/perrun
+mkdir current_processing/perrun/fraction_unmut
+mkdir current_processing/perrun/integer_unmut
+mkdir current_processing/perrun/fisfus
