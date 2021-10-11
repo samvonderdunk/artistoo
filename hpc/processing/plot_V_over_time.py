@@ -70,10 +70,10 @@ if True:
             continue
         fig, ax = plt.subplots()
         # counts = df.apply(pd.value_counts).fillna(0)
-        # g = sns.lineplot(data=df, x='time', y='vol', ax=ax)
-        # g2 = sns.lineplot(data=df, x='time', y='mito_vol', ax=ax)
-        g = sns.scatterplot(data=df, x='time', y='vol', ax=ax, s=0.5, alpha=0.1)
-        g2 = sns.scatterplot(data=df, x='time', y='mito_vol', ax=ax, s=0.5, alpha=0.1)
+        g = sns.lineplot(data=df, x='time', y='vol', ax=ax)
+        g2 = sns.lineplot(data=df, x='time', y='mito_vol', ax=ax)
+        # g = sns.scatterplot(data=df, x='time', y='vol', ax=ax, s=0.5, alpha=0.1)
+        # g2 = sns.scatterplot(data=df, x='time', y='mito_vol', ax=ax, s=0.5, alpha=0.1)
         # entries = []
 
         title = "volume through time\n"

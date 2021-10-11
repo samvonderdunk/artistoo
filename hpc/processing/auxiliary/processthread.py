@@ -8,7 +8,7 @@ from functools import partial
 
 
 def readfile(fname, selector=None, verbose=True, start=None, stop=None,  reverse=False, **kwargs):
-    
+    # print(stop)
     if not os.path.isfile(fname) or os.path.getsize(fname) == 0:
         if verbose:
             print("Cannot see: " + fname + " or it is empty")
@@ -30,6 +30,7 @@ def readfile(fname, selector=None, verbose=True, start=None, stop=None,  reverse
         if line[0] == "%":
             time = int(line.replace('-','').replace('%', ''))
             if reverse and selectorline is not None:
+                it += 1
                 selected = selector(selectorline, time)
                 readout.extend(selected)
         if (start != None and it < start):

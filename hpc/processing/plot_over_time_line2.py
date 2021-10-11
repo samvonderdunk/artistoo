@@ -51,7 +51,7 @@ for path in dfs:
     
     # print(df)
     # keywords.rename(df)
-    # df= df[(df['time'] % 100 == 0)]
+    df= df[(df['time'] % 200 == 0)]
     for colname, col in df.iteritems():
         if col.iloc[0] != 0:
             col /= col[0]
