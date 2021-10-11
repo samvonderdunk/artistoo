@@ -4,10 +4,11 @@ import pandas as pd
 import argparse
 import os
 
+# TODO make all code accept lists of folders
 def getfoldername():
     args= getarguments()
     if args.filename == None:
-        return "../current"
+        return "../tmp"
     else:
         return args.filename
     # return "../210825_double_stoch_corr"

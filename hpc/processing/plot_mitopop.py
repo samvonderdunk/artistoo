@@ -23,7 +23,7 @@ def select(timestep, time):
 # print(options.f)
 
 dfs = process.get(picklefname=keywords.nfile("nmito.pickle"),runs=keywords.getruns(),force=options.f, folder=keywords.getfoldername(), selector=select,  verbose=options.v,   sortbykeywordix=keywords.getkeywordix(), sortbylineix=keywords.getlineix())
-
+dfs.append(process.get(picklefname=keywords.nfile("nmito.pickle"),runs=keywords.getruns(),force=options.f, folder='../210923_mutlifetime/', selector=select,  verbose=options.v,   sortbykeywordix=keywords.getkeywordix(), sortbylineix=keywords.getlineix()))
 alldf = []
 if True:
     for path in dfs:
@@ -95,11 +95,11 @@ if True:
     if options.v:
        print(alldf)
     fig, ax = plt.subplots()
-    g = sns.lineplot(data=alldf, x='time', y='n mito', hue="NDNA_MUT_LIFETIME", units='path', estimator=None, lw=1, palette="flare", ax=ax, alpha=0.5) 
-    # g = sns.lineplot(data=alldf, x='time', y='n mito', hue="NDNA_MUT_LIFETIME",lw=1, palette="flare", ax=ax) 
+    # g = sns.lineplot(data=alldf, x='time', y='n mito', hue="NDNA_MUT_LIFETIME", units='path', estimator=None, lw=1, palette="flare", ax=ax, alpha=0.5) 
+    g = sns.lineplot(data=alldf, x='time', y='n mito', hue="NDNA_MUT_LIFETIME",lw=1, palette="flare", ax=ax) 
     g.set_title("mean N MITO through time")
     fig.tight_layout()
-    plt.savefig(keywords.nfile("all_nmito_paths.png"))
+    plt.savefig(keywords.nfile("all_nmito_paths.svg"))
     plt.close()
     # fig, ax = plt.subplots()
     # g = sns.lineplot(data=vardf, x='time', y='vol', hue="path", lw=1, palette="plasma", ax=ax) 
