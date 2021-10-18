@@ -25,7 +25,7 @@ def select(timestep, time):
         #     host_ndna += mito['n DNA']
         #     if mito['n DNA'] > 0:
         #         host_unmut += mito['unmut'] *mito['n DNA']
-        dctout = {"time":time}
+        dctout = {"time":timestep['time'], "id":hostId}
         dctout.update(host['evolvables'])
         # print(dctout)
         out.append(dctout)
@@ -35,9 +35,9 @@ def select(timestep, time):
 
 # picklefname='./ndna_at_death.pickle'
 # dfs = process.get(force=False, folder='../current', reverse=False, selector=select, start=0,  verbose=True,   sortbykeywordix=[("fission_rate", -1), ("fusion_rate", -1), ("deprecation_rate", -1), ("division_volume", -1)])
-dfs = {}
+dfs = []
 for ix, folder in enumerate(["../210923_mutlifetime/", "../210927_mutrange2/"]):
-    dfs.update(process.get(force=options.f, picklefname=keywords.nfile(str(ix) +"evolvablesrev.pickle"),runs=keywords.getruns(),folder=folder,  selector=select, reverse=True, stop=10000,  sortbykeywordix=keywords.getkeywordix(), sortbylineix=keywords.getlineix(),verbose=options.v))
+    dfs.extend(process.get(force=options.f, picklefname=keywords.nfile(str(ix) +"evolvablesrev.pickle"),runs=keywords.getruns(),folder=folder,  selector=select, reverse=True, stop=100,  sortbykeywordix=keywords.getkeywordix(), sortbylineix=keywords.getlineix(),verbose=options.v))
 
 # print(df)
 # facecolor=plt.gcf().get_facecolor()
@@ -53,8 +53,8 @@ for path in dfs:
         print(path, " making plot")
     
     # only take count individuals once
-    df = df.groupby(['id']).mean().reset_index()
-    
+    # df = df.groupby(['id']).mean().reset_index()
+    df = df.groupby(['id']).first()
     for colname, col in df.iteritems():
         if col.iloc[0] != 0:
             col /= col[0]
@@ -67,7 +67,7 @@ alldf = pd.melt(alldf)
 g = sns.swarmplot(data=alldf,x='variable', y='value', hue="NDNA_MUT_LIFETIME",palette="flare", ax=ax) 
 g.set_title("evolvables at end of run (not all ran to end)")
 fig.tight_layout()
-plt.savefig(keywords.nfile("evolvablesmuts.png"))
-plt.savefig(keywords.nfile("evolvablesmuts.svg"))
+plt.savefig(keywords.nfile("evolvablesmutsfirst.png"))
+plt.savefig(keywords.nfile("evolvablesmutsfirst.svg"))
 plt.close()
    

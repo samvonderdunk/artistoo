@@ -1,7 +1,7 @@
 import json, os, pickle, re
 import pandas as pd
 from file_read_backwards import FileReadBackwards
-from multiprocessing import Pool as ThreadPool
+from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
 
@@ -27,6 +27,7 @@ def readfile(fname, selector=None, verbose=True, start=None, stop=None,  reverse
     it = 0
     selectorline=None
     while line:
+        # print(it)
         if line[0] == "%":
             time = int(line.replace('-','').replace('%', ''))
             if reverse and selectorline is not None:
@@ -134,7 +135,7 @@ def openruns(fname='Mitochondrialog.txt', folder='current', runs=None, longform=
     return dfs
 
 
-def get(picklefname = "./tmp.pickle", force=False, **kwargs):
+def get(picklefname = "./tmp.pickle", force=False, load=False, **kwargs):
     if os.path.isfile(picklefname) and force==False:
         with open(picklefname, 'rb') as ifs:
             try:   
@@ -146,7 +147,7 @@ def get(picklefname = "./tmp.pickle", force=False, **kwargs):
             kwargscp = dict(kwargs)
             del kwargscp['verbose']
             del dfdct['params']['verbose']
-            if dfdct["params"] == kwargscp:
+            if (dfdct["params"] == kwargscp) or load:
                 del dfdct["params"]
                 return dfdct["data"]
     df = pd.DataFrame(openruns(**kwargs))
