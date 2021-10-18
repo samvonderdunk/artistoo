@@ -15,6 +15,7 @@ class HostCell extends SuperCell {
 		
 		this.total_oxphos = 0
 		this.DNA = new nDNA(conf, C, String(this.id)) 
+		this.mitodead = 0
 	}
 
 	birth(parent, partition){
@@ -57,7 +58,10 @@ class HostCell extends SuperCell {
 			mito.update()
 			this.total_oxphos += mito.oxphos
 		}
-		 
+		if (this.mitodead > 0){
+			this.total_oxphos = 0
+			this.mitodead = 0
+		}
 		
 		let new_products = (this.total_oxphos*this.cellParameter("rep")) - (this.total_oxphos*this.total_oxphos*this.cellParameter("rep2"))
 		volcumsum = volcumsum.map(function(item) {return item/ mito_vol})
@@ -133,6 +137,7 @@ class HostCell extends SuperCell {
 		dct["id"] = this.id
         dct["V"] = this.V
 		dct["vol"] = this.vol
+		dct["mitodead"] = this.mitodead
 		dct["parent"] = this.parentId
 		dct["time of birth"] = this.time_of_birth
 		dct['good'] = this.dna_good
