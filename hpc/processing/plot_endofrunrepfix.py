@@ -38,11 +38,11 @@ print(dfs)
 # exit(1)
 # dfs2 = process.get(force=options.f, picklefname=keywords.nfile("evolvablesrev.pickle"),runs=keywords.getruns(),folder="../210927_mutrange2",  selector=select, reverse=True, stop=500,  sortbykeywordix=keywords.getkeywordix(), sortbylineix=keywords.getlineix(),verbose=options.v)
 # print(dfs2.columns)
-for path in dfs2:
-    dfs[path] = dfs2[path]
-# dfs= pd.concat([dfs,dfs2])
-# dfs = pd.DataFrame(dfs)
-print(dfs)
+# for path in dfs2:
+#     dfs[path] = dfs2[path]
+# # dfs= pd.concat([dfs,dfs2])
+# # dfs = pd.DataFrame(dfs)
+# print(dfs)
 # exit(1)
 # print(df)
 # facecolor=plt.gcf().get_facecolor()
@@ -73,9 +73,9 @@ for path in dfs:
     #         pass
     for kw, ix in keywords.getkeywordix():
         # print(title, kw, df[kw][0])
-        print(kw, dfs[path][kw ])
-        if kw == "rep":
-            continue
+        # print(kw, dfs[path][kw ])
+        # if kw == "rep":
+        #     continue
         df[kw] = float(dfs[path][kw])
     
     # df["path"] = path
