@@ -79,22 +79,24 @@ for path in dfs:
         df[kw] = float(dfs[path][kw])
     
     # df["path"] = path
-    # df["NDNA_MUT_LIFETIME"] = dfs[path]["NDNA_MUT_LIFETIME"]
+    # df["rep"] = dfs[path]["rep"]
     df = df.drop(["seed"], axis=1)
+    df['path'] = int(path[-3:])
     alldf.append(df)
 
 fig, ax = plt.subplots()
 alldf= pd.concat(alldf, ignore_index=True)
 print(alldf.columns)
 # print(alldf['rep'])
-alldf = pd.melt(alldf, id_vars=["NDNA_MUT_LIFETIME"])
+alldf = pd.melt(alldf, id_vars=["rep","NDNA_MUT_LIFETIME", "path"])
 print(alldf)
 order = sorted(alldf['variable'].unique())
-reporder = sorted(alldf["NDNA_MUT_LIFETIME"].unique())
-g = sns.FacetGrid(alldf, col="variable", hue="NDNA_MUT_LIFETIME", sharex=False,sharey=False, palette='flare', col_order=order)
+reporder = sorted(alldf["rep"].unique())
+alldf['value'] = alldf['value'] * 1000
+g = sns.FacetGrid(alldf, col="variable",row="NDNA_MUT_LIFETIME", hue="path", sharex=False,sharey=False, palette='cubehelix', col_order=order, aspect=1.3)
 # g.map(fixed_boxplot, "rep", "value", order=reporder)
-g.map(sns.violinplot, "NDNA_MUT_LIFETIME", "value", order=reporder)
-g.set_titles('{col_name}')
+g.map(sns.swarmplot, "rep", "value", order=reporder, s=3)
+g.set_titles('{col_name}x1000')
 g.add_legend()
 fig.tight_layout()
 plt.savefig(keywords.nfile("compareevolvablesmutsfirst.png"))
