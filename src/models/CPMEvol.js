@@ -53,18 +53,6 @@ class CPMEvol extends CPM {
 	/* eslint-disable no-unused-vars*/
 	cellDeath( i, t_old, t_new){
 		if (this.cellvolume[t_old] === undefined && t_old !== 0 ){
-			if (this.cells[t_old] === undefined){
-				var fs = require("fs")
-				let stringbuffer = ""
-				stringbuffer += "Broke in death \n"
-				stringbuffer += "t_old: "+ t_old+" \n"
-				stringbuffer += "time: " +this.time +"\n"
-				stringbuffer += "t_new: " + t_new + "\n"
-				stringbuffer += "i: " + i + "\n"
-				// stringbuffer += ": " + + "\n"
-				// stringbuffer += "Broke in death \n"
-				fs.appendFileSync("./debug.log", stringbuffer)
-			}
 			this.cells[t_old].death()
 			delete this.cells[t_old]
 		} 
