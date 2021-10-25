@@ -107,6 +107,7 @@ class HostCell extends SuperCell {
 		this.total_vol = this.vol + mito_vol
 		 
 		/** Makes new replication products, and distributes based on volume-weighted draw */
+			this.total_oxphos = 0
 		let new_products = (this.total_oxphos*this.cellParameter("rep")) - (this.total_oxphos*this.total_oxphos*this.cellParameter("rep2"))
 		volcumsum = volcumsum.map(function(item) {return item/ mito_vol}) // is an array form 0 - 1 with mito.vol/total_mito_vol 
 		for (let i = 0; i < new_products; i++){

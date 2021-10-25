@@ -7,7 +7,7 @@ let config = {
 
 	// Grid settings
 	ndim : 2,
-	field_size : [600,600],
+	field_size : [450,450],
 	
 	// CPM parameters and configuration
 	conf : {
@@ -36,7 +36,7 @@ let config = {
 		MTDNA_MUT_INIT: 0.002,
         MTDNA_MUT_ROS : 0.00005,
 		NDNA_MUT_REP : 0,
-        NDNA_MUT_LIFETIME : <<0.000001, 0.000005, 0.00001, 0.00005>>,
+        NDNA_MUT_LIFETIME : <<0, 0.000001, 0.000005, 0.00001>>,
 		INIT_HOST_V : 700,
 		INIT_OXPHOS : 10,
 		INIT_TRANSLATE : 10,
@@ -54,11 +54,11 @@ let config = {
 
 		REPLICATE_TIME: 30,
 		//fission_rate : 0.0001,
-		fission_rate : 0.000025,
+		fission_rate : 0.00002,
 		fusion_rate : 0.00025,
 		rep: 19,
 		rep2: 0,
-		evolvables: {"fission_rate": {"sigma" : 0.00001}, 
+		evolvables: {"fission_rate": {"sigma" : 0.000001}, 
 							"fusion_rate":{"sigma" : 0.00003}, 
 							"rep": {"sigma" : 0.5}, 
 							"HOST_V_PER_OXPHOS":{"sigma" : 0.025}, 

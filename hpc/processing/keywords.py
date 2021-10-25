@@ -36,7 +36,7 @@ def getkeywordix():
                 # ("fission_rate", -1), 
                 # ("fusion_rate", -1), 
                 ("seed", -7),
-                ("NDNA_MUT_REP", -1),
+                ("rep", -1),
                 ("NDNA_MUT_LIFETIME", -1),
                 # ("SIGMA_REP", -1),
                 # ("division_volume", -1), 
@@ -65,12 +65,15 @@ def is_valid_file(parser, arg):
         # return open(arg, 'r')  # return an open file handle
 
 def getarguments():
+    # functionality of arguments does need to be implemented in plotter script currently
+    # TODO move most of this to auxiliary and integrate into process(thread)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', action='store_true')
-    parser.add_argument('-v', action='store_true')
-    parser.add_argument('-c', action='store_true')
+    parser.add_argument('-f', action='store_true') # force making new dfs
+    parser.add_argument('-v', action='store_true') # verbose
+    parser.add_argument('-c', action='store_true') # make plots for early-dead runs
+    parser.add_argument('-l', action='store_true') # force loading dfs with different parameters
     parser.add_argument("-i", dest="filename", required=False,
-                    help="input folder")
+                    help="input folder")           # give input folder
     return parser.parse_args()
 
 def rename(df):

@@ -19,7 +19,7 @@ def selectDeath(timestep, time):
     dctout['time'] = dctin['time']
     dctout['type'] = dctin['type']
     dctout['V'] = dctin['V']
-    dctout['fusion rate'] = dctin['evolvables']['fusion rate']
+    # dctout['fusion rate'] = dctin['evolvables']['fusion rate']
     if 'time of birth' in dctin:
         dctout['time of birth'] = dctin['time of birth']
     else:
@@ -38,11 +38,13 @@ def selectPopSize(timestep, time):
     # print(dctout)
     return [dctout]
 
-popsizedfs = process.get(picklefname=keywords.nfile('popsizes.pickle'),fname='Mitochondrialog.txt',runs=keywords.getruns(),force=options.f, folder=keywords.getfoldername(), selector=selectPopSize,  verbose=options.v,   sortbykeywordix=keywords.getkeywordix())
-dfs = process.get(picklefname=keywords.nfile('mitodeath.pickle'),fname='deaths.txt',runs=keywords.getruns(),force=options.f, folder=keywords.getfoldername(), selector=selectDeath,  verbose=options.v,   sortbykeywordix=keywords.getkeywordix())
+popsizedfs = process.get(picklefname=keywords.nfile('popsizes.pickle'),fname='Mitochondrialog.txt',runs=keywords.getruns(),force=options.f, folder=keywords.getfoldername(), selector=selectPopSize,  verbose=options.v,   sortbykeywordix=keywords.getkeywordix(), load=options.l)
+dfs = process.get(picklefname=keywords.nfile('mitodeath.pickle'),fname='deaths.txt',runs=keywords.getruns(),force=options.f, folder=keywords.getfoldername(), selector=selectDeath,  verbose=options.v,   sortbykeywordix=keywords.getkeywordix(),load=options.l)
+
+
 
 # pd.set_option('display.max_rows', None)
-
+alldf = []
 for path in dfs:
     # print(dfs[path]['data'])
     df = pd.DataFrame.from_dict(dfs[path]['data'])
@@ -55,6 +57,7 @@ for path in dfs:
             print("short run, only making with flag -c")
         if not options.c:
             continue
+    
     df['time'] = df['time'].round(decimals=-1)
     df['time'] += 1
     # df = df[(df['V']  < 100)]
@@ -78,17 +81,21 @@ for path in dfs:
     #     continue
     # fig, ax = plt.subplots()
     # g = sns.histplot(data=df, x='time')
+
     df['perhost'] = 1/dfpopsize['hosts']
     df['permito'] = 1/dfpopsize['mitos']
     if options.v:
         print(df)
     # print(perhost.reset_index())
     fig, ax = plt.subplots(nrows=2)
+    alldf.append(df)
+    
     # print(len(perhost), df[(df['type'] == 'host')].shape)
-    g1 = sns.histplot(data=df[(df['type'] == 'mito')], x='time',stat='frequency',hue=(df['fusion rate'] <0.005), ax=ax[0], weights='permito', bins=100)
+    g1 = sns.histplot(data=df[(df['type'] == 'mito')], x='time',stat='frequency', ax=ax[0], weights='permito', bins=100)
+    ax[0].set_ylim(0, 0.0065)
     # g1 = sns.lineplot(data=df[(df['type'] == 'mito')], x='time',stat='density', ax=ax[0])
     g2 = sns.histplot(data=df[(df['type'] == 'host')], x='time', stat='frequency' ,ax=ax[1], weights='perhost', bins=30)
-
+    ax[1].set_ylim(0, 0.00085)
     # fig, ax = plt.subplots()
     # g = sns.histplot(df, x="time", hue="type", element="step",stat="probability", common_norm=False,multiple='fill')
     
@@ -110,3 +117,30 @@ for path in dfs:
     plt.savefig(keywords.nfile("deaths/corrected"+ path[-4:] +".png"))
     plt.savefig(keywords.nfile("deaths//svgs/corrected"+ path[-4:] +".svg"))
     plt.close()
+
+fig, ax = plt.subplots(nrows=2)
+ax[0].set_ylim(0, 0.0065)
+ax[1].set_ylim(0, 0.00085)
+
+lstdf = alldf
+alldf = pd.concat(alldf, ignore_index=True)
+
+# ASSUMES ALL RUNS HAVE RUN AS LONG AS EACH OTHER!!!
+# best practice would be to div by time point how many unique runs have been there
+alldf['perhost'] /= len(lstdf)
+alldf['permito'] /= len(lstdf)
+
+g1 = sns.histplot(data=alldf[(alldf['type'] == 'mito')], x='time',stat='frequency', ax=ax[0], weights='permito', bins=100)
+g2 = sns.histplot(data=alldf[(alldf['type'] == 'host')], x='time', stat='frequency' ,ax=ax[1], weights='perhost', bins=30)
+plt.savefig(keywords.nfile("allcorrectedmorebins.png"))
+plt.savefig(keywords.nfile("allcorrectedmorebins.svg"))
+
+plt.close()
+fig, ax = plt.subplots(nrows=2)
+ax[0].set_ylim(0, 0.0065)
+ax[1].set_ylim(0, 0.00085)
+
+g1 = sns.histplot(data=alldf[(alldf['type'] == 'mito')], x='time',stat='frequency', ax=ax[0], weights='permito', bins=1)
+g2 = sns.histplot(data=alldf[(alldf['type'] == 'host')], x='time', stat='frequency' ,ax=ax[1], weights='perhost', bins=1)
+plt.savefig(keywords.nfile("allcorrected.png"))
+plt.savefig(keywords.nfile("allcorrected.svg"))

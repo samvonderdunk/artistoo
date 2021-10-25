@@ -21,8 +21,11 @@ def select(timestep, time):
 
 options = keywords.getarguments()
 
-dfs = process.get(picklefname=keywords.nfile('./longevity.pickle'),fname='deaths.txt',runs=keywords.getruns(),force=options.f, folder=keywords.getfoldername(), selector=select,  verbose=options.v,   sortbykeywordix=keywords.getkeywordix())
-
+dfs = process.get(picklefname=keywords.nfile('longevity.pickle'),fname='deaths.txt',runs=keywords.getruns(),force=options.f, folder=keywords.getfoldername(), selector=select,  verbose=options.v,   sortbykeywordix=keywords.getkeywordix())
+dfs2 = process.get(force=options.f, picklefname=keywords.nfile('longevity2.pickle'),runs=keywords.getruns(),folder="../211013_longevitynomut/",  selector=select, sortbykeywordix=keywords.getkeywordix(), sortbylineix=keywords.getlineix(),verbose=options.v)
+print(dfs2.columns)
+for path in dfs2:
+    dfs[path] = dfs2[path]
 
 # dfs = process.get(force=False, folder='./fisfus1', reverse=True,stop=1, selector=selectOnlyTime,  verbose=True,   sortbykeywordix=[("fission_rate", -1), ("fusion_rate", -1), ("deprecation_rate", -1)])
 # print (dfs.keys())
@@ -56,9 +59,9 @@ for path in processed:
     end = df['time'].iloc[-1]
     # print(end)
     if end < 50000:
-        if options.v:
+        if options.v and not options.c:
             print("short run, only making with flag -c")
-        if not options.c:
+        if options.c:
             continue
     df = df[(df['time'] > 5000)]        
     # df = df[(df['dna'] == True)]
@@ -81,32 +84,9 @@ for path in processed:
     # g = sns.scatterplot(data=df, x='time', y='longevity', ax=ax) 
     # df = df[(df['time of birth'] > 0)]
     # df= df[(df['time'] > 200000)]
-    meltdf = pd.melt(df, id_vars=['time'], value_vars=["10loglongevity", 'fission_rate', "fusion_rate", 'HOST_V_PER_OXPHOS', 'host_division_volume'])
+    meltdf = pd.melt(df, id_vars=['rep'], value_vars=["10loglongevity"])
     # print(df)
-    
-    g = sns.FacetGrid(meltdf, col="variable", hue="time", sharex=False,sharey=False, palette='viridis')
-    g.map(sns.kdeplot, "value", shade=True)
-    g.add_legend()
-    # g = sns.pairplot(data=df, vars=["10loglongevity", 'fission_rate', "fusion_rate", 'rep', 'rep2', 'HOST_V_PER_OXPHOS', 'host_division_volume'], kind='hist', hue='time', palette='plasma')
-    # title = "time of life of hosts through time\n"
-    title = ''
-    for kw, ix in keywords.getkeywordix():
-        # print(title, kw, df[kw][0])
-        title += (kw + " = " + str(processed[path][kw][0]) + '\n')
-    g.fig.suptitle(title, y=1.)
-    plt.savefig(keywords.nfile("pairplots/kde"+ path[-4:] +".png"))
-    plt.clf()
-    g = sns.pairplot(data=df, vars=["10loglongevity", 'fission_rate', "fusion_rate", 'HOST_V_PER_OXPHOS', 'host_division_volume'], kind='kde', hue='time', palette='viridis')
-    g.fig.suptitle(title, y=.9)
-    # g.fig.subplots_adjust(top0.9)
-    fig.tight_layout()
-    # ax.title.set_y(0.5)
-    g.fig.subplots_adjust(top=0.8)
-   
-    plt.savefig(keywords.nfile("pairplots/pair"+ path[-4:] +".png"))
-    plt.close(fig)
-    plt.close('all')
-    
+  
 exit(0)
 df = pd.concat(alldf, ignore_index=True)
 if options.v:
