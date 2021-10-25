@@ -12,9 +12,15 @@ import nDNA from "./nDNA.js"
 class HostCell extends SuperCell {
 
 	/**
-	 * @param {number} [conf.INIT_HOST_V] - initial target Volume at t=0
+	 * -- standard CPM.Cell parameters:
+     * @param {Object} conf - config of the model
+     * @param {Number} kind - the CellKind of this
+     * @param {Number} id - the CellId of this
+     * @param {CPMEvol} C - the CPMEvol (or inherited) model where it is attached to
 	 * 
-	 * unused in constructor -but relevant for file
+	 * -- specific conf parameters necessary --
+	 * @param {number} conf.INIT_HOST_V - initial target Volume at t=0
+	 * 
 	 * @param {number} conf.HOST_V_PER_OXPHOS - scalar value for the +∆V per total OXPHOS
 	 * @param {number} conf.HOST_SHRINK - shrinkage per timestep (expects a positive value for effective shrinkage)
 	 * @param {number} conf.HOST_GROWTH_MAX - maximum positive ∆V

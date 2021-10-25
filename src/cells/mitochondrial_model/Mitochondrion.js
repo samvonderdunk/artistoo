@@ -4,83 +4,158 @@ import SubCell from "../SubCell.js"
 import DNA from "./DNA.js" 
 import Products from "./Products.js" 
 
+/**
+ * Simulates mitochondria in combination with HostCell
+ * This inherits from SubCell, which handles which host it
+ * belongs to (note: setting the first host during seeding is still required)
+ */
 class Mitochondrion extends SubCell {
 
-	/* eslint-disable */ 
-    constructor (conf, kind, id, C) {
-        super(conf, kind, id, C)
+	/**
+     * Constructor for Mitochondrion
+     * -- standard CPM.Cell parameters:
+     * @param {Object} conf - config of the model
+     * @param {Number} kind - the CellKind of this
+     * @param {Number} id - the CellId of this
+     * @param {CPMEvol} C - the CPMEvol (or inherited) model where it is attached to
+     * 
+     * - specific conf parameters necessary --
+     * - initialization -
+     * @param {Number} conf.N_INIT_DNA - initial number of mtDNA copies
+     * @param {Number} conf.INIT_MITO_V - initial target Volume at t=0
+     * - growth -
+     * @param {Number} conf.MITO_V_PER_OXPHOS - scalar value for amount of ∆V the mitochondrion gets per oxphos
+     * @param {Number} conf.MITO_SHRINK - shrinkage in ∆V (expects positive value)
+     * @param {Number} conf.MITO_GROWTH_MAX - max amount of ∆V per timestep
+     * - mitophagy -
+     * @param {Number} conf.MITOPHAGY_THRESHOLD - amount of oxphos under which conf.MITOPHAGY_SHRINK will be applied
+     * @param {Number} conf.MITOPHAGY_SHRINK - shrinkage that is only applied with oxphos < conf.MITOPHAGY_THRESHOLD
+     * - proteolysis -
+     * @param {Number} conf.deprecation_rate - rate at which proteins are proteolysed/removed from the Mitochondrion (/MCS/gene product)
+     * - mutation -
+     * @param {Number} conf.MTDNA_MUT_INIT - initial mtDNA mutation /gene at t=0 
+     * @param {Number} conf.MTDNA_MUT_REP - mtDNA mutation /gene/replication event, only new daughter is affected
+     * @param {Number} conf.MTDNA_MUT_ROS - mtDNA mutation rate /gene/ROS 
+     * 
+     * Any parameters can also be controlled by the HostCell through 'evolvables' - but this still requires an 
+     * initial value to be present in the conf object
+     */
+	constructor (conf, kind, id, C) {
+		super(conf, kind, id, C)
         
-        this.last_dna_id = 0
-        this.DNA = []
-        for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
-            let dna = new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id))
-            dna.mutate(this.conf["MTDNA_MUT_INIT"])
-            this.DNA.push(dna)
-        }
-        
-        this.V = this.conf["INIT_MITO_V"]
-        this.fusing = false
+		/** initialize DNA + mutate this initial pool */
+		/** tracks how many new dna's have come from this mitochondrion (does not track well with fusion)
+         * is meant to at least allow fully unique DNA id's
+         * @type {Number} */
+		this.last_dna_id = 0
 
-        this.proteinbuffer = []
-        this.oxphos_q = new Array(5).fill(0)
-
-        this.time_of_birth = this.C.time
+		/** All mtDNA copies
+          @type {Array} containing @type {DNA} Objects*/
+		this.DNA = []
+		for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
+			let dna = new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id))
+			dna.mutate(this.conf["MTDNA_MUT_INIT"])
+			this.DNA.push(dna) // new js object arrays need to be filled one-by-one to not add the same object multiple times
+		}
         
-        this.products = new Products(this.conf, this.C)
-        this.products.init()
-        this.bad_products = new Products(this.conf, this.C)
+		/** Target volume @type {Number}*/
+		this.V = this.conf["INIT_MITO_V"]
+
+		/** boolean to set whether this mitochondrion is currently fusing
+         * this is used to not record fusion events as death events (as a mitochondrial id does disappear)
+         * @type {boolean}
+         */
+		this.fusing = false
+
+		/**
+         * buffer for all imported and produced proteins per timestep
+         * This is to ensure import and production have a similar priority for the carrying capacity
+         * @type {Array}
+         */
+		this.proteinbuffer = []
+		/** to get oxphos average readouts, record last 5 MCS oxphos in this @type {Array} */
+		this.oxphos_q = new Array(5).fill(0)
+
+		/** save time of birth @type {Number} */
+		this.time_of_birth = this.C.time
+        
+		/**
+         * Holder for all gene products from nonmutated genes 
+         * @type {Products} - a wrapper for an array of integers
+         */
+		this.products = new Products(this.conf, this.C)
+		/** set initial numbers at start of run 
+         *  NOTE: this is called in  construction - so needs to be removed for any other birth event
+         */
+		this.products.init()
+		/**
+         * Holder for all gene products from mutated genes 
+         * @type {Products}- a wrapper for an array of integers
+         */
+		this.bad_products = new Products(this.conf, this.C)
 	}
 	
+	/**
+     * Clear this cell from any initialization 
+     * TODO: make it so init() is called on initialization, and this is default, seems less likely to cause problems
+     * esp. because hosting is already a seeding-specific action
+     */
 	clear(){
-        this.DNA = []
-        this.products = new Products(this.conf, this.C)
-        this.bad_products = new Products(this.conf, this.C)
+		this.DNA = []
+		this.products = new Products(this.conf, this.C)
+		this.bad_products = new Products(this.conf, this.C)
 	}
 
-    birth(parent, partition){
-        super.birth(parent)
+	/**
+     * Birth call on new mitochondrion, handles stochastic division of products and 
+     * mtDNA copies. 
+     * @param {Mitochondrion} parent - the other daughter of division (not newly created)
+     * @param {Number} partition - the fraction of the pixels this daughter received
+     */
+	birth(parent, partition){
+		super.birth(parent)
 		this.clear()
-        this.divideProducts(parent.products, this.products, partition)
-        this.divideProducts(parent.bad_products, this.bad_products, partition)
+		this.divideProducts(parent.products, this.products, partition)
+		this.divideProducts(parent.bad_products, this.bad_products, partition)
         
 		let new_parent = []
-        for (let dna of parent.DNA){
-            if (this.C.random() < partition){
+		for (let dna of parent.DNA){
+			if (this.C.random() < partition){
 				this.DNA.push(dna)
-            } else {
-                new_parent.push(dna)
-            }
+			} else {
+				new_parent.push(dna)
+			}
 		}
-        parent.DNA = new_parent
+		parent.DNA = new_parent
 
 		this.V = parent.V * partition
-        parent.V *= (1-partition)
-        this.fs = undefined
-        this.makeAssemblies()
-    }
+		parent.V *= (1-partition)
+		this.fs = undefined
+
+		// this.makeAssemblies()
+	}
 
     
-    death(){
-        super.death()
-        if (this.fusing){
-            return
-        }
-        // if (this.C.cells.hasOwnProperty(this.host)){
-        //     this.C.cells[this.host].mitodead += 1
-        // }
-        let logpath = "./deaths.txt" //HARDCODED
-        let objstring = JSON.stringify(this.stateDct()) + '\n'
-		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
-        } else {
-            if (!this.fs){
-                this.fs = require('fs')
-            }    
-            this.fs.appendFileSync(logpath, objstring)
-        }
-        
-    }
+	death(){
+		super.death()
+		if (this.fusing){
+			return
+		}
 
-    /* eslint-disable*/
+		let logpath = "./deaths.txt" //HARDCODED
+		let objstring = JSON.stringify(this.stateDct()) + "\n"
+		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
+			//none
+		} else {
+			if (!this.fs){
+				this.fs = require("fs")
+			}    
+			this.fs.appendFileSync(logpath, objstring)
+		}
+        
+	}
+
+	/* eslint-disable*/
     update(){
         this.makeAssemblies()
         let dV = 0
@@ -250,20 +325,10 @@ class Mitochondrion extends SubCell {
     }
 
     sum_arr(arr1, arr2){
-        // console.log(arr1)
         return arr1.map(function (num, idx) {
             return num + arr2[idx];
         })
     }
-
-    // debug_hostbad_printer(){
-    //     let outdct = {}
-    //     for (let i in this.C.cells[this.host].DNA.bads){
-    //         outdct[ + " good"] = this.products.arr[i + ]
-    //         outdct[i + " bad"] = this.bad_products.arr[i]
-    //     }
-    //     return outdct
-    // }
 
     stateDct(){
         let mito = {}
