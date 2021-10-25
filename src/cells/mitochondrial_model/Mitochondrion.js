@@ -65,9 +65,9 @@ class Mitochondrion extends SubCell {
         if (this.fusing){
             return
         }
-        if (this.C.cells.hasOwnProperty(this.host)){
-            this.C.cells[this.host].mitodead += 1
-        }
+        // if (this.C.cells.hasOwnProperty(this.host)){
+        //     this.C.cells[this.host].mitodead += 1
+        // }
         let logpath = "./deaths.txt" //HARDCODED
         let objstring = JSON.stringify(this.stateDct()) + '\n'
 		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
