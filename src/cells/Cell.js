@@ -43,7 +43,12 @@ class Cell {
 
 	/**
 	 * variable setting for evolvable parameters within cell class 
-	*/
+	 * Note that this is the same implementation as done in Constraint;
+	 * because of data sharing within these two places it is reimplemented
+	 *
+	 * @param {String} param - the name of the parameter to search 
+	 * @returns {Any} - the requested parameter, from this object if evolvable, from conf if not 
+	 */
 	cellParameter(param){
 		if (this[param] !== undefined){
 			return this[param]
