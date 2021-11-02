@@ -3,7 +3,6 @@
 import SuperCell from "../SuperCell.js" 
 import nDNA from "./nDNA.js"
 
-/* eslint-disable*/
 /**
  * This encodes a Host cell in the mitochondrial model
  * It inherits from Supercell, to allow for easy handling
@@ -47,7 +46,7 @@ class HostCell extends SuperCell {
 		 * sets evolvable parameters as cell-specific, so they
 		 * can accurately be adjusted later
 		 */
-		for (let evolvable in conf['evolvables']){
+		for (let evolvable in conf["evolvables"]){
 			this[evolvable] = conf[evolvable]
 		}
 		
@@ -74,20 +73,20 @@ class HostCell extends SuperCell {
 		this.V = parent.V * partition
 		parent.V *= (1-partition)
 		this.total_oxphos = parent.total_oxphos * partition
-        parent.total_oxphos *= (1-partition)
+		parent.total_oxphos *= (1-partition)
 
 		/** Make new DNA for daughter */
 		this.DNA = new nDNA(this.conf, this.C,String(this.id), parent.DNA)
 		
 		/** Do mutation steps on evolvables */
-		for (const evolvable in this.conf['evolvables']){
+		for (const evolvable in this.conf["evolvables"]){
 			this[evolvable] = parent.cellParameter(evolvable)
-			this[evolvable] += this.conf['evolvables'][evolvable]['sigma'] * this.rand_normal()
-			if (this.conf['evolvables'][evolvable]['lower_bound'] !== undefined){
-				this[evolvable] = Math.max(this[evolvable], this.conf['evolvables'][evolvable]['lower_bound'])
+			this[evolvable] += this.conf["evolvables"][evolvable]["sigma"] * this.rand_normal()
+			if (this.conf["evolvables"][evolvable]["lower_bound"] !== undefined){
+				this[evolvable] = Math.max(this[evolvable], this.conf["evolvables"][evolvable]["lower_bound"])
 			}
-			if (this.conf['evolvables'][evolvable]['upper_bound'] !== undefined){
-				this[evolvable] = Math.min(this[evolvable], this.conf['evolvables'][evolvable]['upper_bound'])
+			if (this.conf["evolvables"][evolvable]["upper_bound"] !== undefined){
+				this[evolvable] = Math.min(this[evolvable], this.conf["evolvables"][evolvable]["upper_bound"])
 			}
 		}
 	}
@@ -130,8 +129,8 @@ class HostCell extends SuperCell {
 		dV -= this.cellParameter("HOST_SHRINK")
 		dV = Math.min(this.cellParameter("HOST_GROWTH_MAX"), dV)
 		if (this.closeToV() ){
-            this.V += dV
-        } else if (dV < 0){
+			this.V += dV
+		} else if (dV < 0){
 			for (let mito of this.subcells()){
 				mito.V += (mito.vol/mito_vol) * dV *this.conf["FACTOR_HOSTSHRINK_OVERFLOW"]
 			}
@@ -143,7 +142,7 @@ class HostCell extends SuperCell {
 		}
 
 		/** do lifetime mutation nDNA */
-		this.DNA.mutate(this.cellParameter('NDNA_MUT_LIFETIME'))
+		this.DNA.mutate(this.cellParameter("NDNA_MUT_LIFETIME"))
 	}
 
 	/** death listener - calls write to file in deaths.txt */
@@ -160,10 +159,10 @@ class HostCell extends SuperCell {
 	 *  Code edited from https://stackoverflow.com/questions/25582882/javascript-math-random-normal-distribution-gaussian-bell-curve
 	 */ 
 	rand_normal() {
-		let u = 0, v = 0;
-		while(u === 0) u = this.C.random(); //Converting [0,1) to (0,1)
-		while(v === 0) v = this.C.random();
-		return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+		let u = 0, v = 0
+		while(u === 0) u = this.C.random() //Converting [0,1) to (0,1)
+		while(v === 0) v = this.C.random()
+		return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v )
 	}
 
 	/** Returns a state object, with getter calls and model-wide things
@@ -177,22 +176,22 @@ class HostCell extends SuperCell {
 		let dct = {}
 		dct["time"] = this.C.time
 		dct["id"] = this.id
-        dct["V"] = this.V
+		dct["V"] = this.V
 		dct["vol"] = this.vol
 		dct["parent"] = this.parentId
 		dct["time of birth"] = this.time_of_birth
-		dct['good'] = this.dna_good
-		dct['bads'] = this.DNA.bads
-		dct['dna'] = this.DNA.quality
+		dct["good"] = this.dna_good
+		dct["bads"] = this.DNA.bads
+		dct["dna"] = this.DNA.quality
 		dct["type"] = "host"
 		dct["n mito"] = this.nSubcells
 		dct["total_oxphos"] = this.total_oxphos
-		dct['total_vol'] = this.total_vol
+		dct["total_vol"] = this.total_vol
 		dct["fission events"] = this.fission_events
 		dct["fusion events"] = this.fusion_events
-		dct['evolvables'] = {}
+		dct["evolvables"] = {}
 		for (const evolvable in this.conf.evolvables){
-			dct['evolvables'][evolvable] = this[evolvable]
+			dct["evolvables"][evolvable] = this[evolvable]
 		}
 		return dct
 	}
@@ -212,13 +211,12 @@ class HostCell extends SuperCell {
 	 * @param {Object} dct - output object
 	 */
 	write(logpath, dct){
-        let objstring = JSON.stringify(dct) + '\n'
-		if( typeof window !== "undefined" && typeof window.document !== "undefined" ){
-        } else {
-            if (!this.fs){
-                this.fs = require('fs')
-            }    
-            this.fs.appendFileSync(logpath, objstring)
+		let objstring = JSON.stringify(dct) + "\n"
+		if(!( typeof window !== "undefined" && typeof window.document !== "undefined" )){
+			if (!this.fs){
+				this.fs = require("fs")
+			}    
+			this.fs.appendFileSync(logpath, objstring)
 		}   
 	}
 }

@@ -26,6 +26,7 @@ module Mitochondrion src/cells/mitochondrial_model/Mitochondrion.js
 module HostCell src/cells/mitochondrial_model/HostCell.js
 module DNA src/cells/mitochondrial_model/DNA.js
 module nDNA src/cells/mitochondrial_model/nDNA.js
+module mtDNA src/cells/mitochondrial_model/mtDNA.js
 module Divider src/cells/Divider.js
 
 # stats
