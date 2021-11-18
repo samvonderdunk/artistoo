@@ -53,7 +53,6 @@ let config = {
         // First value is always cellkind 0 (the background) and is often not used.
 
 		REPLICATE_TIME: 30,
-		//fission_rate : 0.0001,
 		fission_rate : 0.00002,
 		fusion_rate : 0.00025,
 		rep: 19,
@@ -299,6 +298,7 @@ function drawCanvas(){
 const viridis = new ColorMap({colormap: 'viridis',nshades: 100,format: 'hex', alpha: 1})
 const magma = new ColorMap({colormap: 'magma',nshades: 100,format: 'hex', alpha: 1})
 const density = new ColorMap({colormap: 'density',nshades: 100,format: 'hex', alpha: 1})
+const bluered = new ColorMap({colormap: 'RdBu',nshades: 1000,format: 'hex', alpha: 1})
 
 function getColor (cid) {
 	let cell = this.C.cells[cid]
@@ -309,6 +309,9 @@ function getColor (cid) {
 	let no_cmap = false
 	if (cell instanceof CPM.SuperCell){
 		if (cell.dna_good){
+			if (colorby = "n_DNA"){
+				return map_color(bluered,(cell.cellParameter("fusion_rate")* 416666) + 500)
+			}
 			return String(this.conf["CELLCOLOR"][cell.kind-1])
 		} else {
 			return "FF0000"
