@@ -309,7 +309,7 @@ function getColor (cid) {
 	let no_cmap = false
 	if (cell instanceof CPM.SuperCell){
 		if (cell.dna_good){
-			if (colorby = "n_DNA"){
+			if (colorby == "n_DNA"){
 				return map_color(bluered,(cell.cellParameter("fusion_rate")* 416666) + 500)
 			}
 			return String(this.conf["CELLCOLOR"][cell.kind-1])
