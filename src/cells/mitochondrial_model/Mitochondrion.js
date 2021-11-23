@@ -321,9 +321,8 @@ class Mitochondrion extends SubCell {
 		}
         
 		/** Start new replication attempts and do translation events
-         * NOTE: there is currently an edge (which won't be reached often)
-         * where replication does block translation, as starting replicating can 
-         * block translation
+         * NOTE: replication only blocks translation on the first step, which is 
+		 * weird! 
          * 
          * NOTE2: it might be good to go back to mutex replication/translation 
          * anyway as this is more like the biological system (although it is
