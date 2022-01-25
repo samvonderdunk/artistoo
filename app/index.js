@@ -16,6 +16,7 @@ import Mitochondrion from "../src/cells/mitochondrial_model/Mitochondrion.js"
 import HostCell from "../src/cells/mitochondrial_model/HostCell.js" 
 import DNA from "../src/cells/mitochondrial_model/DNA.js" 
 import nDNA from "../src/cells/mitochondrial_model/nDNA.js" 
+import mtDNA from "../src/cells/mitochondrial_model/mtDNA.js" 
 import Divider from "../src/cells/Divider.js" 
  
 import Stat from "../src/stats/Stat.js" 
@@ -78,6 +79,7 @@ export {
 	HostCell,
 	DNA,
 	nDNA,
+	mtDNA,
 	Divider,
 	Stat,
 	PixelsByCell,

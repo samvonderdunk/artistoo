@@ -3419,6 +3419,7 @@ var CPM = (function (exports) {
 					delete this.cellvolume[t_old];
 					delete this.t2k[t_old];
 					this.nr_cells--;
+					this.stat_values = {};
 				} else if (this.cellvolume[t_old] < 0 ){
 					var fs = require("fs");
 					let stringbuffer = "";
@@ -3433,7 +3434,7 @@ var CPM = (function (exports) {
 			}
 			this.updateborderneari( i, t_old, t );
 			// WARNING VERY SLOW!! DEBUG OPT ONLY
-			this.stat_values = {}; // invalidate stat value cache
+			// this.stat_values = {} // invalidate stat value cache
 			for( let l of this.post_setpix_listeners ){
 				l( i, t_old, t );
 			}
@@ -4739,6 +4740,7 @@ var CPM = (function (exports) {
 			this.kind = kind;
 			this.C = C;
 			this.id = id;
+			
 
 			/** The id of the parent cell, all seeded cells have parent -1, to overwrite this
 			 * this.birth(parent) needs to be called 
@@ -4752,6 +4754,7 @@ var CPM = (function (exports) {
 		 */
 		birth (parent){
 			this.parentId = parent.id; 
+			this.time_of_birth = this.C.time;
 		}
 
 		/**
@@ -4762,6 +4765,25 @@ var CPM = (function (exports) {
 
 		get vol(){
 			return this.C.getVolume(this.id)
+		}
+
+		/**
+		 * variable setting for evolvable parameters within cell class 
+		 * Note that this is the same implementation as done in Constraint;
+		 * because of data sharing within these two places it is reimplemented
+		 *
+		 * @param {String} param - the name of the parameter to search 
+		 * @returns {Any} - the requested parameter, from this object if evolvable, from conf if not 
+		 */
+		cellParameter(param){
+			if (this[param] !== undefined){
+				return this[param]
+			}
+			return this.conf[param]
+		}
+
+		closeToV(){
+			return Math.abs(this.V-this.vol) < this.conf["VOLCHANGE_THRESHOLD"]
 		}
 
 	}
@@ -4816,18 +4838,6 @@ var CPM = (function (exports) {
 		/* eslint-disable no-unused-vars*/
 		cellDeath( i, t_old, t_new){
 			if (this.cellvolume[t_old] === undefined && t_old !== 0 ){
-				if (this.cells[t_old] === undefined){
-					var fs = require("fs");
-					let stringbuffer = "";
-					stringbuffer += "Broke in death \n";
-					stringbuffer += "t_old: "+ t_old+" \n";
-					stringbuffer += "time: " +this.time +"\n";
-					stringbuffer += "t_new: " + t_new + "\n";
-					stringbuffer += "i: " + i + "\n";
-					// stringbuffer += ": " + + "\n"
-					// stringbuffer += "Broke in death \n"
-					fs.appendFileSync("./debug.log", stringbuffer);
-				}
 				this.cells[t_old].death();
 				delete this.cells[t_old];
 			} 
@@ -4855,7 +4865,7 @@ var CPM = (function (exports) {
 		 * the other daughter (as parent) on to the Cell.
 		   @param {CellId} childId - id of the newly created Cell object
 		   @param {CellId} parentId - id of the other daughter (that kept the parent id)*/
-		birth (childId, parentId, partition = 0.5){
+		birth (childId, parentId, partition){
 			this.cells[childId].birth(this.cells[parentId], partition );
 		}
 	}
@@ -4941,7 +4951,7 @@ var CPM = (function (exports) {
 				for( let j = 0 ; j < pix[id].length ; j ++ ){
 					for ( let dim = 0 ; dim < 2 ; dim ++ ){
 						c[dim] = pix[id][j][dim] - com[dim];
-						if( C.conf.torus[dim] && j > 0 ){
+						if( C.conf.torus[dim]){
 							// If distance is greater than half the grid size, correct the
 							// coordinate.
 							if( c[dim] > si[dim]/2 ){
@@ -4973,13 +4983,24 @@ var CPM = (function (exports) {
 				y1 = bxy;
 			}
 			let newhost =  C.makeNewCellID( C.cellKind( this.id ) );
+			
+			let newhostpix = [];
 			for (let j = 0; j < pix[this.id].length; j++){
 				if( x1*pixdist[this.id][j][1]-pixdist[this.id][j][0]*y1 > 0 ){
-					C.setpix( pix[this.id][j], newhost); 
+					newhostpix.push(pix[this.id][j]);
 				}
 			}
-			C.birth(newhost, this.id);
 			
+			if (newhostpix.length == 0){
+				newhostpix.push(pix[this.id].pop());
+			} else if (newhostpix.length >= pix[this.id].length -1){
+				newhostpix.pop();
+			}
+			// console.log(newhostpix.length, "newhostpix length")
+			for (let pix of newhostpix){
+				C.setpix( pix, newhost ); 
+			}
+			C.birth(newhost, this.id, newhostpix.length/pix[this.id].length);
 			for (let id of ids){
 				if (id === this.id ){
 					continue
@@ -4999,31 +5020,11 @@ var CPM = (function (exports) {
 					}
 					C.birth(nid, id, newpix.length/pix[id].length);
 					C.cells[nid].host = newhost;
-					if (C.cells[nid] == undefined ){
-						var fs = require('fs');
-						stringbuffer = "";
-						stringbuffer += "## AAAA new mitochondrial daughter in host dividecell is undefined \n";
-						fs.appendFileSync("./debug.log", stringbuffer);
-						// exit(1)
-					}
-				}
-				if (C.cells[id] == undefined){
-					var fs = require('fs');
-					stringbuffer = "";
-					stringbuffer += "## AAAA old mitochondrial daughters in host dividecell is undefined \n";
-					fs.appendFileSync("./debug.log", stringbuffer);
-					// exit(1)
+					
 				}
 			}
 			
 			C.stat_values = {}; // remove cached stats or this will crash!!!
-			if (C.cells[this.id] == undefined || C.cells[newhost] == undefined){
-				var fs = require('fs');
-				let stringbuffer = "";
-				stringbuffer += "## AAAA one of the hosts in host dividecell is undefined  \n";
-				fs.appendFileSync("./debug.log", stringbuffer);
-				// exit(1)
-			}
 			return newhost
 		}
 
@@ -5063,79 +5064,133 @@ var CPM = (function (exports) {
 		}
 	}
 
-	// Optional: get all DNA and product redundancy away through proper inheritance;
-	// this is for now too much work.
-
+	/**
+	 * Class DNA codes for mainly for all the DNA in the model,
+	 * the DNA contains two main arrays: binary data confirming existence of this index on this dna
+	 * and binary information on the quality of this index on this dna.
+	 * Arrays are ordered in OXPHOS-TRANSLATE-REPLICATE and indexed to access
+	 * 
+	 * The DNA class initializes mtDNA, initialization of nDNA is overwritten in separate class
+	 * TODO: move mtDNA init to separate class as well, to make this more logical
+	 */
 	class DNA {
 
-		/* eslint-disable */ 
+		/**
+	     * Constructor for DNA class - initialization needs to be overwritten in subclasses. 
+	     * @param {Object} conf - config object of simulation
+	     * @param {CPMEvol} C - the model (may be able to use with CPM or other subclasses, but explicitly written for CPMEvol)
+	     * @param {String} idstr - unique identifier string (for postprocessing)
+	     * @param {DNA} parent - parent DNA copy
+	     * 
+	     * @param {Number} conf.N_OXPHOS - number of oxphos genes
+	     * @param {Number} conf.N_TRANSLATE - number of translate genes
+	     * @param {Number} conf.N_REPLICATE - number of replicate genes
+	     */
 		constructor (conf, C , idstr, parent) {
-	        this.C = C;
-	        this.conf = conf;
-	        this.id = idstr; //unique string
-	        this.replicating = 0;
-	        this.translateFlag = false;
-	        // console.log("also in seed")
-	        if (parent instanceof DNA){
-	            // console.log("records parentage!")
-	            this.quality = [...parent.quality];
-	            this.mutate(this.conf['MTDNA_MUT_REP']);
-	            this.exists = [...parent.exists];
-	            // console.log(this.quality)
-	        } else {
-	            this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
-	            this.exists = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
-	            for (let i = 0 ; i < this.quality.length; i++){
-	                if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"]){
-	                    this.quality[i] = 1;
-	                    this.exists[i] = 1;
-	                }
-	            }
-	            // this.mutate(this.conf["MTDNA_MUT_INIT"])
-	            // console.log(this.quality, this.exists[55])
-	        }
-	    }
+			this.C = C;
+			this.conf = conf;
+			this.id = idstr; //unique string
+			this.replicating = 0;
 
-	    mutate(rate){ 
-	        // console.log(this.quality, this.trues)
-	        for (let ix = 0 ; ix < this.quality.length; ix++){
-	            if (this.C.random() < rate){
-	                this.quality[ix] = 0;
-	            }
-	        }
-	        // this.quality[this.trues[Math.floor(this.C.random() * this.trues.length)]] = 0
-	        // console.log(this.quality, this.trues)
-	    }
+			if (parent instanceof DNA){
+				this.quality = [...parent.quality];
+				this.exists = [...parent.exists];
+			} else {
+				this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
+				this.exists = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
+			}
+		}
 
-	    notBusy(){
-	        return (this.replicating === 0 && this.translateFlag === false)
-	    }
-	    busy(){
-	        return !this.notBusy()
-	    }
+		/**
+	     * Stochastically sets genes to bad quality with given rate
+	     * @param {Number} rate - rate of mutation per gene 
+	     */
+		mutate(rate){ 
+			for (let ix of this.trues){
+				if (this.C.random() < rate){
+					this.quality[ix] = 0;
+				}
+			}
+		}
 	    
-	    sumQuality(){
-	        return  this.quality.reduce((t, e) => t + e)
-	    }
+		/**
+	     * Get the number of 'good' genes
+	     * @returns sum of quality array
+	     */
+		sumQuality(){
+			return  this.quality.reduce((t, e) => t + e)
+		}
 
-	    get trues(){
-	        return this.quality.reduce(
-	            (out, bool, index) => bool ? out.concat(index) : out, 
-	            []
-	          )
-	    }
-	    
+		/**
+	     * get indices of all existing genes on this DNA
+	     * This assumes that this does not change during run
+	     * @returns {[Number]} - list of index numbers of true value in this.exists
+	     */
+		get trues(){
+			if (this.fixedtrues === undefined){
+				this.fixedtrues = this.exists.reduce(
+					(out, bool, index) => bool ? out.concat(index) : out, 
+					[]
+				);
+			}
+			return this.fixedtrues
+		}
 
-	    get oxphos_quality() {
-	        return this.quality.slice(0, this.conf["N_OXPHOS"])
-	    }
-	    get translate_quality() {
-	        return this.quality.slice(this.conf["N_OXPHOS"], this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])
-	    }
-	    get replicate_quality() {
-	        return this.quality.slice(this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"] )
-	    }
+		/**
+	     * Give indices of all mutated genes
+	     * @returns {[Number]} - the indices of all false values in this.quality
+	     */
+		get bads(){
+			return this.quality.reduce(
+				(out, bool, index) => bool ? out : out.concat(index), 
+				[]
+			)
+		}
 
+		/**
+	     * get shallow copy of only oxphos genes
+	     */
+		get oxphos_quality() {
+			return this.quality.slice(0, this.conf["N_OXPHOS"])
+		}
+		/**
+	     * Get shallow copy of only translate genes
+	     */
+		get translate_quality() {
+			return this.quality.slice(this.conf["N_OXPHOS"], this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"])
+		}
+		/**
+	     * Get shallow copy of only replicate genes
+	     */
+		get replicate_quality() {
+			return this.quality.slice(this.conf["N_OXPHOS"] + this.conf["N_TRANSLATE"] )
+		}
+	}
+
+	/**
+	 * Class mtDNA overwrites initialization of DNA (inherits from DNA)
+	 * for mitochondrial DNA instances
+	 */
+	class mtDNA extends DNA {
+
+		/**
+	     * see @constructor @Object {DNA} for other parameters
+	     * @param conf.MTDNA_MUT_REP mutation rate at replication - only daughter gets this
+	     * this overwrites DNA initialization to set OXPHOS and TRANSLATE genes to existing and good.
+	     */
+		constructor (conf, C, idstr, parent) {
+			super(conf,C, idstr, parent);
+			if (parent instanceof mtDNA){
+				this.mutate(this.conf["MTDNA_MUT_REP"]);
+			} else {
+				for (let i = 0 ; i < this.quality.length; i++){
+					if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"]){
+						this.quality[i] = 1;
+						this.exists[i] = 1;
+					}
+				}
+			}
+		}
 
 	}
 
@@ -5210,512 +5265,710 @@ var CPM = (function (exports) {
 
 	}
 
+	/**
+	 * Simulates mitochondria in combination with HostCell
+	 * This inherits from SubCell, which handles which host it
+	 * belongs to (note: setting the first host during seeding is still required)
+	 */
 	class Mitochondrion extends SubCell {
 
-		/* eslint-disable */ 
-	    constructor (conf, kind, id, C) {
-	        super(conf, kind, id, C);
+		/**
+	     * Constructor for Mitochondrion
+	     * -- standard CPM.Cell parameters:
+	     * @param {Object} conf - config of the model
+	     * @param {Number} kind - the CellKind of this
+	     * @param {Number} id - the CellId of this
+	     * @param {CPMEvol} C - the CPMEvol (or inherited) model where it is attached to
+	     * 
+	     * - specific conf parameters necessary --
+	     * - initialization -
+	     * @param {Number} conf.N_INIT_DNA - initial number of mtDNA copies
+	     * @param {Number} conf.INIT_MITO_V - initial target Volume at t=0
+	     * - growth -
+	     * @param {Number} conf.MITO_V_PER_OXPHOS - scalar value for amount of ∆V the mitochondrion gets per oxphos
+	     * @param {Number} conf.MITO_SHRINK - shrinkage in ∆V (expects positive value)
+	     * @param {Number} conf.MITO_GROWTH_MAX - max amount of ∆V per timestep
+	     * - mitophagy -
+	     * @param {Number} conf.MITOPHAGY_THRESHOLD - amount of oxphos under which conf.MITOPHAGY_SHRINK will be applied
+	     * @param {Number} conf.MITOPHAGY_SHRINK - shrinkage that is only applied with oxphos < conf.MITOPHAGY_THRESHOLD
+	     * - proteolysis -
+	     * @param {Number} conf.deprecation_rate - rate at which proteins are proteolysed/removed from the Mitochondrion (/MCS/gene product)
+	     * - mutation -
+	     * @param {Number} conf.MTDNA_MUT_INIT - initial mtDNA mutation /gene at t=0 
+	     * @param {Number} conf.MTDNA_MUT_REP - mtDNA mutation /gene/replication event, only new daughter is affected
+	     * @param {Number} conf.MTDNA_MUT_ROS - mtDNA mutation rate /gene/ROS 
+	     * -
+	     * @param {Number} conf.REPLICATE_TIME - the number of timesteps an mtDNA replication event takes.
+	     * 
+	     * Any parameters can also be controlled by the HostCell through 'evolvables' - but this still requires an 
+	     * initial value to be present in the conf object
+	     */
+		constructor (conf, kind, id, C) {
+			super(conf, kind, id, C);
 	        
-	        this.last_dna_id = 0;
-	        this.DNA = [];
-	        for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
-	            let dna = new DNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id));
-	            dna.mutate(this.conf["MTDNA_MUT_INIT"]);
-	            this.DNA.push(dna);
-	        }
-	        
-	        this.V = this.conf["INIT_MITO_V"];
-	        this.fusing = false;
+			/** initialize DNA + mutate this initial pool */
+			/** tracks how many new dna's have come from this mitochondrion (does not track well with fusion)
+	         * is meant to at least allow fully unique DNA id's
+	         * @type {Number} */
+			this.last_dna_id = 0;
 
-	        this.makebuffer = [], this.importbuffer = [];
+			/** All mtDNA copies
+	         * @type {Array} containing @type {DNA} Objects
+	        */
+			this.DNA = [];
+			for (let i= 0; i<this.conf["N_INIT_DNA"];i++){
+				let dna = new mtDNA(this.conf, this.C, String(this.id) +"_"+ String(++this.last_dna_id));
+				dna.mutate(this.conf["MTDNA_MUT_INIT"]);
+				this.DNA.push(dna); // new js object arrays need to be filled one-by-one to not add the same object multiple times
+			}
 	        
-	        this.products = new Products(this.conf, this.C);
-	        this.products.init();
-	        this.bad_products = new Products(this.conf, this.C);
-	        // this.time = -1
-	        this.makeAssemblies();
+			/** Target volume @type {Number}*/
+			this.V = this.conf["INIT_MITO_V"];
+
+			/** boolean to set whether this mitochondrion is currently fusing
+	         * this is used to not record fusion events as death events (as a mitochondrial id does disappear)
+	         * @type {boolean}
+	         */
+			this.fusing = false;
+
+			/**
+	         * buffer for all imported and produced proteins per timestep
+	         * This is to ensure import and production have a similar priority for the carrying capacity
+	         * @type {Array}
+	         */
+			this.proteinbuffer = [];
+			/** to get oxphos average readouts, record last 5 MCS oxphos in this @type {Array} */
+			this.oxphos_q = new Array(5).fill(0);
+
+			/** save time of birth @type {Number} */
+			this.time_of_birth = this.C.time;
+	        
+			/**
+	         * Holder for all gene products from nonmutated genes 
+	         * @type {Products} - a wrapper for an array of integers
+	         */
+			this.products = new Products(this.conf, this.C);
+			/** set initial numbers at start of run 
+	         *  NOTE: this is called in  construction - so needs to be removed for any other birth event
+	         */
+			this.products.init();
+			/**
+	         * Holder for all gene products from mutated genes 
+	         * @type {Products}- a wrapper for an array of integers
+	         */
+			this.bad_products = new Products(this.conf, this.C);
 		}
 		
+		/**
+	     * Clear this cell from any initialization 
+	     * TODO: make it so init() is called on initialization, and this is default, seems less likely to cause problems
+	     * esp. because hosting is already a seeding-specific action
+	     */
 		clear(){
-	        this.DNA = [];
-	        this.products = new Products(this.conf, this.C);
-	        this.bad_products = new Products(this.conf, this.C);
+			this.DNA = [];
+			this.products = new Products(this.conf, this.C);
+			this.bad_products = new Products(this.conf, this.C);
 		}
 
-	    birth(parent, partition = 0.5){
-	        super.birth(parent);
+		/**
+	     * Birth call on new mitochondrion, handles stochastic division of products and 
+	     * mtDNA copies. 
+	     * @param {Mitochondrion} parent - the other daughter of division (not newly created)
+	     * @param {Number} partition - the fraction of the pixels this daughter received
+	     */
+		birth(parent, partition){
+			/** handle superclass things */
+			super.birth(parent);
+			/** clear unnecessary initialization */
 			this.clear();
-	        this.divideProducts(parent.products, this.products, partition);
-	        this.divideProducts(parent.bad_products, this.bad_products, partition);
+
+			/** stochastically divide products between daughters with rate partition */
+			this.divideProducts(parent.products, this.products, partition);
+			this.divideProducts(parent.bad_products, this.bad_products, partition);
 	        
+			/** stochastically divide mtDNA copies between daughters with rate partition */
 			let new_parent = [];
-	        for (let dna of parent.DNA){
-	            if (this.C.random() < partition){
+			for (let dna of parent.DNA){
+				if (this.C.random() < partition){
 					this.DNA.push(dna);
-	            } else {
-	                new_parent.push(dna);
-	            }
+				} else {
+					new_parent.push(dna);
+				}
 			}
-	        parent.DNA = new_parent;
+			parent.DNA = new_parent;
 
+			/** alter target volume */
 			this.V = parent.V * partition;
-	        parent.V *= (1-partition);
-	        this.fs = undefined;
-	        this.makeAssemblies();
-	    }
-
-	    // TODO add CPM level deathlistener that can log from Sim
-	    death(){
-	        super.death();
-	        if (this.fusing){
-	            return
-	        }
-	        let logpath = "./deaths.txt"; //HARDCODED
-	        let mito = {};
-	        mito["time"] = this.C.time;
-	        mito["V"] = this.V;
-	        mito["id"] = this.id;
-	        mito["host"] = this.host;
-	        mito["vol"] = this.vol;
-	        mito["n DNA"] = this.DNA.length;
-	        mito["oxphos"] = this.oxphos;
-	        mito["translate"] = this.translate;
-	        mito["replicate"] = this.replicate;
-	        mito["replisomes"] = this.n_replisomes;
-	        mito["type"] = "mito";
-	        // mito["heteroplasmy"] = this.heteroplasmy()
-	        // mito["translatable heteroplasmy"] = this.heteroplasmy("translatable")
-	        // mito["replicating heteroplasmy"] = this.heteroplasmy("replicating")
-	        mito["products"] = this.products.arr;
-	        mito["bad products"] = this.bad_products.arr;
-	        mito['sum dna'] = this.sum_dna();
-	        mito["unmut"] = this.unmutated/this.DNA.length;
-	        let objstring = JSON.stringify(mito) + '\n';
-			if( typeof window !== "undefined" && typeof window.document !== "undefined" ); else {
-	            // console.log("logged to  " + logpath + "\n\n" + objstring)
-	            if (!this.fs){
-	                this.fs = require('fs');
-	            }    
-	            this.fs.appendFileSync(logpath, objstring);
-	        }
-	        
-	    }
-
-	    /* eslint-disable*/
-	    update(){
-	        this.makeAssemblies();
-	        let dV = 0;
-	        dV += this.oxphos * this.conf["MITO_V_PER_OXPHOS"];
-	        dV-=this.conf["MITO_SHRINK"];
-	        dV = Math.min(this.conf["MITO_GROWTH_MAX"], dV);
-	        if (this.oxphos < this.conf["MITOPHAGY_THRESHOLD"]) {
-	            dV -= this.conf["MITOPHAGY_SHRINK"];   
-	        }
-	        if (dV > 0 && this.canGrow()){
-	            this.V += dV;
-	        }
-	        if (dV < 0 && this.canShrink()){
-	            this.V += dV;
-	        }
-	        this.repAndTranslate();
-	        this.deprecateProducts();
-	        
-	        // importandcreate() - called by host
-	        
+			parent.V *= (1-partition);
+			//unused assemblies that cause less visualization errors:
+			this.makeAssemblies();
 		}
 
-	   
-	    divideProducts(parent_products, child_products, partition){
-	        for (const [ix, product] of parent_products.arr.entries()){
-	            for (let i = 0; i < product; i ++){
-	                if (this.C.random() < partition){
-	                    parent_products.arr[ix]--;
-	                    child_products.arr[ix]++;
-	                }
-	            }
-	        }  
-	    }
+		/**
+	     * death listener for Mitochondrion -also catches fusion events
+	     * Writes state to file deaths.txt if actually death event
+	     */
+		death(){
+			super.death();
+			if (this.fusing){
+				return
+			}
 
-	    deprecateProducts(){
-	       this.products.deprecate(this.conf['deprecation_rate']);
-	       this.bad_products.deprecate(this.conf['deprecation_rate']);
-	       
-	    //    console.log(this.ros, this.oxphos)
-	        for (const [ix, dna] of this.DNA.entries()){
-	            dna.mutate(this.conf['MTDNA_MUT_ROS'] * this.ros);
-	            if (this.C.random() < this.conf["dna_deprecation_rate"]){
-	                this.DNA.splice(ix, 1);
-	            }
-	        }
-	    }
+			this.write("./deaths.txt", this.stateDct());
+		}
 
-	    fuse(partner) {
-	        this.products.arr = this.sum_arr(this.products.arr, partner.products.arr);
-	        this.bad_products.arr = this.sum_arr(this.bad_products.arr, partner.bad_products.arr);
+		/**
+	     * update loop of Mitochondrion
+	     * should be called by host for orderly working
+	     */
+		update(){
+			/** sets this timesteps oxphos, translate and replicate capability
+	         * which are drawn from the gene products pool
+	        */
+			this.makeAssemblies();
 
-	        this.DNA = [...this.DNA, ...partner.DNA];
-	        this.V += partner.V;
-	        partner.fusing = true;
-	    }
+			/**
+	         * do ∆V 
+	         */
+			let dV = 0;
+			dV += this.oxphos * this.cellParameter("MITO_V_PER_OXPHOS");
+			dV-= this.cellParameter("MITO_SHRINK");
+			dV = Math.min(this.cellParameter("MITO_GROWTH_MAX"), dV);
+			// optional mitophagy thresholding
+			if (this.oxphos < this.cellParameter("MITOPHAGY_THRESHOLD")) {
+				dV -= this.cellParameter("MITOPHAGY_SHRINK");
+			}
+			if (this.closeToV()){
+				this.V += dV;
+			}
 
-	    /* eslint-ignore */
-	    tryIncrement(ix){
-	        return this.C.random() < (this.vol /  this.sum_products().reduce((t, e) => t + e))
-	        // if (ix < this.conf["N_OXPHOS"] ){
-	        //     return this.C.random() < (this.vol / (this.products.oxphos_sum +this.bad_products.oxphos_sum) * this.conf["N_OXPHOS"] * this.conf["K_OXPHOS"] / 100)
-	        // } else if ( ix <  this.conf["N_OXPHOS"] +this.conf["N_TRANSLATE"] ){
-	        //     return this.C.random() < (this.vol /( this.products.translate_sum+ this.bad_products.replicate_sum )* this.conf["N_TRANSLATE"] * this.conf["K_TRANSLATE"] / 100)
-	        // } else {
-	        //     return this.C.random() < (this.vol / (this.products.replicate_sum + this.bad_products.replicate_sum ) * this.conf["N_REPLICATE"] * this.conf["K_REPLICATE"] / 100)
-	        // }
-	    }
+			/** replicate mtdna and translate mtdna into proteinbuffer */
+			this.repAndTranslate();
 
-	    get fission_rate(){
-	        return this.C.cells[this.hostId].fission_rate
-	    }
-	    get fusion_rate(){
-	        return this.C.cells[this.hostId].fusion_rate
-	    }
+			/** do proteolysis */
+			this.deprecateProducts();
 
-	    get n_replisomes(){ 
-	        return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
-	    }
+			/** add newly produced products only once all import also has been created */
+			// importandcreate() - called by host, as this controls import!
+			// these lines are only here to show program flow
+		}
 
-	    get unmutated(){
-	        return this.DNA.reduce((t,e) =>  e.sumQuality() == new DNA(this.conf, this.C).sumQuality() ? t+1 : t, 0)
-	    }
+		/**
+	     * Divide products array stochastically based on the partition
+	     * of the two vesicles. 
+	     * @param {Products} parent_products - original Mitochondrion's products
+	     * @param {Products} child_products - new Mitochondrion's products
+	     * @param {Number} partition - new Mitochondrion's fraction of pixels after division (used as rate)
+	     */
+		divideProducts(parent_products, child_products, partition){
+			// loops over each object and adds it to new daughter with rate partition
+			for (const [ix, product] of parent_products.arr.entries()){
+				for (let i = 0; i < product; i ++){
+					if (this.C.random() < partition){
+						parent_products.arr[ix]--;
+						child_products.arr[ix]++;
+					}
+				}
+			}  
+		}
 
-	    importAndProduce(){
-	        this.shuffle(this.makebuffer);
-	        // console.log(this.makebuffer)
-	        while ((this.makebuffer.length + this.importbuffer.length) > 0){
-	            if (this.C.random() < this.makebuffer.length/(this.makebuffer.length + this.importbuffer.length)){
-	                let p = this.makebuffer.pop();
-	                if (this.tryIncrement(p.which)){
-	                    if (p.good){
-	                        this.products.arr[p.which]++;
-	                    } else {
-	                        this.bad_products.arr[p.which]++;
-	                    }
-	                }
-	            } else {
-	                let p = this.importbuffer.pop();
-	                if (this.tryIncrement(p.which) && this.oxphos > this.conf["MITOPHAGY_THRESHOLD"]){
-	                    // currently no bad nuclear products.
-	                    this.products.arr[p.which]++;
-	                } else {
-	                    this.C.getCell(this.host).cytosol[p.which]++;
-	                }
-	            }
-	        }
-	    }
-
-	    repAndTranslate() {
-	        if (this.DNA.length == 0 ){ return }
-	        let replicate_attempts = this.replicate, translate_attempts = this.translate;
-	        // replication and translation machinery try to find DNA to execute on
-	        this.shuffle(this.DNA);
-	        let new_dna = [];
-	        for (let dna of this.DNA){
-	            if (replicate_attempts <= 0){
-	                break
-	            }
-	            if (dna.replicating > 0){
-	                replicate_attempts--;
-	                dna.replicating--;
-	                if (dna.replicating == 0){
-	                    new_dna.push(new DNA(this.conf, this.C, String(this.id) + "_" + String(++this.last_dna_id), dna)); 
-	                }
-	            }
-	        }
+		/**
+	     * Remove products with rate 'deprecation rate' 
+	     * Mutate DNA with ROS
+	     */
+		deprecateProducts(){
+			this.products.deprecate(this.cellParameter("deprecation_rate"));
+			this.bad_products.deprecate(this.cellParameter("deprecation_rate"));
 	        
+			for (let dna of this.DNA.values()){
+				dna.mutate(this.cellParameter("MTDNA_MUT_ROS") * this.ros);
+			}
+		}
+
+		/**
+	     * Do all internal processes of fusing:
+	     * combine Products 
+	     * combine target volume
+	     * combine mtDNA
+	     * @param {Mitochondrion} partner 
+	     */
+		fuse(partner) {
+			this.products.arr = this.sum_arr(this.products.arr, partner.products.arr);
+			this.bad_products.arr = this.sum_arr(this.bad_products.arr, partner.bad_products.arr);
+
+			this.DNA = [...this.DNA, ...partner.DNA];
+			this.V += partner.V;
+			partner.fusing = true; // partner will be deleted - but does not die - this flags this process
+		}
+
+		/**
+	     * Checks against carrying capacity (defined by volume) whether the current product can be added
+	     * @returns {Boolean} - whether the addition is successful
+	     */
+		tryIncrement(){
+			return this.C.random() < (this.vol /  this.sum_arr(this.products.arr, this.bad_products.arr).reduce((t, e) => t + e))
+		}
+
+		/**
+	     * Reimplements CPM.Cell implementation to ask Host cell
+		 * all evolvables of Mitochondria are controlled by host
+	     * returns conf value if host not extant
+	     * TODO add all parameters at birth to mito so they stay with extant subcells after host death
+		*/
+		cellParameter(param){
+			if (this.C.cells[this.host] !== undefined){
+				return this.C.cells[this.host].cellParameter(param)
+			}
+			return this.conf[param]
+		}
+
+		/** gets number of replicating DNA copies
+	     */
+		get n_replisomes(){ 
+			return this.DNA.reduce((t,e) =>  e.replicating > 0 ? t+1 : t, 0)
+		}
+
+		/** gets number of unmutated DNA copies */
+		get unmutated(){
+			return this.DNA.reduce((t,e) =>  e.sumQuality() == new mtDNA(this.conf, this.C).sumQuality() ? t+1 : t, 0)
+		}
+
+		/**
+	     * Imports and Produces gene products from proteinbuffer in random order
+	     * Checks against carrying capacity.
+	     * 
+	     * Shuffles and then just works throught the proteinbuffer based on @function tryIncrement()
+	     * Rejected proteins are removed from the model
+	     */
+		importAndProduce(){
+			this.shuffle(this.proteinbuffer);
+			while (this.proteinbuffer.length > 0){
+				let p = this.proteinbuffer.pop();
+				if (this.tryIncrement(p.which)){
+					if (p.good){
+						this.products.arr[p.which]++;
+					} else {
+						this.bad_products.arr[p.which]++;
+					}
+				} 
+			}
+		}
+
+		/**
+	     * Replicate and translate mtDNA  
+	     * based on attempts gathered from @function makeAssemblies()
+	     */
+		repAndTranslate() {
+			if (this.DNA.length == 0 ){ return }
+			let replicate_attempts = this.replicate, translate_attempts = this.translate; // shallow copies
+			// replication and translation machinery try to find DNA to execute on
+			/** shuffle DNA in place to make sure that ordering does not affect translation */
+			this.shuffle(this.DNA); 
+
+			/** new dna is initizalized and not yet translatable @type {[DNA]} */
+			let new_dna = [];
+			/** Finish up all replicating mtDNA before starting a new one */
+			for (let dna of this.DNA){
+				if (replicate_attempts <= 0){
+					break
+				}
+				if (dna.replicating > 0){
+					replicate_attempts--;
+					dna.replicating--;
+					if (dna.replicating == 0){
+						new_dna.push(new mtDNA(this.conf, this.C, String(this.id) + "_" + String(++this.last_dna_id), dna)); 
+					}
+				}
+			}
 	        
-	        for (let dna of this.DNA){
-	            if (replicate_attempts + translate_attempts <= 0){
-	                break
-	            }
-	            if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
-	                dna.replicating = this.conf["REPLICATE_TIME"]; 
-	                replicate_attempts--;
-	            } else {
-	                // translate
-	                for (let ix = 0 ; ix < dna.quality.length; ix++){
-	                    if (dna.exists[ix] !== 0){
-	                        this.makebuffer.push({"which":ix,"good":dna.quality[ix]});
-	                    }
-	                }
-	                translate_attempts--; 
-	            }
-	        }
-	        this.DNA = [...this.DNA, ...new_dna];
-	    }
-
-	    // expects shallow copies!!!
-	    assemble(arr, bad_arr){
-	        // console.log("-------")
-	        let assemblies = 0, attempts = Math.min.apply(Math, this.sum_arr(arr,bad_arr)); 
-	        for (let i = 0; i < attempts ; i ++){
-	            // console.log(arr, bad_arr, assemblies)
-	            let complete = 1;
-	            for (let  j= 0; j<arr.length; j++){
-	                if(this.C.random() < bad_arr[j]/(arr[j]+bad_arr[j])){
-	                    bad_arr[j]--;
-	                    complete = 0;
-	                } else {
-	                    arr[j]--;
-	                }
-	            }
-	            assemblies += complete;
-	        }
-	        return assemblies
-	    }
-	   
-	    makeAssemblies(){
-	        this.oxphos = this.assemble(this.products.oxphos, this.bad_products.oxphos)/ (this.vol / 100) * this.conf["OXPHOS_PER_100VOL"];
-	        this.translate = this.assemble(this.products.translate, this.bad_products.translate);
-	        this.replicate = this.assemble(this.products.replicate, this.bad_products.replicate);
-	        this.ros = Math.min.apply(Math, this.sum_arr(this.products.oxphos,this.bad_products.oxphos)) / (this.vol / 100) * this.conf["OXPHOS_PER_100VOL"];
-	    }
-
-	    canGrow(){
-	        return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
-	    }
-	    canShrink(){
-	        return this.vol-this.V < this.conf["VOLCHANGE_THRESHOLD"]
-	    }
-
-	    shuffle(array) {
-	        for (let i = array.length - 1; i > 0; i--) {
-	            const j = Math.floor(this.C.random() * (i + 1));
-	            [array[i], array[j]] = [array[j], array[i]];
-	        }
-	    }
-
-
-	    sum_dna(){
-	        let sum = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
-	        for (let dna of this.DNA){
-	            sum = this.sum_arr(sum, dna.quality);
-	        }
-	        return sum
-	    }
-
-	    sum_products(){
-	        let bad_arr = this.bad_products.arr;
-	        return this.products.arr.map(function (num, idx) {
-	            return num - bad_arr[idx];
-	        })
-	    }
-
-	    sum_arr(arr1, arr2){
-	        // console.log(arr1)
-	        return arr1.map(function (num, idx) {
-	            return num + arr2[idx];
-	        })
-	    }
+			/** Start new replication attempts and do translation events
+	         * NOTE: replication only blocks translation on the first step, which is 
+			 * weird! 
+	         * 
+	         * NOTE2: it might be good to go back to mutex replication/translation 
+	         * anyway as this is more like the biological system (although it is
+	         * harder with the proteolysis and division of replisome machinery)
+	         */
+			for (let dna of this.DNA){
+				if (replicate_attempts + translate_attempts <= 0){
+					break
+				}
+				/** draw from chance whether you do replication or translation */
+				if (this.C.random() < replicate_attempts/(replicate_attempts + translate_attempts)){
+					// start new replication event
+					dna.replicating = this.cellParameter("REPLICATE_TIME");
+					replicate_attempts--;
+				} else {
+					// translate all proteins on this piece of DNA
+					for (let ix = 0 ; ix < dna.quality.length; ix++){
+						if (dna.exists[ix] !== 0){
+							this.proteinbuffer.push({"which":ix,"good":dna.quality[ix]});
+						}
+					}
+					translate_attempts--; 
+				}
+			}
+			// Newly made DNA does not participate in replication/translation in t=birthtime
+			this.DNA = [...this.DNA, ...new_dna];
+		}
 
 	    
+		/**
+	     * Draws from two arrays of protein numbers the number of productive assemblies
+	     * This takes a protein from every index - if all are good, the assembly is productive
+	     * NOTE: do not hand the actual Products.arr, but only shallow copies, as this does alter the values in place 
+	     * 
+	     * @param {[Integer]} arr - shallow copy of good products of single use type
+	     * @param {[Integer]} bad_arr - shallow copy of bad products of single use type
+	     * @returns the number of productive assemblies made in this timestep
+	     */
+		assemble(arr, bad_arr){
+			let assemblies = 0;
+			/* eslint-disable no-constant-condition */
+			while (true) { 
+				// equates to while (Math.min(sum_arr(arr, bad_arr)) > 1 ), which can be precomputed; i just think this is prettier
+				let complete = 1;
+				for (let  j= 0; j<arr.length; j++){
+					let all_j = arr[j] + bad_arr[j]; 
+					if (all_j == 0){
+						return assemblies
+					}
+					if(this.C.random() < bad_arr[j]/all_j){
+						bad_arr[j]--;
+						complete = 0;
+					} else {
+						arr[j]--;
+					}
+				}
+				assemblies += complete;
+			}
+		}
+	    
+		/**
+	     * Makes assemblies with @function assemble for oxphos, translate and replicate, 
+	     * lso calculates ROS and logs oxphos for averaging
+	     * should only be called once per timestep, as this is not deterministic
+	     */
+		makeAssemblies(){
+			this.oxphos = this.assemble(this.products.oxphos, this.bad_products.oxphos)/ (this.vol / 100) * this.conf["OXPHOS_PER_100VOL"];
+			this.translate = this.assemble(this.products.translate, this.bad_products.translate);
+			this.replicate = this.assemble(this.products.replicate, this.bad_products.replicate);
+			// Both good and bad assemblies make ros, so the total number of assemblies (minimum of summed arrays) is total ros
+			this.ros = Math.min.apply(Math, this.sum_arr(this.products.oxphos,this.bad_products.oxphos)) / (this.vol / 100) * this.conf["OXPHOS_PER_100VOL"];
+			// this is queues over 5 timesteps for the oxphos_avg visualization
+			this.oxphos_q.push(this.oxphos);
+			this.oxphos_q = this.oxphos_q.slice(-5);
+		}
+
+		/** take average of last 5 oxphos calculations */ 
+		get oxphos_avg() {
+			return this.oxphos_q.reduce((t, e) => t + e) / 5
+		}
+
+		/** shuffle array in place */
+		shuffle(array) {
+			for (let i = array.length - 1; i > 0; i--) {
+				const j = Math.floor(this.C.random() * (i + 1));
+				[array[i], array[j]] = [array[j], array[i]];
+			}
+		}
+
+		/** return the sum of two arrays at every index
+	     * rewritten to function because i don't like the js notation ;)
+	     */
+		sum_arr(arr1, arr2){
+			return arr1.map(function (num, idx) {
+				return num + arr2[idx]
+			})
+		}
+
+		/**
+	     * Output state of this object
+	     * @returns {Object} containing the state of this object at this moment for writing to file
+	     */
+		stateDct(){
+			let mito = {};
+			mito["time"] = this.C.time;
+			mito["V"] = this.V;
+			mito["id"] = this.id;
+			mito["host"] = this.host;
+			mito["vol"] = this.vol;
+			mito["n DNA"] = this.DNA.length;
+			mito["oxphos"] = this.oxphos;
+			mito["ros"] = this.ros;
+			mito["oxphos_avg"] = this.oxphos_avg;
+			mito["translate"] = this.translate;
+			mito["replicate"] = this.replicate;
+			mito["replisomes"] = this.n_replisomes;
+			mito["type"] = "mito";
+			mito["time of birth"] = this.C.time_of_birth;
+			mito["products"] = this.products.arr;
+			mito["bad products"] = this.bad_products.arr;
+			// mito['products at bad host DNA'] = this.debug_hostbad_printer()
+			let sumdna = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
+			for (let dna of this.DNA){
+				sumdna = this.sum_arr(sumdna, dna.quality);
+			}
+			mito["sum dna"] = sumdna.slice(0,10);
+			mito["unmut"] = this.unmutated/this.DNA.length;
+			return mito
+		}
+	    
+		/**
+		 * Writer for mitochondrion- could maybe be moved to CPM.Cell?
+		 * takes anobject and appends it to an output file as JSON dictionary/object 
+		 * @param {String} logpath - output path
+		 * @param {Object} dct - output object
+		 */
+		write(logpath, dct){
+			let objstring = JSON.stringify(dct) + "\n";
+			if( !(typeof window !== "undefined" && typeof window.document !== "undefined") ){
+				if (!this.fs){
+					this.fs = require("fs");
+				}    
+				this.fs.appendFileSync(logpath, objstring);
+			}   
+		}
 	}
 
 	class nDNA extends DNA {
 
-		/* eslint-disable */ 
-		constructor (conf, C ,parent) {
-	        super(conf,C, parent);
-	        if (parent instanceof DNA){
-	            this.quality = [...parent.quality];
-	            if (this.C.random() < conf["NDNA_MUT_RATE"] );
-	        } else {
-	            this.quality = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(1);
-	            for (let i = 0 ; i < this.quality.length; i++){
-	                if (i < this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"])
-	                    this.quality[i] = 0;
-	            }
-	        }
-	    }
-
-	    mutate(){ 
-	        let ix = Math.floor(this.C.random() * this.quality.length);
-	        this.quality[ix] = !this.quality[ix];
-	    }
-
+		
+		/**
+	     * see @constructor @Object {DNA} for other parameters
+	     * @param conf.NDNA_MUT_REP mutation rate at replication - only daughter gets this
+	     * this overwrites DNA initialization to set REPLICATE genes to existing and good.
+	     */
+		constructor (conf, C, idstr, parent) {
+			super(conf,C, idstr, parent);
+			if (parent instanceof nDNA){
+				this.mutate(this.conf["NDNA_MUT_REP"]);
+			} else {
+				for (let i = 0 ; i < this.exists.length; i++){
+					if (i >= this.conf["N_OXPHOS"]  + this.conf["N_TRANSLATE"])
+						this.exists[i] = 1;
+					this.quality[i] = 1;
+				}
+			}
+		}
 
 	}
 
+	/**
+	 * This encodes a Host cell in the mitochondrial model
+	 * It inherits from Supercell, to allow for easy handling
+	 * of its endosymbionts. 
+	 */
 	class HostCell extends SuperCell {
 
-		/* eslint-disable */ 
+		/**
+		 * -- standard CPM.Cell parameters:
+	     * @param {Object} conf - config of the model
+	     * @param {Number} kind - the CellKind of this
+	     * @param {Number} id - the CellId of this
+	     * @param {CPMEvol} C - the CPMEvol (or inherited) model where it is attached to
+		 * 
+		 * -- specific conf parameters necessary --
+		 * @param {number} conf.INIT_HOST_V - initial target Volume at t=0
+		 * 
+		 * @param {number} conf.HOST_V_PER_OXPHOS - scalar value for the +∆V per total OXPHOS
+		 * @param {number} conf.HOST_SHRINK - shrinkage per timestep (expects a positive value for effective shrinkage)
+		 * @param {number} conf.HOST_GROWTH_MAX - maximum positive ∆V
+		 * @param {number} conf.FACTOR_HOSTSHRINK_OVERFLOW - shrinkage amplification that 
+		 * is transferred upon the subcells once the host can no longer safely shrink. 
+		 * @param {number} conf.NDNA_MUT_LIFETIME - mutation rate per gene per MCS of the host, 
+		 * this affects only nDNA, not parameters
+		 * 
+		 * @param {number} conf.rep - host translation per oxphos
+		 * @param {number} conf.rep2 - host translation per quadratic oxphos
+		 * 
+		 * @param {Object} [conf.evolvables] - contains objects with keys of parameters that
+		 * can evolve, needs to contain conf.evolvables.NAME.sigma - the standard deviation
+		 * of the evolving step. Can contain (conf.evolvables.NAME.-) upper_bound and lower_bound
+		 * which are hard limits to evolutions. Initial value of the evolvable is taken as the conf.NAME
+		 * parameter
+		 */
 		constructor (conf, kind, id, C) {
 			super(conf, kind, id, C);
+			
 			this.V = conf["INIT_HOST_V"];
-			this._fission_rate = conf["fission_rate"];
-			this._fusion_rate = conf["fusion_rate"];
-			this._rep = conf["REP_MACHINE_PER_OXPHOS"];
-			this.total_oxphos = 0;
-			this.DNA = new nDNA(conf, C); 
-			this.cytosol = new Array(this.conf["N_OXPHOS"]+this.conf["N_TRANSLATE"]+this.conf["N_REPLICATE"]).fill(0);
-			this.time_of_birth = this.C.time;
-		}
 
-		birth(parent){
-			super.birth(parent);
-			this.V = parent.V/2;
-			parent.V /= 2;
-			this.DNA = new nDNA(this.conf, this.C, parent.DNA);
-			this._fission_rate = parent._fission_rate;
-			this._fusion_rate = parent._fusion_rate;
-			this._rep = parent._rep;
-			if (this.C.random() < this.conf["MUT_FISFUS"]){
-				this._fission_rate += this.conf["SIGMA_FISFUS"] * this.rand_normal();
-			}
-			if (this.C.random() < this.conf["MUT_FISFUS"]){
-				this._fusion_rate += this.conf["SIGMA_FISFUS"] * this.rand_normal();
-			}
-			if (this.C.random() < this.conf["MUT_REP_PRESSURE"]){
-				this._rep += this.conf["SIGMA_REP"] * this.rand_normal();
-			}
-		}
-
-		update(){
-			if (this.nSubcells === 0 ){
-				// console.log(this.V, this.vol)
-				if (this.canShrink()){
-					this.V -= this.conf["EMPTY_HOST_SHRINK"];
-				}
-				return
-			}
-			this.total_oxphos = 0;
-
-			// let total_mito_vol = 0
-			let cells = [];
-			// console.log(this.subcellsObj)
-			for (let mito of this.subcells()){
-				cells.push(mito); // subcells may need to be an array again
-				// volcumsum.push(mito.vol + volcumsum[volcumsum.length-1])
-				mito.update();
-				//this.total_oxphos += Math.max(mito.oxphos, C.getVolume(mito.id))
-				this.total_oxphos += mito.oxphos;
+			/**
+			 * sets evolvable parameters as cell-specific, so they
+			 * can accurately be adjusted later
+			 */
+			for (let evolvable in conf["evolvables"]){
+				this[evolvable] = conf[evolvable];
 			}
 			
-			// let trues = 
-			for (let i = 0; i < this.total_oxphos*this.rep; i++){
-				let ix = this.DNA.trues[Math.floor(this.C.random() * this.DNA.trues.length)];
-				if (this.tryIncrement()){
-					// optional make this canGrow dependent
-					this.cytosol[ix]++;
+			/** initialize total oxphos */
+			this.total_oxphos = 0;
+
+			/** initialize DNA */
+			this.DNA = new nDNA(conf, C, String(this.id)); 
+		}
+
+		/**
+		 * Call on the new cell after a division, alters both itself and the 
+		 * parent to divide products and accomplish successful division.
+		 * 
+		 * @param {CPM.HostCell} parent - the other daughter/parent cell
+		 * @param {number} partition - the fraction of the cell this daughter got:
+		 * the number of pixels this cell got/total pixels both daughters
+		 */
+		birth(parent, partition){
+			/** record lineage and handle subcells in superclasses */
+			super.birth(parent, partition);
+
+			/** divide target V and total oxphos on partition */ 
+			this.V = parent.V * partition;
+			parent.V *= (1-partition);
+			this.total_oxphos = parent.total_oxphos * partition;
+			parent.total_oxphos *= (1-partition);
+
+			/** Make new DNA for daughter */
+			this.DNA = new nDNA(this.conf, this.C,String(this.id), parent.DNA);
+			
+			/** Do mutation steps on evolvables */
+			for (const evolvable in this.conf["evolvables"]){
+				this[evolvable] = parent.cellParameter(evolvable);
+				this[evolvable] += this.conf["evolvables"][evolvable]["sigma"] * this.rand_normal();
+				if (this.conf["evolvables"][evolvable]["lower_bound"] !== undefined){
+					this[evolvable] = Math.max(this[evolvable], this.conf["evolvables"][evolvable]["lower_bound"]);
+				}
+				if (this.conf["evolvables"][evolvable]["upper_bound"] !== undefined){
+					this[evolvable] = Math.min(this[evolvable], this.conf["evolvables"][evolvable]["upper_bound"]);
 				}
 			}
-			let volcumsum = [];
+		}
+
+		/**
+		 * Update post-MCS - essentially main loop of model 
+		 * Does not interact with the grid.
+		 * Calls update on all mitochondria.
+		 */
+		update(){
+			this.total_oxphos = 0;
+			let cells = [], volcumsum = [];
 			let mito_vol = 0;
-			this.shuffle(cells); // need te erase all structure: should maybe refactor subcells back to array?
-			for (let mito of cells){
+
+			/** Update all mitochondria, records total oxphos and does preparotory work for weighted draw */
+			for (let mito of this.subcells()){
+				cells.push(mito); //need to link id in a structured format to pick from volcumsum
 				mito_vol += mito.vol;
 				volcumsum.push(mito_vol);
+				mito.update();
+				this.total_oxphos += mito.oxphos;
 			}
-			volcumsum = volcumsum.map(function(item) {return item/ mito_vol});
-			for (const [ix, product] of this.cytosol.entries()){
-				for (let i = 0 ; i < product;i++){
-					let ran = this.C.random(); 
-					let which = volcumsum.findIndex(element => ran < element );
-					cells[which].importbuffer.push({"which":ix});
-					this.cytosol[ix]--;
+			this.total_vol = this.vol + mito_vol;
+
+			/** Makes new replication products, and distributes based on volume-weighted draw */
+			let new_products = (this.total_oxphos*this.cellParameter("rep")) - (this.total_oxphos*this.total_oxphos*this.cellParameter("rep2"));
+			volcumsum = volcumsum.map(function(item) {return item/ mito_vol}); // is an array form 0 - 1 with mito.vol/total_mito_vol 
+			for (let i = 0; i < new_products; i++){
+				// pick random existing DNA index
+				let ix = this.DNA.trues[Math.floor(this.C.random() * this.DNA.trues.length)];
+				// pick weighted random mitochondrion 
+				let which = volcumsum.findIndex(element => this.C.random()  < element );
+				// add protein to proteinbuffer of mitochondrion
+				cells[which].proteinbuffer.push({"which":ix, "good" : this.DNA.quality[ix]});
+			}
+
+			/** Calculates and adds ∆V, if it can no longer shrink, distributes shrinkage among subcells */
+			let dV = 0;
+			dV += this.total_oxphos *this.cellParameter("HOST_V_PER_OXPHOS");
+			dV -= this.cellParameter("HOST_SHRINK");
+			dV = Math.min(this.cellParameter("HOST_GROWTH_MAX"), dV);
+			if (this.closeToV() ){
+				this.V += dV;
+			} else if (dV < 0){
+				for (let mito of this.subcells()){
+					mito.V += (mito.vol/mito_vol) * dV *this.conf["FACTOR_HOSTSHRINK_OVERFLOW"];
 				}
 			}
 
-
-			let dV = 0;
-
-			dV += this.total_oxphos *this.conf["HOST_V_PER_OXPHOS"];
-			dV -= this.conf["HOST_SHRINK"];
-			dV = Math.min(this.conf["HOST_GROWTH_MAX"], dV);
-			if (dV > 0 && this.canGrow() && mito_vol/(this.vol + mito_vol) > this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
-	            this.V += dV;
-	        }
-	        if (dV < 0 && this.canShrink() && mito_vol/(this.vol + mito_vol) < this.conf["PREF_FRACTION_MITO_PER_HOST"] ){
-	            this.V += dV;
-			}
-			
+			/** calls mitochondria to update protein pool */
 			for (let mito of this.subcells()){
 				mito.importAndProduce();
 			}
-			for (const [ix, product] of this.cytosol.entries()){
-				for (let i = 0 ; i < product;i++){
-					if( this.C.random() < this.conf["HOST_DEPRECATION"]){
-						this.cytosol[ix]--;
-					}
-				}
-			}
+
+			/** do lifetime mutation nDNA */
+			this.DNA.mutate(this.cellParameter("NDNA_MUT_LIFETIME"));
 		}
 
-		canGrow(){
-	        return this.V-this.vol < this.conf["VOLCHANGE_THRESHOLD"]
-	    }
-	    canShrink(){
-	        return this.vol-this.V < this.conf["VOLCHANGE_THRESHOLD"]
-	    }
-		
-		tryIncrement(){
-	        // console.log(this.sum, this.vol, this.vol/this.sum)
-	        return (this.C.random() < (this.vol/this.sum))
-		}
-		
-		get sum(){
-			return this.cytosol.reduce((t, e) => t + e)
-		}
-
-		get fission_rate(){
-			return Math.max(0, this._fission_rate)
-		}
-
-		get fusion_rate(){
-			return Math.max(0, this._fusion_rate)
-		}
-
-		get rep(){
-			return Math.max(0, this._rep)
-		}
-
+		/** death listener - calls write to file in deaths.txt */
 		death(){
-			/* eslint-disable */
 			super.death();
 			for (let mito of this.subcells()){
-				mito.V = -50;
+				this.write("debug.log", {"message": "Host died with extant subcells, please mind the balance in your model", "cell" : this.stateDct()});
+				mito.V = -50; // if this is necessary coul
 			}
-			let logpath = "./deaths.txt"; //HARDCODED
-	        let cell = {};
-			cell["time"] = this.C.time;
-			cell["id"] = this.id;
-	        cell["V"] = this.V;
-	        cell["vol"] = this.vol;
-			cell["type"] = "host";
-			cell["fission rate"] = this._fission_rate;
-			cell["fusion_rate"] = this._fusion_rate;
-			cell["rep"] = this._rep;
-			cell["time of birth"] = this.time_of_birth;
-	        let objstring = JSON.stringify(cell) + '\n';
-			if( typeof window !== "undefined" && typeof window.document !== "undefined" ); else {
-	            // console.log("logged to  " + logpath + "\n\n" + objstring)
-	            if (!this.fs){
-	                this.fs = require('fs');
-	            }    
-	            this.fs.appendFileSync(logpath, objstring);
-	        }
-	        
-		}
-
-		shuffle(array) {
-	        for (let i = array.length - 1; i > 0; i--) {
-	            const j = Math.floor(this.C.random() * (i + 1));
-	            [array[i], array[j]] = [array[j], array[i]];
-	        }
+			this.write("./deaths.txt", this.stateDct()); 
 		}
 		
-		// Standard Normal variate using Box-Muller transform.
+		/** Get standard Normal variate from univariate using Box-Muller transform.
+		 *  Code edited from https://stackoverflow.com/questions/25582882/javascript-math-random-normal-distribution-gaussian-bell-curve
+		 */ 
 		rand_normal() {
 			let u = 0, v = 0;
 			while(u === 0) u = this.C.random(); //Converting [0,1) to (0,1)
 			while(v === 0) v = this.C.random();
-			return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+			return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v )
+		}
+
+		/** Returns a state object, with getter calls and model-wide things
+		 * Is easier to edit and reuse than a modifier for this.()
+		 * but takes more space you do need to remmember to edit this when
+		 * adding new followables
+		 * 
+		 * @returns dct - an object containing detailed state of this cell
+		 */
+		stateDct() {
+			let dct = {};
+			dct["time"] = this.C.time;
+			dct["id"] = this.id;
+			dct["V"] = this.V;
+			dct["vol"] = this.vol;
+			dct["parent"] = this.parentId;
+			dct["time of birth"] = this.time_of_birth;
+			dct["good"] = this.dna_good;
+			dct["bads"] = this.DNA.bads;
+			dct["dna"] = this.DNA.quality;
+			dct["type"] = "host";
+			dct["n mito"] = this.nSubcells;
+			dct["total_oxphos"] = this.total_oxphos;
+			dct["total_vol"] = this.total_vol;
+			dct["fission events"] = this.fission_events;
+			dct["fusion events"] = this.fusion_events;
+			dct["evolvables"] = {};
+			for (const evolvable in this.conf.evolvables){
+				dct["evolvables"][evolvable] = this[evolvable];
+			}
+			return dct
+		}
+
+		/** dumb check for whether the host dna is mutated
+		 * Could probably be communicated more elegantly as it is now newly initializes a
+		 * nDNA and sums all genes of both, but this seems very robust.
+		 */
+		get dna_good(){
+			return this.DNA.sumQuality() == new nDNA(this.conf, this.C).sumQuality()
+		}
+
+		/**
+		 * Writer for host cell - could maybe be moved to CPM.Cell?
+		 * takes anobject and appends it to an output file as JSON dictionary/object 
+		 * @param {String} logpath - output path
+		 * @param {Object} dct - output object
+		 */
+		write(logpath, dct){
+			let objstring = JSON.stringify(dct) + "\n";
+			if(!( typeof window !== "undefined" && typeof window.document !== "undefined" )){
+				if (!this.fs){
+					this.fs = require("fs");
+				}    
+				this.fs.appendFileSync(logpath, objstring);
+			}   
 		}
 	}
 
@@ -5893,6 +6146,18 @@ var CPM = (function (exports) {
 				
 				// Loop over the pixels;
 				// compute mean position per dimension with online algorithm
+				if (pixels == undefined){
+					var fs = require("fs");
+					let stringbuffer = "";
+					stringbuffer += "## AAAA breaks in compute centroid of cell "+ cellid +" \n";
+					stringbuffer += "volume : " + this.M.cells[cellid].vol + "\n";
+					stringbuffer += "V : " + this.M.cells[cellid].V + "\n";
+					stringbuffer += "fusing : " + this.M.cells[cellid].fusing + "\n";
+					stringbuffer += "time : " + this.M.time + "\n";
+					stringbuffer += "time of birth : " + this.M.cells[cellid].time_of_birth + "\n";
+					fs.appendFileSync("./debug.log", stringbuffer);
+					// exit(1)
+				}
 				for( let j = 0 ; j < pixels.length ; j ++ ){
 					
 					// Check distance of current pixel to the accumulated mean in this dim.
@@ -6134,6 +6399,7 @@ var CPM = (function (exports) {
 				stringbuffer += "V : " + this.M.cells[cellid].V + "\n";
 				stringbuffer += "fusing : " + this.M.cells[cellid].fusing + "\n";
 				stringbuffer += "time : " + this.M.time + "\n";
+				stringbuffer += "time of birth : " + this.M.cells[cellid].time_of_birth + "\n";
 				fs.appendFileSync("./debug.log", stringbuffer);
 				// exit(1)
 			}
@@ -6823,7 +7089,6 @@ var CPM = (function (exports) {
 				x1 = L2 - byy;
 				y1 = bxy;
 			}
-			// console.log( id )
 			// create a new ID for the second cell
 			let nid = C.makeNewCellID( C.cellKind( id ) );
 			
@@ -6833,8 +7098,6 @@ var CPM = (function (exports) {
 					//  x0 and y0 can be omitted as the div line is relative to the centroid (0, 0)
 					if( x1*pixdist[j][1]-pixdist[j][0]*y1 > 0 ){
 						newpix.push(cp[j]);
-						// C.setpix( cp[j], nid ) 
-						// newvol++
 					}
 				}
 			} else {
@@ -6848,58 +7111,27 @@ var CPM = (function (exports) {
 				}
 				for( let j = 0 ; j < cp.length ; j ++ ){
 					if (j < partition * cp.length){
-						newpix.push(cp[sides[j].i]);
-						// C.setpix( cp[sides[j].i], nid ) 
-						// newvol++
+						newpix.push(sides[j].pix);
 					}
 				}
 			}
 
 			if (newpix.length == 0){
-				var fs = require('fs');
-				let stringbuffer = "";
-				stringbuffer += "no newpix \n";
-				stringbuffer += "newpix: " + newpix + "\n";
-				stringbuffer += "cp: " + cp + "\n";
-				stringbuffer += "first cp: " + cp[0] + "\n";
 				newpix.push(cp.pop());
-				stringbuffer += "cp after pop: " + cp + "\n";
-				stringbuffer += "newpix after pop: " + newpix + "\n";
-				for (let pix of newpix){
-					stringbuffer += "pix: " + pix + "\n";
-				}
-				fs.appendFileSync("./debug.log", stringbuffer);
-			} else if (newpix.length == cp.length){
-				var fs = require('fs');
-				let stringbuffer = "";
-				stringbuffer += "all newpix \n";
-				stringbuffer += "newpix: " + newpix + "\n";
-				stringbuffer += "cp: " + cp + "\n";
-				fs.appendFileSync("./debug.log", stringbuffer);
+			} else if (newpix.length == cp.length ){
 				newpix.pop();
 			}
 			for (let pix of newpix){
-				
 				C.setpix( pix, nid ); 
 			}
 		
 			if (C.hasOwnProperty("cells")){
-				C.birth(nid, id, partition);
+				C.birth(nid, id, newpix.length/(newpix.length+cp.length));
 			}
-			
-			// console.log()
-			
-			
-			C.stat_values = {}; // remove cached stats or this will crash!!!
-			if (C.cells[nid] == undefined || C.cells[id] == undefined){
-				var fs = require('fs');
-				stringbuffer = "";
-				stringbuffer += "## AAAA one of the daughters in regular dividecell is undefined \n";
-				fs.appendFileSync("./debug.log", stringbuffer);
-				// exit(1)
-			}
+			this.C.stat_values = {}; // remove cached stats or this will crash!!!
 			return nid
 		}
+
 
 		fuseCells(cid1, cid2){
 			if (this.C.hasOwnProperty("cells")){
@@ -11919,6 +12151,7 @@ var CPM = (function (exports) {
 	exports.SubCellConstraint = SubCellConstraint;
 	exports.SuperCell = SuperCell;
 	exports.VolumeConstraint = VolumeConstraint;
+	exports.mtDNA = mtDNA;
 	exports.nDNA = nDNA;
 
 	return exports;
