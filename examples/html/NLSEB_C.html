@@ -29,39 +29,40 @@ td {
 */
 let config = {
 
-	// Grid settings
 	ndim : 2,
 	field_size : [150, 150],
 
-	// CPM parameters and configuration
 	conf : {
-		// Basic CPM parameters
-		torus : [true, true],	// Should the grid have linked borders?
-		seed : 5,							// Seed for random number generation.
-		T : 10,								// CPM temperature
 
-		//This declaration of CELLS instantiates the CPMEvol model instead of the CPM model
-		CELLS : ["empty", CPM.Divider, CPM.Divider], //The cell internal classes
+		// Basic.
+		torus :						[true, true],			// Should the grid have linked borders?
+		seed :						5,								// Seed for random number generation.
+		T :								10,								// CPM temperature.
 
-        // used internally by StochasticCorrector subclass
-		INIT_PRODUCTS : [ [40,40],
-										  [40,40] ],
-		INIT_V : [250, 125],
-		NOISE : [0,0],
+		CELLS : ["empty", CPM.Divider, CPM.Divider], //The cell internal classes.
 
-		// used in postMCSListener.
-    division_volume : [0, 500, 250],
-		growth_rate : [0, 20, 20],
-		death_rate : 0,
+		// Used by Divider class; [cell X, cell Y].
+		INIT_PRODUCTS : [ [40,	40],
+										  [40,	40] ],
+		INIT_V : 					[250,	125],
+		NOISE : 					[0,		0],
 
-    // Adhesion parameters:
+		// Used in postMCSListener; [background, cell X, cell Y].
+    division_volume : [0,	500,	250],
+		growth_rate : 		[0,	20,		20],
+		shrink_rate : 		10,
+		death_rate : 			0,
+		death_volume : 		-500,
+		vol_dep_death : 	true,
+
+    // Adhesion.
     J:[ [15,15,15],
 				[15,15,15],
 				[15,15,15] ],
 
-		// VolumeConstraint parameters
-		LAMBDA_V : [0, 1, 1],				// VolumeConstraint importance per cellkind
-		V : [0, 200, 100]					// Unused - are backup.
+		// VolumeConstraint parameters.
+		LAMBDA_V :				[0,	1,		1],				// VolumeConstraint importance per cellkind.
+		V :								[0, 200,	100]			// Unused - are backup.
 
 	},
 
@@ -74,7 +75,7 @@ let config = {
 		// non-background cellkinds.
 		// Runtime etc
 		BURNIN : 100,
-		RUNTIME : 100,
+		RUNTIME : 10000,
 		RUNTIME_BROWSER : "Inf",
 
 		// Visualization
@@ -98,7 +99,17 @@ let config = {
 	}
 }
 /*	---------------------------------- */
-let sim, meter, showYcolors
+let sim, meter, showYcolors, t=0
+
+
+let running = 1
+function toggleAnim(){
+	running = 1 - running
+	if( running == 1 ){
+		run()
+	}
+}
+
 
 function initialize(){
 	 /* 	The following functions are defined below and will be added to
@@ -112,19 +123,27 @@ function initialize(){
 	sim = new CPM.Simulation( config, custommethods )
 
 	showYcolors = false
-
 	meter = new FPSMeter({left:"auto", right:"5px"})
-	step()
+	running = 1
+	run()
 }
 
 
-function step(){
-	sim.step()
-	meter.tick()
-	if( sim.conf["RUNTIME_BROWSER"] == "Inf" | sim.time+1 < sim.conf["RUNTIME_BROWSER"] ){
-		requestAnimationFrame( step )
+function step(){				// Update the grid with one MCS
+	if( running ){
+		meter.tickStart()
+		sim.step()
+		meter.tick()
+		t++
 	}
 }
+
+
+function run(){					// Run the simulation
+	step();
+	if( t < config.simsettings.RUNTIME ){ requestAnimationFrame( run ) }
+}
+
 
 function setSliders(){
 	document.getElementById("d").value = config.conf.death_rate
@@ -133,6 +152,7 @@ function setSliders(){
 	document.getElementById("Vxdiv").value = config.conf.division_volume[1]
 	document.getElementById("Vydiv").value = config.conf.division_volume[2]
 }
+
 
 /* The following custom methods will be added to the simulation object*/
 function postMCSListener(){
@@ -148,35 +168,34 @@ function postMCSListener(){
 	}
 }
 
-// Models internal concentrations of RNA replicators, with a master sequence  (X) creating mutants (Y) with lower growth rate,
-//  Y population is necessary for vesicle to survive.
+
+// Model dynamics.
 function updateCell(C, cell){
-	let vol = C.getVolume(cell.id)
-  let V = cell.V
+	let actualV = C.getVolume(cell.id)	//Current real volume.
+  let targetV = cell.V								//Target volume.
 
-	V -= 10
-	if ((cell.V - vol) < 10)
-	{
-		V += parseInt(C.conf.growth_rate[cell.kind])	//Apparently the += function does something different when it gets a string, while for division_volume things seem to work just fine.
+	if ((targetV - actualV) < 10){
+		targetV += parseInt(C.conf.growth_rate[cell.kind])	//Apparently the += function does something different when it gets a string, while for division_volume things seem to work just fine.
+	}
+	targetV -= C.conf.shrink_rate		//Standard shrinking rate (i.e. when targetV exceeds actualV by more than 10 pixels, cells only shrink; otherwise they grow with growth_rate - shrink_rate).
+
+	if (C.conf.vol_dep_death){
+		let gridV = C.grid.extents[0] * C.grid.extents[1]
+	 	if (Math.random() < 0.1 * actualV/gridV * parseInt(C.conf.death_rate)){
+			targetV = C.conf.death_volume
+		}
+	}
+	else{
+		if (cell.kind > 0 && Math.random() < 0.0001 * parseInt(C.conf.death_rate)){
+			targetV = C.conf.death_volume
+		}
 	}
 
-	let grid_vol = C.grid.extents[0] * C.grid.extents[1]
-
-	if (Math.random() < 0.1 * vol/grid_vol * parseInt(C.conf.death_rate))
-	{
-		V = -500
-	}
-
-	// if (cell.kind > 0 && Math.random() < 0.0001 * parseInt(C.conf.death_rate))
-	// {
-	// 	V = -500
-	// }
-
-  cell.V = V
+  cell.V = targetV
 }
 
-function initializeGrid(){
 
+function initializeGrid(){
 	// add the initializer if not already there
 	if( !this.helpClasses["gm"] ){ this.addGridManipulator() }
 
@@ -189,7 +208,7 @@ function initializeGrid(){
 			// first cell always at the midpoint. Any other cells
 			// randomly.
 			if( i == 0 ){
-                this.gm.seedCellAt( cellkind+1, [this.C.midpoint[0]/2, this.C.midpoint[1] ] )
+        this.gm.seedCellAt( cellkind+1, [this.C.midpoint[0]/2, this.C.midpoint[1] ] )
 			} else {
 				this.gm.seedCell( cellkind+1 )
 			}
@@ -200,29 +219,29 @@ function initializeGrid(){
 
 // Custom drawing function to draw the preferred directions.
 function drawCanvas(){
-	// Add the canvas if required
-	if( !this.helpClasses["canvas"] ){ this.addCanvas() }
+	if( !this.helpClasses["canvas"] ){ this.addCanvas() }			// Add the canvas if required
 
-	// Clear canvas
-	this.Cim.clear( this.conf["CANVASCOLOR"] || "FFFFFF" )
+	this.Cim.clear( this.conf["CANVASCOLOR"] || "FFFFFF" )		// Clear canvas
 	let nrcells=this.conf["NRCELLS"], cellkind, cellborders = this.conf["SHOWBORDERS"]
 
 	let colfun = getColor.bind(this)
 	for( cellkind = 0; cellkind < nrcells.length; cellkind ++ ){
 		this.Cim.drawCells( cellkind+1, colfun)
-		// Draw borders if required
-		if(  cellborders[ cellkind  ]  ){
+		if(  cellborders[ cellkind  ]  ){												// Draw borders if required
 			this.Cim.drawCellBorders( cellkind+1, "000000" )
 		}
 	}
+	this.Cim.el.onclick = toggleAnim
 }
 
+
 const cmap = new ColorMap({
-		colormap: 'viridis',
-		nshades: 100,
-		format: 'hex',
-		alpha: 1
+	colormap: 'viridis',
+	nshades: 100,
+	format: 'hex',
+	alpha: 1
 })
+
 
 function getColor (cid) {
 	if (!showYcolors){
@@ -237,6 +256,7 @@ function getColor (cid) {
 	}
 	return cmap[c].substring(1)
 }
+
 
 function changeColorBy(){
 	showYcolors = !showYcolors
