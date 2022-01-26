@@ -53,7 +53,7 @@ let config = {
 		shrink_rate : 		10,
 		death_rate : 			0,
 		death_volume : 		-500,
-		vol_dep_death : 	true,
+		vol_dep_death : 	false,
 
     // Adhesion.
     J:[ [15,15,15],
@@ -93,7 +93,7 @@ let config = {
 		EXPNAME : "StochasticCorrection",					// Used for the filename of output images.
 
 		// Output stats etc
-		STATSOUT : { browser: false, node: true }, // Should stats be computed?
+		STATSOUT : { browser: true, node: true }, // Should stats be computed?
 		LOGRATE : 10							// Output stats every <LOGRATE> MCS.
 
 	}
@@ -118,7 +118,8 @@ function initialize(){
 	 let custommethods = {
 	 	postMCSListener : postMCSListener,
 		initializeGrid : initializeGrid,
-		drawCanvas : drawCanvas
+		drawCanvas : drawCanvas,
+		logStats : logStats
 	 }
 	sim = new CPM.Simulation( config, custommethods )
 
@@ -260,6 +261,25 @@ function getColor (cid) {
 
 function changeColorBy(){
 	showYcolors = !showYcolors
+}
+
+
+function logStats(){
+	// count the cell IDs currently on the grid:
+	let cellsX=0, cellsY=0, volsX=0, volsY=0
+	for( let i of this.C.cellIDs() ){
+		if (this.C.cellKind(i) == 1){
+			cellsX++
+			volsX += this.C.getVolume(i)
+		}
+		else if (this.C.cellKind(i) == 2){
+			cellsY++
+			volsY += this.C.getVolume(i)
+		}
+	}
+
+	console.log( "\tT=" + this.time + "\tNx=" + cellsX + "\tNy=" + cellsY + "\tVx=" + Number((volsX/cellsX).toFixed(1)) + "\tVy=" + Number((volsY/cellsY).toFixed(1)) )
+
 }
 
 
