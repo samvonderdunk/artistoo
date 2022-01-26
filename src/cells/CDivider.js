@@ -5,7 +5,7 @@ import Cell from "./Cell.js"
  * Implements a basic holder for a model with internal products,
  * which can be stochastically divided between daughter cells.
  */
-class Divider extends Cell {
+class CDivider extends Cell {
 
 	constructor (conf, kind, id, C) {
 		super(conf, kind, id, C)
@@ -44,4 +44,4 @@ class Divider extends Cell {
 	}
 }
 
-export default Divider
+export default CDivider

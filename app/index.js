@@ -18,6 +18,7 @@ import DNA from "../src/cells/mitochondrial_model/DNA.js"
 import nDNA from "../src/cells/mitochondrial_model/nDNA.js" 
 import mtDNA from "../src/cells/mitochondrial_model/mtDNA.js" 
 import Divider from "../src/cells/Divider.js" 
+import CDivider from "../src/cells/CDivider.js" 
  
 import Stat from "../src/stats/Stat.js" 
 import PixelsByCell from "../src/stats/PixelsByCell.js" 
@@ -81,6 +82,7 @@ export {
 	nDNA,
 	mtDNA,
 	Divider,
+	CDivider,
 	Stat,
 	PixelsByCell,
 	BorderPixelsByCell,
