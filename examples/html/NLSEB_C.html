@@ -80,7 +80,7 @@ let config = {
 
 		// Visualization
 		CANVASCOLOR : "EEEEEE",
-		CELLCOLOR : ["AA111A","FFA110"],
+		CELLCOLOR : ["AA111A","FFA110","000000","000000"],	// Standard cell colors + colors for cells with targetV < 0
 		SHOWBORDERS : [true, true],				// Should cellborders be displayed?
 		BORDERCOL : ["666666", "666666"],				// color of the cell borders
 		zoom : 3,							// zoom in on canvas with this factor.
@@ -246,7 +246,13 @@ const cmap = new ColorMap({
 
 function getColor (cid) {
 	if (!showYcolors){
-		return this.conf["CELLCOLOR"][this.C.cellKind(cid)-1]
+		let targetV = this.C.cells[cid].V
+		if (targetV < 0){
+			return this.conf["CELLCOLOR"][this.C.cellKind(cid)+1]
+		}
+		else{
+			return this.conf["CELLCOLOR"][this.C.cellKind(cid)-1]
+		}
 	}
 	let cell = this.C.cells[cid]
 	let c = (35 * 3)
