@@ -6031,6 +6031,10 @@ var CPM = (function (exports) {
 			/** Target Volume (overwrites V in volume constraint)
 			 * @type{Number}*/
 			this.V = conf["INIT_V"][kind-1];
+
+			/** Lifespan, counting down to 0 and then V is set to death_volume.
+			 * @type{Number}???*/
+			this.lifespan = conf["INIT_LIFESPAN"][kind-1];
 		}
 
 		/**
@@ -6055,6 +6059,7 @@ var CPM = (function (exports) {
 			let V = parent.V;
 			this.V = V/2;
 			parent.V = V/2;
+			this.lifespan = this.conf["INIT_LIFESPAN"][this.kind-1];	//New individual resets lifespan counter.
 		}
 	}
 

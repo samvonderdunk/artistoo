@@ -45,15 +45,16 @@ let config = {
 		INIT_PRODUCTS : [ [40,	40],
 										  [40,	40] ],
 		INIT_V : 					[250,	125],
+		INIT_LIFESPAN:		[100,	100],
 		NOISE : 					[0,		0],
 
 		// Used in postMCSListener; [background, cell X, cell Y].
-    division_volume : [0,	500,	250],
-		growth_rate : 		[0,	20,		20],
-		shrink_rate : 		10,
-		death_rate : 			0,
-		death_volume : 		-500,
-		vol_dep_death : 	false,
+    division_volume : 				[0,	500,	250],
+		growth_rate : 						[0,	20,		20],
+		shrink_rate : 						10,
+		death_rate : 							0,
+		death_shrink_rate :				10,
+		vol_dep_death : 					false,
 
     // Adhesion.
     J:[ [15,15,15],
@@ -72,15 +73,11 @@ let config = {
 
 		// Cells on the grid
 		NRCELLS : [10, 10],						// Number of cells to seed for all
-		// non-background cellkinds.
-		// Runtime etc
-		BURNIN : 100,
 		RUNTIME : 10000,
-		RUNTIME_BROWSER : "Inf",
 
 		// Visualization
 		CANVASCOLOR : "EEEEEE",
-		CELLCOLOR : ["AA111A","FFA110","000000","000000"],	// Standard cell colors + colors for cells with targetV < 0
+		CELLCOLOR : ["AA111A","FFA110","000000","BBBBBB"],	// Standard cell colors + colors for cells with targetV < 0
 		SHOWBORDERS : [true, true],				// Should cellborders be displayed?
 		BORDERCOL : ["666666", "666666"],				// color of the cell borders
 		zoom : 3,							// zoom in on canvas with this factor.
@@ -99,7 +96,7 @@ let config = {
 	}
 }
 /*	---------------------------------- */
-let sim, meter, showYcolors, t=0
+let sim, meter, showLifeSpan, t=0
 
 
 let running = 1
@@ -123,7 +120,7 @@ function initialize(){
 	 }
 	sim = new CPM.Simulation( config, custommethods )
 
-	showYcolors = false
+	showLifeSpan = false
 	meter = new FPSMeter({left:"auto", right:"5px"})
 	running = 1
 	run()
@@ -147,11 +144,12 @@ function run(){					// Run the simulation
 
 
 function setSliders(){
-	document.getElementById("d").value = config.conf.death_rate
 	document.getElementById("gx").value = config.conf.growth_rate[1]
 	document.getElementById("gy").value = config.conf.growth_rate[2]
 	document.getElementById("Vxdiv").value = config.conf.division_volume[1]
 	document.getElementById("Vydiv").value = config.conf.division_volume[2]
+	document.getElementById("d").value = config.conf.death_rate
+	document.getElementById("dr").value = config.conf.death_shrink_rate
 }
 
 
@@ -183,13 +181,18 @@ function updateCell(C, cell){
 	if (C.conf.vol_dep_death){
 		let gridV = C.grid.extents[0] * C.grid.extents[1]
 	 	if (Math.random() < 0.1 * actualV/gridV * parseInt(C.conf.death_rate)){
-			targetV = C.conf.death_volume
+			cell.lifespan = 0
 		}
 	}
 	else{
 		if (cell.kind > 0 && Math.random() < 0.0001 * parseInt(C.conf.death_rate)){
-			targetV = C.conf.death_volume
+			cell.lifespan = 0
 		}
+	}
+
+	// cell.lifespan--
+	if (cell.lifespan <= 0){	//Implements slower death.
+		targetV -= parseInt(C.conf.death_shrink_rate)
 	}
 
   cell.V = targetV
@@ -245,17 +248,16 @@ const cmap = new ColorMap({
 
 
 function getColor (cid) {
-	if (!showYcolors){
-		let targetV = this.C.cells[cid].V
-		if (targetV < 0){
+	if (!showLifeSpan){
+		// if (this.C.cells[cid].V < 0){
+		if (this.C.cells[cid].lifespan <= 0){
 			return this.conf["CELLCOLOR"][this.C.cellKind(cid)+1]
 		}
 		else{
 			return this.conf["CELLCOLOR"][this.C.cellKind(cid)-1]
 		}
 	}
-	let cell = this.C.cells[cid]
-	let c = (35 * 3)
+	let c = Math.floor(this.C.cells[cid].lifespan / 5)
 	if (c >= cmap.length){
 		c = cmap.length - 1
 	} else if (c < 0){
@@ -266,7 +268,7 @@ function getColor (cid) {
 
 
 function changeColorBy(){
-	showYcolors = !showYcolors
+	showLifeSpan = !showLifeSpan
 }
 
 
@@ -299,17 +301,6 @@ function logStats(){
 </p>
 
 <table width="400px">
-<tr>
-	<td style="width:20%">0.001*&delta;</td>
-	<td style="width:5%">0</td>
-	<td style="width:70%">
-		<div class="range-wrap">
-		  <input type="range" class="range" min="0" max="100" id="d" oninput="sim.C.getConstraint('VolumeConstraint').conf.death_rate=this.value">
-		  <output class="bubble"></output>
-		</div>
-	</td>
-	<td style="width:5%">100</td>
-</tr>
 
 <tr>
 	<td style="width:20%">g<sub>x</sub></td>
@@ -356,12 +347,35 @@ function logStats(){
 	</td>
 	<td style="width:5%">1000</td>
 </tr>
+
+<tr>
+	<td style="width:20%">&delta;/1000</td>
+	<td style="width:5%">0</td>
+	<td style="width:70%">
+		<div class="range-wrap">
+		  <input type="range" class="range" min="0" max="100" id="d" oninput="sim.C.getConstraint('VolumeConstraint').conf.death_rate=this.value">
+		  <output class="bubble"></output>
+		</div>
+	</td>
+	<td style="width:5%">100</td>
+</tr>
+<tr>
+	<td style="width:20%">r<sub>d</sub></td>
+	<td style="width:5%">0</td>
+	<td style="width:70%">
+		<div class="range-wrap">
+		  <input type="range" class="range" min="0" max="100" id="dr" oninput="sim.C.getConstraint('VolumeConstraint').conf.death_shrink_rate=this.value">
+		  <output class="bubble"></output>
+		</div>
+	</td>
+	<td style="width:5%">100</td>
+</tr>
 </table>
 
 <label class="switch">
 	<input type="checkbox" name="colorby" oninput="changeColorBy()"  unchecked>
 	<span class="slider round"></span>
-	<label for="colorby"> Show Y amount</label>
+	<label for="colorby"> Show lifespan</label>
 
 </label>
 <br>
