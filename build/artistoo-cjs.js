@@ -5847,8 +5847,8 @@ class CDivider extends Cell {
 					fluct *= -1;
 				}
 			}
-			this.products[ix] = Math.max(0, product/2 - fluct);
-			parent.products[ix] = Math.max(0, product/2 + fluct);
+			this.products[ix] = Math.max(0, product/2 - (fluct/100 * product));
+			parent.products[ix] = Math.max(0, product/2 + (fluct/100 * product));
 		}
 		let V = parent.V;
 		this.V = V/2;
