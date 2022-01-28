@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>Lotka-Volterra competition experiments</title>
+<title>Competition with metabolic deterioration</title>
 <style type="text/css">
 body{
 	font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue",
@@ -42,19 +42,18 @@ let config = {
 		CELLS : ["empty", CPM.CDivider, CPM.CDivider], //The cell internal classes.
 
 		// Used by Divider class; [cell X, cell Y].
-		INIT_PRODUCTS : [ [40,	0],
+		INIT_PRODUCTS : [ [40,	0],				//Starting abundances of good and bad metabolites, for both cell types.
 										  [40,	0] ],
 		INIT_V : 					[125,	125],
 		INIT_LIFESPAN:		[100,	100],
-		NOISE : 					[0,		20],
+		NOISE : 					[0,		0],
 
 		// Used in postMCSListener; [background, cell X, cell Y].
     division_volume : 				[0,	500,	500],
-		gM : 											[0,	35,		35],		//Max. growth rate of cell volume (i.e. for M -> inf.)
-		kM :											[0,	0.1,	0.1],		//Half-max. growth rate constant for cell with metabolite M.
+		gM : 											[0,	35,		15],		//Growth rate of volume per good metabolite.
 		rM :											[0,	1,		1],			//Logarithmic growth rate of metabolite M.
-		dtM :											[0,	0.01,	0.01],	//Deterioration rate of metabolite M.
-		speed_internal_dynamics : 1,							//Scales dynamics of metabolite versus cell growth.
+		dtM :											[0,	0.01,	0.001],	//Deterioration rate of metabolite M.
+		speed_internal_dynamics : 1,								//Scales dynamics of metabolite versus cell growth.
 		shrink_rate : 						10,
 
     // Adhesion.
@@ -75,7 +74,7 @@ let config = {
 		// Cells on the grid
 		NRCELLS : [10, 10],						// Number of cells to seed for all
 		BURNIN : 100,
-		RUNTIME : 10000,
+		RUNTIME : "Inf",
 
 		// Visualization
 		CANVASCOLOR : "EEEEEE",
@@ -141,13 +140,17 @@ function step(){				// Update the grid with one MCS
 
 function run(){					// Run the simulation
 	step();
-	if( t < config.simsettings.RUNTIME ){ requestAnimationFrame( run ) }
+	if( sim.conf.RUNTIME == "Inf" | t < sim.conf.RUNTIME ){ requestAnimationFrame( run ) }
 }
 
 
 function setSliders(){
 	document.getElementById("Vxdiv").value = config.conf.division_volume[1]
 	document.getElementById("Vydiv").value = config.conf.division_volume[2]
+	document.getElementById("gMx").value = config.conf.gM[1]
+	document.getElementById("gMy").value = config.conf.gM[2]
+	document.getElementById("dMx").value = config.conf.dtM[1]
+	document.getElementById("dMy").value = config.conf.dtM[2]
 }
 
 
@@ -159,7 +162,7 @@ function postMCSListener(){
 
 	for( let i of this.C.cellIDs() ){
 		updateCell(this.C, this.C.cells[i])
-		if( this.C.getVolume(i) > parseInt(this.C.conf.division_volume[this.C.cellKind(i)]) ){
+		if( this.C.getVolume(i) > this.C.conf.division_volume[this.C.cellKind(i)] ){
 			this.gm.divideCell(i)
 		}
 	}
@@ -170,26 +173,23 @@ function postMCSListener(){
 function updateCell(C, cell){
 	let actualV = C.getVolume(cell.id)	//Current real volume.
   let targetV = cell.V								//Target volume.
-	let Mgood = cell.products[0]				//Metabolite concentration.
-	let Mbad = cell.products[1]					//Deteriorated metabolites.
+	let Mgood = cell.products[0]				//Metabolite concentration, denoted [M] in equations.
+	let Mbad = cell.products[1]					//Deteriorated metabolites, denoted [M'] in equations.
 
-	// console.log("New individual",cell.kind,cell.id,t)
-	// console.log(actualV,targetV,Mgood,Mbad)
-
-	//Update volume.
+	//Update volume. 										dV/dt = g * [M] / V
 	if ((targetV - actualV) < 10){
-		targetV += C.conf.gM[cell.kind] * (Mgood/actualV)// / (Mgood/actualV + C.conf.kM[cell.kind])
+		targetV += C.conf.gM[cell.kind] * (Mgood/actualV)
 	}
 	targetV -= C.conf.shrink_rate		//Standard shrinking rate (i.e. when targetV exceeds actualV by more than 10 pixels, cells only shrink; otherwise they grow with gM - shrink_rate).
 	cell.V = targetV
 
 	//Update molecules.
+	// 																	d[M]/dt = s * ( r*[M]*(1 - ([M]+[M'])/V) - d*[M] )
+	// 																	d[M']/dt = s * ( d*[M] )
 	let deteriorate = C.conf.dtM[cell.kind]*Mgood
 	Mgood +=  C.conf.speed_internal_dynamics*( C.conf.rM[cell.kind]*Mgood*(1 - (Mgood+Mbad)/actualV) - deteriorate )
 	Mbad += C.conf.speed_internal_dynamics*deteriorate
 	cell.products = [Math.max(Mgood,0), Math.max(Mbad,0)]
-
-	// console.log(actualV,targetV,Mgood,Mbad)
 }
 
 
@@ -251,7 +251,7 @@ function getColor (cid) {
 			return this.conf["CELLCOLOR"][this.C.cellKind(cid)-1]
 		}
 	}
-	let c = Math.floor(100 * this.C.cells[cid].products[1] / this.C.getVolume(cid))
+	let c = Math.floor(0.1*this.C.cells[cid].products[1])// / this.C.getVolume(cid))
 	if (c >= cmap.length){
 		c = cmap.length - 1
 	} else if (c < 0){
@@ -295,7 +295,7 @@ function logStats(){
 <h1>Metabolic deterioration</h1>
 
 <p>
-	Cells grow using metabolites that multiply but deteriorate deterministically over time. By dividing products stochastically, cells can maintain function.
+	Cells grow using metabolites that multiply but deteriorate deterministically over time. By dividing products stochastically, cells can maintain function. You can create cell species with fast metabolic turnover and fast growth, and with slow turnover and slow growth!
 </p>
 
 <table width="400px">
@@ -305,23 +305,72 @@ function logStats(){
 	<td style="width:5%">100</td>
 	<td style="width:70%">
 		<div class="range-wrap">
-		  <input type="range" class="range" min="100" max="1000" id="Vxdiv" oninput="sim.C.getConstraint('VolumeConstraint').conf.division_volume[1]=this.value" >
+		  <input type="range" class="range" min="100" max="1000" id="Vxdiv" oninput="sim.C.getConstraint('VolumeConstraint').conf.division_volume[1]=parseInt(this.value)" >
 		  <output class="bubble"></output>
 		</div>
 	</td>
 	<td style="width:5%">1000</td>
-</tr>
-<tr>
+	<td></td>
+
 	<td style="width:20%">V<sub>y,div</sub></td>
 	<td style="width:5%">100</td>
 	<td style="width:70%">
 		<div class="range-wrap">
-		  <input type="range" class="range" min="100" max="1000" id="Vydiv" oninput="sim.C.getConstraint('VolumeConstraint').conf.division_volume[2]=this.value" >
+		  <input type="range" class="range" min="100" max="1000" id="Vydiv" oninput="sim.C.getConstraint('VolumeConstraint').conf.division_volume[2]=parseInt(this.value)" >
 		  <output class="bubble"></output>
 		</div>
 	</td>
 	<td style="width:5%">1000</td>
 </tr>
+
+<tr>
+	<td style="width:20%">gM<sub>x</sub></td>
+	<td style="width:5%">15</td>
+	<td style="width:70%">
+		<div class="range-wrap">
+		  <input type="range" class="range" min="15" max="25" id="gMx" step="0.1" oninput="sim.C.getConstraint('VolumeConstraint').conf.gM[1]=parseFloat(this.value)" >
+		  <output class="bubble"></output>
+		</div>
+	</td>
+	<td style="width:5%">25</td>
+	<td></td>
+
+	<td style="width:20%">gM<sub>y</sub></td>
+	<td style="width:5%">15</td>
+	<td style="width:70%">
+		<div class="range-wrap">
+		  <input type="range" class="range" min="15" max="25" id="gMy" step="0.1" oninput="sim.C.getConstraint('VolumeConstraint').conf.gM[2]=parseFloat(this.value)" >
+		  <output class="bubble"></output>
+		</div>
+	</td>
+	<td style="width:5%">25</td>
+	<td></td>
+</tr>
+
+<tr>
+	<td style="width:20%">dM<sub>x</sub></td>
+	<td style="width:5%">0.0</td>
+	<td style="width:70%">
+		<div class="range-wrap">
+		  <input type="range" class="range" min="0.0" max="0.01" id="dMx" step="0.001" oninput="sim.C.getConstraint('VolumeConstraint').conf.dtM[1]=parseFloat(this.value)" >
+		  <output class="bubble"></output>
+		</div>
+	</td>
+	<td style="width:5%">0.01</td>
+	<td></td>
+
+	<td style="width:20%">dM<sub>y</sub></td>
+	<td style="width:5%">0.0</td>
+	<td style="width:70%">
+		<div class="range-wrap">
+		  <input type="range" class="range" min="0.0" max="0.01" id="dMy" step="0.001" oninput="sim.C.getConstraint('VolumeConstraint').conf.dtM[2]=parseFloat(this.value)" >
+		  <output class="bubble"></output>
+		</div>
+	</td>
+	<td style="width:5%">0.01</td>
+	<td></td>
+</tr>
+
 </table>
 
 <label class="switch">
