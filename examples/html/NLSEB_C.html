@@ -41,30 +41,30 @@ let config = {
 
 		CELLS : ["empty", CPM.CDivider, CPM.CDivider], //The cell internal classes.
 
-		// Used by Divider class; [cell X, cell Y].
-		INIT_PRODUCTS : [ [40,	40],			//Not used.
-										  [40,	40] ],
-		INIT_V : 					[250,	125],			//Initial targetV.
+		INIT_V : 			[250,	125],			//Initial targetV.
 		INIT_LIFESPAN:		[100,	100],			//Initial max. lifespan (set_max_lifespan needs to be true).
-		NOISE : 					[0,		0],				//Not used.
+		NOISE : 			[0,		0],				//Not used.
 
 		// Used in postMCSListener; [background, cell X, cell Y].
-    division_volume : 				[0,	500,	250],		//Nr of pixels at which a cell will divide. [SLIDERS!]
-		growth_rate : 						[0,	10,		10],		//Nr of pixels added to targetV if actualV is close to targetV. [SLIDERS!]
-		shrink_rate : 						3,								//Nr of pixels that are subtracted off targetV every timestep.
-		death_rate : 							[0,	0,		0],			//Death rates. [SLIDERS!]
-		death_shrink_rate :				1,								//Extra shrinkage for cells marked for death (lifespan <= 0).
-		vol_dep_death : 					false,							//Death rate is proportional to cell volume.
-		set_max_lifespan :				false,							//Use with INIT_LIFESPAN to set the max. lifespan for each cell type.
+        division_volume : 				[0,	500,	250],		//Nr of pixels at which a cell will divide. [SLIDERS!]
+		growth_rate : 				[0,	10,		10],		//Nr of pixels added to targetV if actualV is close to targetV. [SLIDERS!]
+		shrink_rate : 				3,						//Nr of pixels that are subtracted off targetV every timestep.
+		death_rate : 				[0,	0,		0],			//Death rates. [SLIDERS!]
+		death_shrink_rate :			1,						//Extra shrinkage for cells marked for death (lifespan <= 0).
+		vol_dep_death : 			false,					//Death rate is proportional to cell volume.
+		set_max_lifespan :			true,					//Use with INIT_LIFESPAN to set the max. lifespan for each cell type.
 
-    // Adhesion.
-    J:[ [15,15,15],
-				[15,15,15],
-				[15,15,15] ],
+        // Adhesion.
+        J:[ [15,15,15],
+			[15,15,15],
+			[15,15,15] ],
 
 		// VolumeConstraint parameters.
 		LAMBDA_V :				[0,	1,		1],				// VolumeConstraint importance per cellkind.
-		V :								[0, 200,	100]			// Unused - are backup.
+		V :								[0, 200,	100],			// Unused - are backup.
+		// Used by Divider class; [cell X, cell Y].
+		INIT_PRODUCTS : [ [40,	40],			//Not used.
+						[40,	40] ],
 
 	},
 
@@ -271,7 +271,7 @@ function getColor (cid) {
 			return this.conf["CELLCOLOR"][this.C.cellKind(cid)-1]
 		}
 	}
-	let c = Math.floor(this.C.cells[cid].lifespan / 5)
+	let c = Math.floor(this.C.cells[cid].lifespan )
 	if (c >= cmap.length){
 		c = cmap.length - 1
 	} else if (c < 0){
