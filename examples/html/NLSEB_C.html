@@ -50,10 +50,10 @@ let config = {
 
 		// Used in postMCSListener; [background, cell X, cell Y].
     division_volume : 				[0,	500,	250],		//Nr of pixels at which a cell will divide. [SLIDERS!]
-		growth_rate : 						[0,	20,		20],		//Nr of pixels added to targetV if actualV is close to targetV. [SLIDERS!]
-		shrink_rate : 						10,								//Nr of pixels that are subtracted off targetV every timestep.
+		growth_rate : 						[0,	10,		10],		//Nr of pixels added to targetV if actualV is close to targetV. [SLIDERS!]
+		shrink_rate : 						3,								//Nr of pixels that are subtracted off targetV every timestep.
 		death_rate : 							[0,	0,		0],			//Death rates. [SLIDERS!]
-		death_shrink_rate :				10,								//Extra shrinkage for cells marked for death (lifespan <= 0).
+		death_shrink_rate :				1,								//Extra shrinkage for cells marked for death (lifespan <= 0).
 		vol_dep_death : 					false,							//Death rate is proportional to cell volume.
 		set_max_lifespan :				false,							//Use with INIT_LIFESPAN to set the max. lifespan for each cell type.
 
@@ -174,7 +174,7 @@ function updateCell(C, cell){
 	let actualV = C.getVolume(cell.id)	//Current real volume.
   let targetV = cell.V								//Target volume.
 
-	if ((targetV - actualV) < 10){	//Cellular growth.
+	if ((targetV - actualV) < 10 && cell.lifespan > 0){	//Cellular growth.
 		targetV += C.conf.growth_rate[cell.kind]
 	}
 	targetV -= C.conf.shrink_rate		//Standard shrinking rate (i.e. when targetV exceeds actualV by more than 10 pixels, cells only shrink; otherwise they grow with growth_rate - shrink_rate).
@@ -199,9 +199,17 @@ function updateCell(C, cell){
 
 	if (cell.lifespan <= 0){	//Implements slow death.
 		targetV -= C.conf.death_shrink_rate
+		if (C.random() < 0.01){
+			console.log(cell.V, targetV, actualV)
+		}
+		
 	}
-
-  cell.V = targetV
+	
+    cell.V = targetV
+    if (cell.V < -50 && cell.vol > 2){ // this seeds a single background pixel for 'very dying' cells, which enables the field to die out
+		C.setpix(C.getStat( CPM.PixelsByCell )[cell.id][0], 0)
+	}
+	
 }
 
 
@@ -336,25 +344,25 @@ function logStats(){
 
 <tr>
 	<td style="width:20%">g<sub>x</sub></td>
-	<td style="width:5%">15</td>
+	<td style="width:5%">5</td>
 	<td style="width:70%">
 		<div class="range-wrap">
-		  <input type="range" class="range" min="15" max="25" id="gx" step="0.1" oninput="sim.C.getConstraint('VolumeConstraint').conf.growth_rate[1]=parseFloat(this.value)">
+		  <input type="range" class="range" min="5" max="15" id="gx" step="0.1" oninput="sim.C.getConstraint('VolumeConstraint').conf.growth_rate[1]=parseFloat(this.value)">
 		  <output class="bubble"></output>
 		</div>
 	</td>
-	<td style="width:5%">25</td>
+	<td style="width:5%">15</td>
 	<td></td>
 
 	<td style="width:20%">g<sub>y</sub></td>
-	<td style="width:5%">15</td>
+	<td style="width:5%">5</td>
 	<td style="width:70%">
 		<div class="range-wrap">
-		  <input type="range" class="range" min="15" max="25" id="gy" step="0.1" oninput="sim.C.getConstraint('VolumeConstraint').conf.growth_rate[2]=parseFloat(this.value)">
+		  <input type="range" class="range" min="5" max="15" id="gy" step="0.1" oninput="sim.C.getConstraint('VolumeConstraint').conf.growth_rate[2]=parseFloat(this.value)">
 		  <output class="bubble"></output>
 		</div>
 	</td>
-	<td style="width:5%">25</td>
+	<td style="width:5%">15</td>
 </tr>
 
 <tr>
